@@ -1,0 +1,46 @@
+{
+  "project_info": {
+    "project_number": "862731638391",
+    "project_id": "login-d47c7",
+    "storage_bucket": "login-d47c7.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:862731638391:android:c39a8d14ec8857f0815872",
+        "android_client_info": {
+          "package_name": "com.example.yalla_trip"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "862731638391-57sja2stiqohd1g4ah0ac05cnjng7f4o.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDHP1GlxDHmaaFZmrGA7aPMdKkOHgrXOCc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "862731638391-57sja2stiqohd1g4ah0ac05cnjng7f4o.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "862731638391-0s0lnqc4og8q718envarh8tf6hqsr3uo.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.yallatrip.app.ios"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

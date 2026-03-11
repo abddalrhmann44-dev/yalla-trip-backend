@@ -1,0 +1,65 @@
+name: yalla_trip
+description: Yalla Trip - Your ultimate travel companion app.
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Icons
+  cupertino_icons: ^1.0.8
+
+  # Google Fonts (Outfit font)
+  google_fonts: ^6.2.1
+
+  # HTTP requests
+  http: ^1.2.1
+
+  # Local storage
+  shared_preferences: ^2.2.3
+
+  # State management
+  provider: ^6.1.2
+
+  # Image handling
+  cached_network_image: ^3.3.1
+
+  # Smooth page transitions
+  page_transition: ^2.1.0
+
+  # Form validation
+  email_validator: ^2.1.17
+
+  # Shimmer loading effect
+  shimmer: ^3.0.0
+  google_sign_in: ^6.2.1
+  sign_in_with_apple: ^6.1.0
+
+  # Firebase
+  firebase_core: ^2.32.0
+  firebase_auth: ^4.20.0
+  cloud_firestore: ^4.17.5
+  firebase_storage: ^11.7.7
+  url_launcher: ^6.2.5
+  image_picker: ^1.1.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/images/hero/
+    - assets/images/destinations/
+    - assets/images/properties/
+    - assets/images/categories/
+    - assets/images/onboarding/
+    
+  
