@@ -1,7 +1,6 @@
 // ═══════════════════════════════════════════════════════════════
-//  YALLA TRIP — Login Page  (Premium Dark Design)
+//  YALLA TRIP — Login Page  (Clean Minimal White — matches Welcome)
 // ═══════════════════════════════════════════════════════════════
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -46,16 +45,23 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
     {'flag': '🇺🇸', 'name': 'USA',          'code': '+1'},
   ];
 
-  late final AnimationController _bgCtrl = AnimationController(
-      vsync: this, duration: const Duration(seconds: 8))..repeat(reverse: true);
   late final AnimationController _fadeCtrl = AnimationController(
       vsync: this, duration: const Duration(milliseconds: 700))..forward();
   late final Animation<double> _fade =
       CurvedAnimation(parent: _fadeCtrl, curve: Curves.easeOut);
 
   @override
+  void initState() {
+    super.initState();
+    SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.dark,
+    ));
+  }
+
+  @override
   void dispose() {
-    _bgCtrl.dispose(); _fadeCtrl.dispose();
+    _fadeCtrl.dispose();
     _emailCtrl.dispose(); _passCtrl.dispose();
     _phoneCtrl.dispose(); _nameCtrl.dispose();
     super.dispose();
@@ -124,7 +130,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
     setState(() => _isLoading = true);
     try {
       await _auth.signInWithEmailAndPassword(
-        email: _emailCtrl.text.trim(), password: _passCtrl.text.trim());
+          email: _emailCtrl.text.trim(), password: _passCtrl.text.trim());
       if (mounted) _goHome();
     } on FirebaseAuthException catch (e) {
       String msg = 'حدث خطأ، حاول مرة أخرى';
@@ -166,7 +172,9 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
       await _auth.signInWithCredential(cred);
       if (mounted) _goHome();
     } on SignInWithAppleAuthorizationException catch (e) {
-      if (e.code != AuthorizationErrorCode.canceled) _showError('Apple Sign In فشل');
+      if (e.code != AuthorizationErrorCode.canceled) {
+        _showError('Apple Sign In فشل');
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -192,17 +200,23 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
       builder: (_) => Container(
         height: MediaQuery.of(context).size.height * 0.55,
         decoration: const BoxDecoration(
-          color: Color(0xFF0F1E35),
+          color: Colors.white,
           borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
         ),
         child: Column(children: [
-          Container(margin: const EdgeInsets.only(top: 12),
-              width: 40, height: 4,
-              decoration: BoxDecoration(
-                  color: Colors.white24, borderRadius: BorderRadius.circular(2))),
-          const Padding(padding: EdgeInsets.all(20),
-              child: Text('اختر الدولة', style: TextStyle(
-                  fontSize: 18, fontWeight: FontWeight.w800, color: Colors.white))),
+          Container(
+            margin: const EdgeInsets.only(top: 12),
+            width: 40, height: 4,
+            decoration: BoxDecoration(
+                color: Colors.grey.shade200,
+                borderRadius: BorderRadius.circular(2)),
+          ),
+          const Padding(
+            padding: EdgeInsets.all(20),
+            child: Text('اختر الدولة',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800,
+                    color: Color(0xFF0D1B2A))),
+          ),
           Expanded(child: ListView.builder(
             itemCount: _countries.length,
             itemBuilder: (ctx, i) {
@@ -214,9 +228,13 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                 title: Text('${c['name']} (${c['code']})',
                     style: TextStyle(
                         fontWeight: sel ? FontWeight.w800 : FontWeight.w500,
-                        color: sel ? const Color(0xFF42A5F5) : Colors.white70)),
-                trailing: sel ? const Icon(Icons.check_circle_rounded,
-                    color: Color(0xFF1565C0)) : null,
+                        color: sel
+                            ? const Color(0xFF1565C0)
+                            : const Color(0xFF0D1B2A))),
+                trailing: sel
+                    ? const Icon(Icons.check_circle_rounded,
+                        color: Color(0xFF1565C0))
+                    : null,
                 onTap: () {
                   setState(() {
                     _countryCode = c['code']!;
@@ -236,451 +254,510 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
   // ── Build ────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
-    final size = MediaQuery.of(context).size;
     return Scaffold(
-      backgroundColor: const Color(0xFF060D1A),
-      body: Stack(fit: StackFit.expand, children: [
+      backgroundColor: Colors.white,
+      body: FadeTransition(
+        opacity: _fade,
+        child: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
 
-        AnimatedBuilder(
-          animation: _bgCtrl,
-          builder: (_, __) => CustomPaint(
-            painter: _AuthBgPainter(_bgCtrl.value, isLogin: true),
-            size: size,
-          ),
-        ),
+                  // ── Back ───────────────────────────
+                  _BackBtn(onTap: () => Navigator.pop(context)),
+                  const SizedBox(height: 32),
 
-        SafeArea(
-          child: FadeTransition(
-            opacity: _fade,
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
+                  // ── Logo + headline ─────────────────
+                  _MiniLogo(),
+                  const SizedBox(height: 20),
 
-                    // ── Back + Logo ─────────────────────
-                    Row(children: [
-                      _backBtn(),
-                      const Spacer(),
-                      _logoChip(),
-                    ]),
-                    const SizedBox(height: 36),
+                  const Text('تسجيل الدخول',
+                      style: TextStyle(
+                        fontSize: 30, fontWeight: FontWeight.w900,
+                        color: Color(0xFF0D1B2A), letterSpacing: -1,
+                      )),
+                  const SizedBox(height: 6),
+                  Text('أهلاً بك مجدداً في Yalla Trip',
+                      style: TextStyle(fontSize: 14,
+                          color: const Color(0xFF0D1B2A).withValues(alpha: 0.4),
+                          fontWeight: FontWeight.w500)),
 
-                    // ── Headline ────────────────────────
-                    const Text('أهلاً بك\nمجدداً 👋',
+                  const SizedBox(height: 32),
+
+                  // ── Tab ─────────────────────────────
+                  _TabSelector(
+                    selected: _tabIndex,
+                    onChanged: (i) => setState(() => _tabIndex = i),
+                  ),
+                  const SizedBox(height: 24),
+
+                  // ── Fields ──────────────────────────
+                  AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 260),
+                    child: _tabIndex == 0 ? _phoneForm() : _emailForm(),
+                  ),
+                  const SizedBox(height: 24),
+
+                  // ── Main button ─────────────────────
+                  _PrimaryBtn(
+                    label: _tabIndex == 0 ? 'إرسال رمز التحقق' : 'تسجيل الدخول',
+                    icon: _tabIndex == 0
+                        ? Icons.sms_outlined
+                        : Icons.arrow_forward_rounded,
+                    loading: _isLoading,
+                    onTap: _signIn,
+                  ),
+                  const SizedBox(height: 28),
+
+                  // ── Divider ─────────────────────────
+                  _Divider(),
+                  const SizedBox(height: 20),
+
+                  // ── Social ──────────────────────────
+                  Row(children: [
+                    Expanded(child: _SocialBtn(
+                      onTap: _isLoading ? null : _googleSignIn,
+                      child: Row(mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(width: 20, height: 20,
+                            decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: const Color(0xFFF1F3F4)),
+                            child: const Center(child: Text('G',
+                                style: TextStyle(fontSize: 12,
+                                    fontWeight: FontWeight.w900,
+                                    color: Color(0xFF4285F4))))),
+                          const SizedBox(width: 8),
+                          const Text('Google', style: TextStyle(
+                              fontSize: 14, fontWeight: FontWeight.w700,
+                              color: Color(0xFF0D1B2A))),
+                        ]),
+                    )),
+                    const SizedBox(width: 10),
+                    Expanded(child: _SocialBtn(
+                      onTap: _isLoading ? null : _appleSignIn,
+                      child: const Row(mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.apple_rounded,
+                              color: Color(0xFF0D1B2A), size: 20),
+                          SizedBox(width: 8),
+                          Text('Apple', style: TextStyle(
+                              fontSize: 14, fontWeight: FontWeight.w700,
+                              color: Color(0xFF0D1B2A))),
+                        ]),
+                    )),
+                  ]),
+
+                  const SizedBox(height: 10),
+
+                  // ── Guest ───────────────────────────
+                  _SocialBtn(
+                    onTap: _isLoading ? null : _guestLogin,
+                    child: Row(mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.person_outline_rounded,
+                            size: 18,
+                            color: const Color(0xFF0D1B2A).withValues(alpha: 0.5)),
+                        const SizedBox(width: 8),
+                        Text('تصفح كزائر',
+                            style: TextStyle(fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                                color: const Color(0xFF0D1B2A)
+                                    .withValues(alpha: 0.6))),
+                      ]),
+                  ),
+
+                  const SizedBox(height: 28),
+
+                  // ── Register link ───────────────────
+                  Center(
+                    child: GestureDetector(
+                      onTap: () => Navigator.push(context,
+                          MaterialPageRoute(
+                              builder: (_) => const RegisterPage())),
+                      child: RichText(text: TextSpan(
+                        text: 'مش عندك حساب؟  ',
                         style: TextStyle(
-                          fontSize: 38, fontWeight: FontWeight.w900,
-                          color: Colors.white, height: 1.1, letterSpacing: -1,
-                        )),
-                    const SizedBox(height: 10),
-                    Text('تسجيل الدخول للمتابعة',
-                        style: TextStyle(fontSize: 14,
-                            color: Colors.white.withValues(alpha: 0.5),
-                            fontWeight: FontWeight.w500)),
-                    const SizedBox(height: 32),
-
-                    // ── Tab selector ────────────────────
-                    _tabSelector(),
-                    const SizedBox(height: 24),
-
-                    // ── Form fields ─────────────────────
-                    AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 280),
-                      child: _tabIndex == 0 ? _phoneForm() : _emailForm(),
+                            color: const Color(0xFF0D1B2A).withValues(alpha: 0.4),
+                            fontSize: 13.5),
+                        children: const [TextSpan(
+                          text: 'سجّل دلوقتي',
+                          style: TextStyle(
+                              color: Color(0xFF1565C0),
+                              fontWeight: FontWeight.w800,
+                              decoration: TextDecoration.underline,
+                              decorationColor: Color(0xFF1565C0)),
+                        )],
+                      )),
                     ),
-                    const SizedBox(height: 24),
-
-                    // ── Main button ─────────────────────
-                    _mainBtn(),
-                    const SizedBox(height: 28),
-
-                    // ── Divider ─────────────────────────
-                    _divider(),
-                    const SizedBox(height: 20),
-
-                    // ── Social ──────────────────────────
-                    _socialRow(),
-                    const SizedBox(height: 12),
-                    _guestBtn(),
-                    const SizedBox(height: 28),
-
-                    // ── Register link ───────────────────
-                    _registerLink(),
-                    const SizedBox(height: 24),
-                  ],
-                ),
+                  ),
+                  const SizedBox(height: 32),
+                ],
               ),
             ),
           ),
         ),
-      ]),
+      ),
     );
   }
 
-  // ── Widgets ──────────────────────────────────────────────────
+  // ── Form widgets ─────────────────────────────────────────────
 
-  Widget _backBtn() => GestureDetector(
-    onTap: () => Navigator.pop(context),
+  Widget _phoneForm() => Column(key: const ValueKey('phone'), children: [
+    _Field(
+      ctrl: _nameCtrl, hint: 'الاسم الكامل',
+      icon: Icons.person_outline_rounded,
+      validator: (v) => _tabIndex == 0 && (v == null || v.trim().length < 3)
+          ? 'أدخل اسمك الكامل' : null,
+    ),
+    const SizedBox(height: 12),
+    _CountryPhoneField(
+      flag: _countryFlag, code: _countryCode, name: _countryName,
+      ctrl: _phoneCtrl,
+      onPickCountry: _showCountryPicker,
+      validator: (v) => _tabIndex == 0 && (v == null || v.length < 9)
+          ? 'أدخل رقم هاتف صحيح' : null,
+    ),
+    const SizedBox(height: 6),
+    Align(alignment: Alignment.centerRight,
+      child: Text('سيتم إرسال رمز OTP على رقمك',
+          style: TextStyle(fontSize: 12,
+              color: const Color(0xFF0D1B2A).withValues(alpha: 0.35)))),
+  ]);
+
+  Widget _emailForm() => Column(key: const ValueKey('email'), children: [
+    _Field(
+      ctrl: _emailCtrl, hint: 'البريد الإلكتروني',
+      icon: Icons.email_outlined,
+      keyType: TextInputType.emailAddress,
+      validator: (v) => _tabIndex == 1 && (v == null || !v.contains('@'))
+          ? 'أدخل بريد إلكتروني صحيح' : null,
+    ),
+    const SizedBox(height: 12),
+    _Field(
+      ctrl: _passCtrl, hint: 'كلمة المرور',
+      icon: Icons.lock_outline_rounded,
+      obscure: _obscurePass,
+      suffix: IconButton(
+        icon: Icon(_obscurePass
+            ? Icons.visibility_outlined
+            : Icons.visibility_off_outlined,
+            size: 20,
+            color: const Color(0xFF0D1B2A).withValues(alpha: 0.35)),
+        onPressed: () => setState(() => _obscurePass = !_obscurePass),
+      ),
+      validator: (v) => _tabIndex == 1 && (v == null || v.length < 6)
+          ? 'كلمة المرور قصيرة جداً' : null,
+    ),
+    Align(alignment: Alignment.centerLeft,
+      child: TextButton(
+        onPressed: () {},
+        style: TextButton.styleFrom(
+            padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 6),
+            minimumSize: Size.zero,
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap),
+        child: const Text('نسيت كلمة المرور؟',
+            style: TextStyle(fontSize: 13, color: Color(0xFF1565C0),
+                fontWeight: FontWeight.w700)),
+      )),
+  ]);
+}
+
+// ══════════════════════════════════════════════════════════════
+//  SHARED WIDGETS — same style as WelcomePage
+// ══════════════════════════════════════════════════════════════
+
+class _BackBtn extends StatelessWidget {
+  final VoidCallback onTap;
+  const _BackBtn({required this.onTap});
+  @override
+  Widget build(BuildContext context) => GestureDetector(
+    onTap: onTap,
     child: Container(
-      width: 42, height: 42,
+      width: 44, height: 44,
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(13),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+        color: const Color(0xFFF5F7FF),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+            color: const Color(0xFF0D1B2A).withValues(alpha: 0.08)),
       ),
       child: const Icon(Icons.arrow_back_ios_new_rounded,
-          size: 15, color: Colors.white),
+          size: 16, color: Color(0xFF0D1B2A)),
     ),
   );
+}
 
-  Widget _logoChip() => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+class _MiniLogo extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) => Container(
+    width: 48, height: 48,
     decoration: BoxDecoration(
-      gradient: const LinearGradient(
-          colors: [Color(0xFF1565C0), Color(0xFF1E88E5)]),
-      borderRadius: BorderRadius.circular(12),
+      color: const Color(0xFF1565C0),
+      borderRadius: BorderRadius.circular(15),
+      boxShadow: [BoxShadow(
+        color: const Color(0xFF1565C0).withValues(alpha: 0.20),
+        blurRadius: 12, offset: const Offset(0, 5),
+      )],
     ),
-    child: const Row(mainAxisSize: MainAxisSize.min, children: [
-      Icon(Icons.flight_takeoff_rounded, color: Colors.white, size: 14),
-      SizedBox(width: 5),
-      Text('Yalla Trip', style: TextStyle(
-          color: Colors.white, fontSize: 12, fontWeight: FontWeight.w800)),
-    ]),
+    child: Center(
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        const Icon(Icons.flight_takeoff_rounded,
+            color: Colors.white, size: 20),
+        const SizedBox(height: 2),
+        Container(width: 16, height: 2,
+          decoration: BoxDecoration(
+            color: const Color(0xFFFF6D00),
+            borderRadius: BorderRadius.circular(1))),
+      ]),
+    ),
   );
+}
 
-  Widget _tabSelector() => Container(
+class _TabSelector extends StatelessWidget {
+  final int selected;
+  final ValueChanged<int> onChanged;
+  const _TabSelector({required this.selected, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) => Container(
     height: 50,
     decoration: BoxDecoration(
-      color: Colors.white.withValues(alpha: 0.06),
-      borderRadius: BorderRadius.circular(15),
-      border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+      color: const Color(0xFFF5F7FF),
+      borderRadius: BorderRadius.circular(14),
     ),
     child: Row(children: [
-      _tabItem(0, Icons.phone_android_rounded, 'رقم الهاتف'),
-      _tabItem(1, Icons.email_outlined,        'البريد الإلكتروني'),
+      _item(0, Icons.phone_android_rounded, 'رقم الهاتف'),
+      _item(1, Icons.email_outlined, 'البريد الإلكتروني'),
     ]),
   );
 
-  Widget _tabItem(int idx, IconData icon, String label) {
-    final sel = _tabIndex == idx;
+  Widget _item(int idx, IconData icon, String label) {
+    final sel = selected == idx;
     return Expanded(
       child: GestureDetector(
-        onTap: () => setState(() => _tabIndex = idx),
+        onTap: () => onChanged(idx),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 220),
           margin: const EdgeInsets.all(4),
           decoration: BoxDecoration(
-            gradient: sel ? const LinearGradient(
-                colors: [Color(0xFF1565C0), Color(0xFF1E88E5)]) : null,
+            color: sel ? Colors.white : Colors.transparent,
             borderRadius: BorderRadius.circular(11),
+            boxShadow: sel ? [BoxShadow(
+              color: Colors.black.withValues(alpha: 0.07),
+              blurRadius: 8, offset: const Offset(0, 2),
+            )] : [],
           ),
           child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
             Icon(icon, size: 15,
-                color: sel ? Colors.white : Colors.white38),
+                color: sel
+                    ? const Color(0xFF1565C0)
+                    : const Color(0xFF0D1B2A).withValues(alpha: 0.35)),
             const SizedBox(width: 5),
             Text(label, style: TextStyle(
               fontSize: 12, fontWeight: FontWeight.w700,
-              color: sel ? Colors.white : Colors.white38,
+              color: sel
+                  ? const Color(0xFF1565C0)
+                  : const Color(0xFF0D1B2A).withValues(alpha: 0.35),
             )),
           ]),
         ),
       ),
     );
   }
+}
 
-  Widget _glassCard({required Widget child}) => Container(
+class _Field extends StatelessWidget {
+  final TextEditingController ctrl;
+  final String hint;
+  final IconData icon;
+  final bool obscure;
+  final Widget? suffix;
+  final TextInputType? keyType;
+  final List<TextInputFormatter>? formatters;
+  final String? Function(String?)? validator;
+
+  const _Field({
+    required this.ctrl, required this.hint, required this.icon,
+    this.obscure = false, this.suffix, this.keyType,
+    this.formatters, this.validator,
+  });
+
+  @override
+  Widget build(BuildContext context) => Container(
     decoration: BoxDecoration(
-      color: Colors.white.withValues(alpha: 0.07),
-      borderRadius: BorderRadius.circular(16),
-      border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+      color: const Color(0xFFF5F7FF),
+      borderRadius: BorderRadius.circular(14),
+      border: Border.all(
+          color: const Color(0xFF0D1B2A).withValues(alpha: 0.07)),
     ),
-    child: child,
-  );
-
-  InputDecoration _inputDec(String hint, IconData icon, {Widget? suffix}) =>
-      InputDecoration(
+    child: TextFormField(
+      controller: ctrl,
+      obscureText: obscure,
+      keyboardType: keyType,
+      inputFormatters: formatters,
+      validator: validator,
+      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600,
+          color: Color(0xFF0D1B2A)),
+      decoration: InputDecoration(
         hintText: hint,
-        hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.3), fontSize: 14),
-        prefixIcon: Icon(icon, size: 20, color: const Color(0xFF42A5F5)),
+        hintStyle: TextStyle(
+            color: const Color(0xFF0D1B2A).withValues(alpha: 0.3),
+            fontSize: 14),
+        prefixIcon: Icon(icon, size: 20,
+            color: const Color(0xFF1565C0).withValues(alpha: 0.7)),
         suffixIcon: suffix,
         border: InputBorder.none,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
-      );
-
-  Widget _phoneForm() => Column(key: const ValueKey('phone'), children: [
-    _glassCard(child: TextFormField(
-      controller: _nameCtrl,
-      textCapitalization: TextCapitalization.words,
-      style: const TextStyle(color: Colors.white, fontSize: 15,
-          fontWeight: FontWeight.w600),
-      validator: (v) => _tabIndex == 0 && (v == null || v.trim().length < 3)
-          ? 'أدخل اسمك الكامل' : null,
-      decoration: _inputDec('الاسم الكامل', Icons.person_outline_rounded),
-    )),
-    const SizedBox(height: 12),
-    _glassCard(child: Column(children: [
-      GestureDetector(
-        onTap: _showCountryPicker,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
-          decoration: BoxDecoration(
-              border: Border(bottom: BorderSide(
-                  color: Colors.white.withValues(alpha: 0.08), width: 1))),
-          child: Row(children: [
-            Text(_countryFlag, style: const TextStyle(fontSize: 22)),
-            const SizedBox(width: 8),
-            Expanded(child: Text('$_countryName ($_countryCode)',
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600,
-                    color: Colors.white.withValues(alpha: 0.7)))),
-            Icon(Icons.expand_more_rounded,
-                color: Colors.white.withValues(alpha: 0.3), size: 20),
-          ]),
-        ),
+        contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16, vertical: 18),
       ),
-      TextFormField(
-        controller: _phoneCtrl,
-        keyboardType: TextInputType.phone,
-        inputFormatters: [FilteringTextInputFormatter.digitsOnly,
-          LengthLimitingTextInputFormatter(11)],
-        style: const TextStyle(color: Colors.white, fontSize: 15,
-            fontWeight: FontWeight.w600),
-        validator: (v) => _tabIndex == 0 && (v == null || v.length < 9)
-            ? 'أدخل رقم هاتف صحيح' : null,
-        decoration: _inputDec('رقم الهاتف', Icons.phone_outlined),
-      ),
-    ])),
-    const SizedBox(height: 6),
-    Padding(padding: const EdgeInsets.only(right: 4),
-      child: Text('سيتم إرسال رمز OTP على رقمك',
-          style: TextStyle(fontSize: 12,
-              color: Colors.white.withValues(alpha: 0.3)))),
-  ]);
-
-  Widget _emailForm() => Column(key: const ValueKey('email'), children: [
-    _glassCard(child: TextFormField(
-      controller: _emailCtrl,
-      keyboardType: TextInputType.emailAddress,
-      style: const TextStyle(color: Colors.white, fontSize: 15,
-          fontWeight: FontWeight.w600),
-      validator: (v) => _tabIndex == 1 && (v == null || !v.contains('@'))
-          ? 'أدخل بريد إلكتروني صحيح' : null,
-      decoration: _inputDec('البريد الإلكتروني', Icons.email_outlined),
-    )),
-    const SizedBox(height: 12),
-    _glassCard(child: TextFormField(
-      controller: _passCtrl,
-      obscureText: _obscurePass,
-      style: const TextStyle(color: Colors.white, fontSize: 15,
-          fontWeight: FontWeight.w600),
-      validator: (v) => _tabIndex == 1 && (v == null || v.length < 6)
-          ? 'كلمة المرور قصيرة جداً' : null,
-      decoration: _inputDec('كلمة المرور', Icons.lock_outline_rounded,
-          suffix: IconButton(
-            icon: Icon(_obscurePass ? Icons.visibility_outlined
-                : Icons.visibility_off_outlined,
-                size: 20, color: Colors.white38),
-            onPressed: () => setState(() => _obscurePass = !_obscurePass),
-          )),
-    )),
-    Align(alignment: Alignment.centerLeft,
-      child: TextButton(
-        onPressed: () {},
-        style: TextButton.styleFrom(
-            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
-            minimumSize: Size.zero,
-            tapTargetSize: MaterialTapTargetSize.shrinkWrap),
-        child: const Text('نسيت كلمة المرور؟',
-            style: TextStyle(fontSize: 13, color: Color(0xFF42A5F5),
-                fontWeight: FontWeight.w700)),
-      )),
-  ]);
-
-  Widget _mainBtn() => GestureDetector(
-    onTap: _isLoading ? null : _signIn,
-    child: Container(
-      width: double.infinity, height: 58,
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: _isLoading
-              ? [const Color(0xFF1565C0).withValues(alpha: 0.5),
-                 const Color(0xFF1E88E5).withValues(alpha: 0.5)]
-              : [const Color(0xFF1565C0), const Color(0xFF1E88E5)],
-        ),
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: _isLoading ? [] : [BoxShadow(
-          color: const Color(0xFF1565C0).withValues(alpha: 0.45),
-          blurRadius: 20, offset: const Offset(0, 8),
-        )],
-      ),
-      child: Center(child: _isLoading
-          ? const SizedBox(width: 24, height: 24,
-              child: CircularProgressIndicator(
-                  color: Colors.white, strokeWidth: 2.5))
-          : Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-              Text(_tabIndex == 0 ? 'إرسال رمز التحقق' : 'تسجيل الدخول',
-                  style: const TextStyle(fontSize: 16,
-                      fontWeight: FontWeight.w900, color: Colors.white)),
-              const SizedBox(width: 8),
-              Icon(_tabIndex == 0 ? Icons.sms_outlined
-                  : Icons.arrow_forward_rounded,
-                  size: 18, color: Colors.white),
-            ])),
-    ),
-  );
-
-  Widget _divider() => Row(children: [
-    Expanded(child: Divider(color: Colors.white.withValues(alpha: 0.1))),
-    Padding(padding: const EdgeInsets.symmetric(horizontal: 14),
-      child: Text('أو تابع بـ',
-          style: TextStyle(fontSize: 12,
-              color: Colors.white.withValues(alpha: 0.3),
-              fontWeight: FontWeight.w500))),
-    Expanded(child: Divider(color: Colors.white.withValues(alpha: 0.1))),
-  ]);
-
-  Widget _socialRow() => Row(children: [
-    Expanded(child: _socialChip(
-        onTap: _googleSignIn,
-        child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-          Container(width: 22, height: 22,
-            decoration: BoxDecoration(shape: BoxShape.circle,
-                color: Colors.white.withValues(alpha: 0.1)),
-            child: const Center(child: Text('G', style: TextStyle(
-                fontSize: 13, fontWeight: FontWeight.w900,
-                color: Color(0xFF4285F4))))),
-          const SizedBox(width: 7),
-          const Text('Google', style: TextStyle(
-              fontSize: 14, fontWeight: FontWeight.w700, color: Colors.white)),
-        ]))),
-    const SizedBox(width: 10),
-    Expanded(child: _socialChip(
-        onTap: _appleSignIn,
-        child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-          Icon(Icons.apple_rounded, color: Colors.white, size: 20),
-          SizedBox(width: 7),
-          Text('Apple', style: TextStyle(
-              fontSize: 14, fontWeight: FontWeight.w700, color: Colors.white)),
-        ]))),
-  ]);
-
-  Widget _socialChip({required VoidCallback onTap, required Widget child}) =>
-      GestureDetector(
-        onTap: _isLoading ? null : onTap,
-        child: Container(
-          height: 52,
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.07),
-            borderRadius: BorderRadius.circular(15),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
-          ),
-          child: child,
-        ),
-      );
-
-  Widget _guestBtn() => GestureDetector(
-    onTap: _isLoading ? null : _guestLogin,
-    child: Container(
-      width: double.infinity, height: 50,
-      decoration: BoxDecoration(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(15),
-        border: Border.all(
-            color: const Color(0xFFFF6D00).withValues(alpha: 0.35), width: 1.5),
-      ),
-      child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-        Container(width: 28, height: 28,
-          decoration: BoxDecoration(shape: BoxShape.circle,
-              color: const Color(0xFFFF6D00).withValues(alpha: 0.12)),
-          child: const Icon(Icons.person_outline_rounded,
-              size: 16, color: Color(0xFFFF6D00))),
-        const SizedBox(width: 8),
-        const Text('تصفح كزائر',
-            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700,
-                color: Color(0xFFFF6D00))),
-        const SizedBox(width: 5),
-        const Icon(Icons.arrow_forward_ios_rounded,
-            size: 11, color: Color(0xFFFF6D00)),
-      ]),
-    ),
-  );
-
-  Widget _registerLink() => Center(
-    child: GestureDetector(
-      onTap: () => Navigator.push(context,
-          MaterialPageRoute(builder: (_) => const RegisterPage())),
-      child: RichText(text: TextSpan(
-        text: 'مش عندك حساب؟  ',
-        style: TextStyle(color: Colors.white.withValues(alpha: 0.35),
-            fontSize: 13.5),
-        children: const [TextSpan(
-          text: 'سجّل دلوقتي',
-          style: TextStyle(color: Color(0xFF42A5F5),
-              fontWeight: FontWeight.w800,
-              decoration: TextDecoration.underline,
-              decorationColor: Color(0xFF42A5F5)),
-        )],
-      )),
     ),
   );
 }
 
-// ── Shared Auth Background Painter ─────────────────────────────
-class _AuthBgPainter extends CustomPainter {
-  final double t;
-  final bool isLogin;
-  _AuthBgPainter(this.t, {required this.isLogin});
+class _CountryPhoneField extends StatelessWidget {
+  final String flag, code, name;
+  final TextEditingController ctrl;
+  final VoidCallback onPickCountry;
+  final String? Function(String?)? validator;
+
+  const _CountryPhoneField({
+    required this.flag, required this.code, required this.name,
+    required this.ctrl, required this.onPickCountry, this.validator,
+  });
 
   @override
-  void paint(Canvas canvas, Size s) {
-    canvas.drawRect(Offset.zero & s, Paint()..color = const Color(0xFF060D1A));
-    final p = Paint()..style = PaintingStyle.fill;
+  Widget build(BuildContext context) => Container(
+    decoration: BoxDecoration(
+      color: const Color(0xFFF5F7FF),
+      borderRadius: BorderRadius.circular(14),
+      border: Border.all(
+          color: const Color(0xFF0D1B2A).withValues(alpha: 0.07)),
+    ),
+    child: Column(children: [
+      GestureDetector(
+        onTap: onPickCountry,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          decoration: BoxDecoration(
+              border: Border(bottom: BorderSide(
+                  color: const Color(0xFF0D1B2A).withValues(alpha: 0.07)))),
+          child: Row(children: [
+            Text(flag, style: const TextStyle(fontSize: 22)),
+            const SizedBox(width: 8),
+            Expanded(child: Text('$name ($code)',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600,
+                    color: const Color(0xFF0D1B2A).withValues(alpha: 0.7)))),
+            Icon(Icons.expand_more_rounded,
+                color: const Color(0xFF0D1B2A).withValues(alpha: 0.3),
+                size: 20),
+          ]),
+        ),
+      ),
+      TextFormField(
+        controller: ctrl,
+        keyboardType: TextInputType.phone,
+        inputFormatters: [FilteringTextInputFormatter.digitsOnly,
+          LengthLimitingTextInputFormatter(11)],
+        validator: validator,
+        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600,
+            color: Color(0xFF0D1B2A)),
+        decoration: InputDecoration(
+          hintText: 'رقم الهاتف',
+          hintStyle: TextStyle(
+              color: const Color(0xFF0D1B2A).withValues(alpha: 0.3),
+              fontSize: 14),
+          prefixIcon: Icon(Icons.phone_outlined, size: 20,
+              color: const Color(0xFF1565C0).withValues(alpha: 0.7)),
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16, vertical: 16),
+        ),
+      ),
+    ]),
+  );
+}
 
-    // Blue orb
-    p.shader = RadialGradient(colors: [
-      const Color(0xFF1565C0).withValues(alpha: isLogin ? 0.45 : 0.40),
-      const Color(0xFF1565C0).withValues(alpha: 0),
-    ]).createShader(Rect.fromCircle(
-      center: Offset(s.width * (0.88 + 0.07 * math.sin(t * math.pi)),
-                     s.height * (0.12 + 0.05 * math.cos(t * math.pi))),
-      radius: s.width * 0.6,
-    ));
-    canvas.drawCircle(
-      Offset(s.width * (0.88 + 0.07 * math.sin(t * math.pi)),
-             s.height * (0.12 + 0.05 * math.cos(t * math.pi))),
-      s.width * 0.6, p,
-    );
-
-    // Orange orb
-    p.shader = RadialGradient(colors: [
-      const Color(0xFFFF6D00).withValues(alpha: 0.22),
-      const Color(0xFFFF6D00).withValues(alpha: 0),
-    ]).createShader(Rect.fromCircle(
-      center: Offset(s.width * (0.08 + 0.05 * math.cos(t * math.pi)),
-                     s.height * (0.85 + 0.04 * math.sin(t * math.pi))),
-      radius: s.width * 0.5,
-    ));
-    canvas.drawCircle(
-      Offset(s.width * (0.08 + 0.05 * math.cos(t * math.pi)),
-             s.height * (0.85 + 0.04 * math.sin(t * math.pi))),
-      s.width * 0.5, p,
-    );
-
-    // Dot grid
-    final dot = Paint()
-      ..color = Colors.white.withValues(alpha: 0.022)
-      ..style = PaintingStyle.fill;
-    for (int r = 0; r < 22; r++) {
-      for (int c = 0; c < 11; c++) {
-        if ((r + c) % 3 == 0) {
-          canvas.drawCircle(
-              Offset(c * s.width / 10, r * s.height / 21), 1.1, dot);
-        }
-      }
-    }
-  }
+class _PrimaryBtn extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final bool loading;
+  final VoidCallback onTap;
+  const _PrimaryBtn({required this.label, required this.icon,
+      required this.loading, required this.onTap});
 
   @override
-  bool shouldRepaint(_AuthBgPainter o) => o.t != t;
+  Widget build(BuildContext context) => GestureDetector(
+    onTap: loading ? null : onTap,
+    child: AnimatedOpacity(
+      opacity: loading ? 0.7 : 1.0,
+      duration: const Duration(milliseconds: 200),
+      child: Container(
+        width: double.infinity, height: 58,
+        decoration: BoxDecoration(
+          color: const Color(0xFF1565C0),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [BoxShadow(
+            color: const Color(0xFF1565C0).withValues(alpha: 0.28),
+            blurRadius: 16, offset: const Offset(0, 6),
+          )],
+        ),
+        child: Center(child: loading
+            ? const SizedBox(width: 22, height: 22,
+                child: CircularProgressIndicator(
+                    color: Colors.white, strokeWidth: 2.5))
+            : Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                Text(label, style: const TextStyle(fontSize: 16,
+                    fontWeight: FontWeight.w900, color: Colors.white)),
+                const SizedBox(width: 8),
+                Icon(icon, color: Colors.white, size: 18),
+              ])),
+      ),
+    ),
+  );
+}
+
+class _SocialBtn extends StatelessWidget {
+  final VoidCallback? onTap;
+  final Widget child;
+  const _SocialBtn({required this.onTap, required this.child});
+
+  @override
+  Widget build(BuildContext context) => GestureDetector(
+    onTap: onTap,
+    child: Container(
+      height: 52,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+            color: const Color(0xFF0D1B2A).withValues(alpha: 0.1)),
+        boxShadow: [BoxShadow(
+          color: Colors.black.withValues(alpha: 0.04),
+          blurRadius: 8, offset: const Offset(0, 2),
+        )],
+      ),
+      child: child,
+    ),
+  );
+}
+
+class _Divider extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) => Row(children: [
+    Expanded(child: Divider(
+        color: const Color(0xFF0D1B2A).withValues(alpha: 0.1))),
+    Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 14),
+      child: Text('أو تابع بـ',
+          style: TextStyle(fontSize: 12,
+              color: const Color(0xFF0D1B2A).withValues(alpha: 0.35),
+              fontWeight: FontWeight.w500)),
+    ),
+    Expanded(child: Divider(
+        color: const Color(0xFF0D1B2A).withValues(alpha: 0.1))),
+  ]);
 }

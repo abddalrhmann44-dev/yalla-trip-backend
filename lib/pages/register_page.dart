@@ -1,7 +1,6 @@
 // ═══════════════════════════════════════════════════════════════
-//  YALLA TRIP — Register Page  (Premium Dark Design)
+//  YALLA TRIP — Register Page  (Clean Minimal White — matches Welcome)
 // ═══════════════════════════════════════════════════════════════
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -16,7 +15,7 @@ class RegisterPage extends StatefulWidget {
 }
 
 class _RegisterPageState extends State<RegisterPage>
-    with TickerProviderStateMixin {
+    with SingleTickerProviderStateMixin {
 
   final _nameCtrl    = TextEditingController();
   final _phoneCtrl   = TextEditingController();
@@ -33,16 +32,23 @@ class _RegisterPageState extends State<RegisterPage>
   final _auth      = FirebaseAuth.instance;
   final _firestore = FirebaseFirestore.instance;
 
-  late final AnimationController _bgCtrl = AnimationController(
-      vsync: this, duration: const Duration(seconds: 8))..repeat(reverse: true);
   late final AnimationController _fadeCtrl = AnimationController(
       vsync: this, duration: const Duration(milliseconds: 700))..forward();
   late final Animation<double> _fade =
       CurvedAnimation(parent: _fadeCtrl, curve: Curves.easeOut);
 
   @override
+  void initState() {
+    super.initState();
+    SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.dark,
+    ));
+  }
+
+  @override
   void dispose() {
-    _bgCtrl.dispose(); _fadeCtrl.dispose();
+    _fadeCtrl.dispose();
     _nameCtrl.dispose(); _phoneCtrl.dispose();
     _emailCtrl.dispose(); _passCtrl.dispose(); _confirmCtrl.dispose();
     super.dispose();
@@ -52,7 +58,7 @@ class _RegisterPageState extends State<RegisterPage>
   Future<void> _registerPhone() async {
     final name  = _nameCtrl.text.trim();
     final phone = _phoneCtrl.text.trim();
-    if (name.length < 3) { _err('أدخل اسمك الكامل (3 أحرف على الأقل)'); return; }
+    if (name.length < 3)  { _err('أدخل اسمك الكامل (3 أحرف على الأقل)'); return; }
     if (phone.length < 9) { _err('أدخل رقم هاتف صحيح'); return; }
 
     setState(() => _loading = true);
@@ -90,7 +96,7 @@ class _RegisterPageState extends State<RegisterPage>
     setState(() => _loading = true);
     try {
       final cred = await _auth.createUserWithEmailAndPassword(
-        email: _emailCtrl.text.trim(), password: _passCtrl.text.trim());
+          email: _emailCtrl.text.trim(), password: _passCtrl.text.trim());
       await cred.user!.updateDisplayName(_nameCtrl.text.trim());
       await _saveUser(_nameCtrl.text.trim(), _emailCtrl.text.trim(), '');
       if (mounted) _goHome();
@@ -137,228 +143,126 @@ class _RegisterPageState extends State<RegisterPage>
   // ── Build ────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
-    final size = MediaQuery.of(context).size;
     return Scaffold(
-      backgroundColor: const Color(0xFF060D1A),
-      body: Stack(fit: StackFit.expand, children: [
+      backgroundColor: Colors.white,
+      body: FadeTransition(
+        opacity: _fade,
+        child: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
 
-        AnimatedBuilder(
-          animation: _bgCtrl,
-          builder: (_, __) => CustomPaint(
-            painter: _AuthBgPainterReg(_bgCtrl.value),
-            size: size,
-          ),
-        ),
+                // ── Back ────────────────────────────
+                _BackBtn(onTap: () => Navigator.pop(context)),
+                const SizedBox(height: 32),
 
-        SafeArea(
-          child: FadeTransition(
-            opacity: _fade,
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
+                // ── Logo + headline ──────────────────
+                _MiniLogo(),
+                const SizedBox(height: 20),
 
-                  // ── Back + Logo ─────────────────────
-                  Row(children: [
-                    _backBtn(),
-                    const Spacer(),
-                    _logoChip(),
-                  ]),
-                  const SizedBox(height: 36),
+                const Text('إنشاء حساب',
+                    style: TextStyle(
+                      fontSize: 30, fontWeight: FontWeight.w900,
+                      color: Color(0xFF0D1B2A), letterSpacing: -1,
+                    )),
+                const SizedBox(height: 6),
+                Text('انضم لـ Yalla Trip واكتشف أجمل الوجهات',
+                    style: TextStyle(fontSize: 14,
+                        color: const Color(0xFF0D1B2A).withValues(alpha: 0.4),
+                        fontWeight: FontWeight.w500)),
 
-                  // ── Headline ────────────────────────
-                  const Text('انضم لينا\nدلوقتي ✨',
+                const SizedBox(height: 32),
+
+                // ── Tab ─────────────────────────────
+                _TabSelector(
+                  selected: _tab,
+                  onChanged: (i) => setState(() => _tab = i),
+                ),
+                const SizedBox(height: 24),
+
+                // ── Name (always) ────────────────────
+                _Field(
+                  ctrl: _nameCtrl, hint: 'الاسم الكامل',
+                  icon: Icons.person_outline_rounded,
+                  validator: (v) => (v == null || v.trim().length < 3)
+                      ? 'أدخل اسمك الكامل' : null,
+                ),
+                const SizedBox(height: 14),
+
+                // ── Tab fields ───────────────────────
+                AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 260),
+                  child: _tab == 0 ? _phoneFields() : _emailFields(),
+                ),
+                const SizedBox(height: 28),
+
+                // ── Submit ───────────────────────────
+                _PrimaryBtn(
+                  label: _tab == 0 ? 'إرسال رمز التحقق' : 'إنشاء الحساب',
+                  icon: _tab == 0
+                      ? Icons.sms_outlined
+                      : Icons.arrow_forward_rounded,
+                  loading: _loading,
+                  onTap: _tab == 0 ? _registerPhone : _registerEmail,
+                ),
+                const SizedBox(height: 24),
+
+                // ── Login link ───────────────────────
+                Center(
+                  child: GestureDetector(
+                    onTap: () => Navigator.pop(context),
+                    child: RichText(text: TextSpan(
+                      text: 'عندك حساب بالفعل؟  ',
                       style: TextStyle(
-                        fontSize: 38, fontWeight: FontWeight.w900,
-                        color: Colors.white, height: 1.1, letterSpacing: -1,
-                      )),
-                  const SizedBox(height: 10),
-                  Text('إنشاء حساب جديد في ثوانٍ',
-                      style: TextStyle(fontSize: 14,
-                          color: Colors.white.withValues(alpha: 0.5),
-                          fontWeight: FontWeight.w500)),
-                  const SizedBox(height: 32),
-
-                  // ── Tab ─────────────────────────────
-                  _tabSelector(),
-                  const SizedBox(height: 24),
-
-                  // ── Name (always) ───────────────────
-                  _glassField(
-                    ctrl: _nameCtrl,
-                    hint: 'الاسم الكامل',
-                    icon: Icons.person_outline_rounded,
-                  ),
-                  const SizedBox(height: 14),
-
-                  // ── Tab fields ──────────────────────
-                  AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 280),
-                    child: _tab == 0 ? _phoneFields() : _emailFields(),
-                  ),
-                  const SizedBox(height: 28),
-
-                  // ── Submit ──────────────────────────
-                  _submitBtn(),
-                  const SizedBox(height: 20),
-
-                  // ── Login link ──────────────────────
-                  Center(
-                    child: GestureDetector(
-                      onTap: () => Navigator.pop(context),
-                      child: RichText(text: TextSpan(
-                        text: 'عندك حساب بالفعل؟  ',
+                          color: const Color(0xFF0D1B2A).withValues(alpha: 0.4),
+                          fontSize: 13.5),
+                      children: const [TextSpan(
+                        text: 'سجّل دخولك',
                         style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.35),
-                            fontSize: 13.5),
-                        children: const [TextSpan(
-                          text: 'سجّل دخولك',
-                          style: TextStyle(color: Color(0xFF42A5F5),
-                              fontWeight: FontWeight.w800,
-                              decoration: TextDecoration.underline,
-                              decorationColor: Color(0xFF42A5F5)),
-                        )],
-                      )),
-                    ),
+                            color: Color(0xFF1565C0),
+                            fontWeight: FontWeight.w800,
+                            decoration: TextDecoration.underline,
+                            decorationColor: Color(0xFF1565C0)),
+                      )],
+                    )),
                   ),
-                  const SizedBox(height: 32),
-                ],
-              ),
+                ),
+                const SizedBox(height: 32),
+              ],
             ),
           ),
         ),
-      ]),
-    );
-  }
-
-  // ── Widgets ──────────────────────────────────────────────────
-
-  Widget _backBtn() => GestureDetector(
-    onTap: () => Navigator.pop(context),
-    child: Container(
-      width: 42, height: 42,
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(13),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
-      ),
-      child: const Icon(Icons.arrow_back_ios_new_rounded,
-          size: 15, color: Colors.white),
-    ),
-  );
-
-  Widget _logoChip() => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-    decoration: BoxDecoration(
-      gradient: const LinearGradient(
-          colors: [Color(0xFFFF6D00), Color(0xFFFF8F00)]),
-      borderRadius: BorderRadius.circular(12),
-    ),
-    child: const Row(mainAxisSize: MainAxisSize.min, children: [
-      Icon(Icons.flight_takeoff_rounded, color: Colors.white, size: 14),
-      SizedBox(width: 5),
-      Text('Yalla Trip', style: TextStyle(
-          color: Colors.white, fontSize: 12, fontWeight: FontWeight.w800)),
-    ]),
-  );
-
-  Widget _tabSelector() => Container(
-    height: 50,
-    decoration: BoxDecoration(
-      color: Colors.white.withValues(alpha: 0.06),
-      borderRadius: BorderRadius.circular(15),
-      border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
-    ),
-    child: Row(children: [
-      _tabItem(0, Icons.phone_android_rounded, 'رقم الهاتف'),
-      _tabItem(1, Icons.email_outlined,        'البريد الإلكتروني'),
-    ]),
-  );
-
-  Widget _tabItem(int idx, IconData icon, String label) {
-    final sel = _tab == idx;
-    return Expanded(
-      child: GestureDetector(
-        onTap: () => setState(() => _tab = idx),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 220),
-          margin: const EdgeInsets.all(4),
-          decoration: BoxDecoration(
-            gradient: sel ? const LinearGradient(
-                colors: [Color(0xFFFF6D00), Color(0xFFFF8F00)]) : null,
-            borderRadius: BorderRadius.circular(11),
-          ),
-          child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-            Icon(icon, size: 15, color: sel ? Colors.white : Colors.white38),
-            const SizedBox(width: 5),
-            Text(label, style: TextStyle(
-              fontSize: 12, fontWeight: FontWeight.w700,
-              color: sel ? Colors.white : Colors.white38,
-            )),
-          ]),
-        ),
       ),
     );
   }
 
-  Widget _glassField({
-    required TextEditingController ctrl,
-    required String hint,
-    required IconData icon,
-    bool obscure = false,
-    Widget? suffix,
-    TextInputType? keyType,
-    String? Function(String?)? validator,
-    List<TextInputFormatter>? formatters,
-  }) => Container(
-    decoration: BoxDecoration(
-      color: Colors.white.withValues(alpha: 0.07),
-      borderRadius: BorderRadius.circular(16),
-      border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
-    ),
-    child: TextFormField(
-      controller: ctrl,
-      obscureText: obscure,
-      keyboardType: keyType,
-      validator: validator,
-      inputFormatters: formatters,
-      style: const TextStyle(color: Colors.white, fontSize: 15,
-          fontWeight: FontWeight.w600),
-      decoration: InputDecoration(
-        hintText: hint,
-        hintStyle: TextStyle(
-            color: Colors.white.withValues(alpha: 0.3), fontSize: 14),
-        prefixIcon: Icon(icon, size: 20, color: const Color(0xFFFF8F00)),
-        suffixIcon: suffix,
-        border: InputBorder.none,
-        contentPadding: const EdgeInsets.symmetric(
-            horizontal: 16, vertical: 18),
-      ),
-    ),
-  );
+  // ── Form widgets ─────────────────────────────────────────────
 
   Widget _phoneFields() => Column(
     key: const ValueKey('phone'),
     children: [
       Container(
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.07),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+          color: const Color(0xFFF5F7FF),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+              color: const Color(0xFF0D1B2A).withValues(alpha: 0.07)),
         ),
         child: Row(children: [
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 18),
             decoration: BoxDecoration(
                 border: Border(right: BorderSide(
-                    color: Colors.white.withValues(alpha: 0.08), width: 1.5))),
+                    color: const Color(0xFF0D1B2A).withValues(alpha: 0.07)))),
             child: Row(mainAxisSize: MainAxisSize.min, children: [
               const Text('🇪🇬', style: TextStyle(fontSize: 22)),
               const SizedBox(width: 6),
-              Text('+20', style: TextStyle(
-                  fontWeight: FontWeight.w800,
-                  color: Colors.white.withValues(alpha: 0.7), fontSize: 14)),
+              Text('+20',
+                  style: TextStyle(fontWeight: FontWeight.w800,
+                      color: const Color(0xFF0D1B2A).withValues(alpha: 0.6),
+                      fontSize: 14)),
             ]),
           ),
           Expanded(child: TextField(
@@ -366,12 +270,13 @@ class _RegisterPageState extends State<RegisterPage>
             keyboardType: TextInputType.phone,
             inputFormatters: [FilteringTextInputFormatter.digitsOnly,
               LengthLimitingTextInputFormatter(11)],
-            style: const TextStyle(color: Colors.white, fontSize: 15,
-                fontWeight: FontWeight.w600),
+            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600,
+                color: Color(0xFF0D1B2A)),
             decoration: InputDecoration(
               hintText: '01X XXXX XXXX',
               hintStyle: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.3), fontSize: 14),
+                  color: const Color(0xFF0D1B2A).withValues(alpha: 0.3),
+                  fontSize: 14),
               border: InputBorder.none,
               contentPadding: const EdgeInsets.symmetric(
                   horizontal: 16, vertical: 18),
@@ -385,33 +290,40 @@ class _RegisterPageState extends State<RegisterPage>
   Widget _emailFields() => Form(
     key: _formKey,
     child: Column(key: const ValueKey('email'), children: [
-      _glassField(
+      _Field(
         ctrl: _emailCtrl, hint: 'البريد الإلكتروني',
-        icon: Icons.email_outlined, keyType: TextInputType.emailAddress,
+        icon: Icons.email_outlined,
+        keyType: TextInputType.emailAddress,
         validator: (v) => (v == null || !v.contains('@'))
             ? 'أدخل بريد إلكتروني صحيح' : null,
       ),
       const SizedBox(height: 14),
-      _glassField(
+      _Field(
         ctrl: _passCtrl, hint: 'كلمة المرور',
-        icon: Icons.lock_outline_rounded, obscure: _obscurePass,
+        icon: Icons.lock_outline_rounded,
+        obscure: _obscurePass,
         suffix: IconButton(
-          icon: Icon(_obscurePass ? Icons.visibility_outlined
+          icon: Icon(_obscurePass
+              ? Icons.visibility_outlined
               : Icons.visibility_off_outlined,
-              size: 20, color: Colors.white38),
+              size: 20,
+              color: const Color(0xFF0D1B2A).withValues(alpha: 0.35)),
           onPressed: () => setState(() => _obscurePass = !_obscurePass),
         ),
         validator: (v) => (v == null || v.length < 6)
             ? 'كلمة المرور 6 أحرف على الأقل' : null,
       ),
       const SizedBox(height: 14),
-      _glassField(
+      _Field(
         ctrl: _confirmCtrl, hint: 'تأكيد كلمة المرور',
-        icon: Icons.lock_outline_rounded, obscure: _obscureConf,
+        icon: Icons.lock_outline_rounded,
+        obscure: _obscureConf,
         suffix: IconButton(
-          icon: Icon(_obscureConf ? Icons.visibility_outlined
+          icon: Icon(_obscureConf
+              ? Icons.visibility_outlined
               : Icons.visibility_off_outlined,
-              size: 20, color: Colors.white38),
+              size: 20,
+              color: const Color(0xFF0D1B2A).withValues(alpha: 0.35)),
           onPressed: () => setState(() => _obscureConf = !_obscureConf),
         ),
         validator: (v) => v != _passCtrl.text
@@ -419,97 +331,191 @@ class _RegisterPageState extends State<RegisterPage>
       ),
     ]),
   );
+}
 
-  Widget _submitBtn() {
-    final isPhone = _tab == 0;
-    return GestureDetector(
-      onTap: _loading ? null : (isPhone ? _registerPhone : _registerEmail),
-      child: Container(
-        width: double.infinity, height: 58,
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: _loading
-                ? [const Color(0xFFFF6D00).withValues(alpha: 0.5),
-                   const Color(0xFFFF8F00).withValues(alpha: 0.5)]
-                : [const Color(0xFFFF6D00), const Color(0xFFFF8F00)],
+// ══════════════════════════════════════════════════════════════
+//  SHARED WIDGETS (same as login_page)
+// ══════════════════════════════════════════════════════════════
+
+class _BackBtn extends StatelessWidget {
+  final VoidCallback onTap;
+  const _BackBtn({required this.onTap});
+  @override
+  Widget build(BuildContext context) => GestureDetector(
+    onTap: onTap,
+    child: Container(
+      width: 44, height: 44,
+      decoration: BoxDecoration(
+        color: const Color(0xFFF5F7FF),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+            color: const Color(0xFF0D1B2A).withValues(alpha: 0.08)),
+      ),
+      child: const Icon(Icons.arrow_back_ios_new_rounded,
+          size: 16, color: Color(0xFF0D1B2A)),
+    ),
+  );
+}
+
+class _MiniLogo extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) => Container(
+    width: 48, height: 48,
+    decoration: BoxDecoration(
+      color: const Color(0xFF1565C0),
+      borderRadius: BorderRadius.circular(15),
+      boxShadow: [BoxShadow(
+        color: const Color(0xFF1565C0).withValues(alpha: 0.20),
+        blurRadius: 12, offset: const Offset(0, 5),
+      )],
+    ),
+    child: Center(
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        const Icon(Icons.flight_takeoff_rounded,
+            color: Colors.white, size: 20),
+        const SizedBox(height: 2),
+        Container(width: 16, height: 2,
+          decoration: BoxDecoration(
+            color: const Color(0xFFFF6D00),
+            borderRadius: BorderRadius.circular(1))),
+      ]),
+    ),
+  );
+}
+
+class _TabSelector extends StatelessWidget {
+  final int selected;
+  final ValueChanged<int> onChanged;
+  const _TabSelector({required this.selected, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) => Container(
+    height: 50,
+    decoration: BoxDecoration(
+      color: const Color(0xFFF5F7FF),
+      borderRadius: BorderRadius.circular(14),
+    ),
+    child: Row(children: [
+      _item(0, Icons.phone_android_rounded, 'رقم الهاتف'),
+      _item(1, Icons.email_outlined, 'البريد الإلكتروني'),
+    ]),
+  );
+
+  Widget _item(int idx, IconData icon, String label) {
+    final sel = selected == idx;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => onChanged(idx),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 220),
+          margin: const EdgeInsets.all(4),
+          decoration: BoxDecoration(
+            color: sel ? Colors.white : Colors.transparent,
+            borderRadius: BorderRadius.circular(11),
+            boxShadow: sel ? [BoxShadow(
+              color: Colors.black.withValues(alpha: 0.07),
+              blurRadius: 8, offset: const Offset(0, 2),
+            )] : [],
           ),
-          borderRadius: BorderRadius.circular(18),
-          boxShadow: _loading ? [] : [BoxShadow(
-            color: const Color(0xFFFF6D00).withValues(alpha: 0.4),
-            blurRadius: 20, offset: const Offset(0, 8),
-          )],
+          child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+            Icon(icon, size: 15,
+                color: sel
+                    ? const Color(0xFF1565C0)
+                    : const Color(0xFF0D1B2A).withValues(alpha: 0.35)),
+            const SizedBox(width: 5),
+            Text(label, style: TextStyle(
+              fontSize: 12, fontWeight: FontWeight.w700,
+              color: sel
+                  ? const Color(0xFF1565C0)
+                  : const Color(0xFF0D1B2A).withValues(alpha: 0.35),
+            )),
+          ]),
         ),
-        child: Center(child: _loading
-            ? const SizedBox(width: 24, height: 24,
-                child: CircularProgressIndicator(
-                    color: Colors.white, strokeWidth: 2.5))
-            : Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                Text(isPhone ? 'إرسال رمز التحقق' : 'إنشاء الحساب',
-                    style: const TextStyle(fontSize: 16,
-                        fontWeight: FontWeight.w900, color: Colors.white)),
-                const SizedBox(width: 8),
-                Icon(isPhone ? Icons.sms_outlined : Icons.arrow_forward_rounded,
-                    size: 18, color: Colors.white),
-              ])),
       ),
     );
   }
 }
 
-// ── Background Painter ─────────────────────────────────────────
-class _AuthBgPainterReg extends CustomPainter {
-  final double t;
-  _AuthBgPainterReg(this.t);
+class _Field extends StatelessWidget {
+  final TextEditingController ctrl;
+  final String hint;
+  final IconData icon;
+  final bool obscure;
+  final Widget? suffix;
+  final TextInputType? keyType;
+  final String? Function(String?)? validator;
+
+  const _Field({
+    required this.ctrl, required this.hint, required this.icon,
+    this.obscure = false, this.suffix, this.keyType, this.validator,
+  });
 
   @override
-  void paint(Canvas canvas, Size s) {
-    canvas.drawRect(Offset.zero & s, Paint()..color = const Color(0xFF060D1A));
-    final p = Paint()..style = PaintingStyle.fill;
+  Widget build(BuildContext context) => Container(
+    decoration: BoxDecoration(
+      color: const Color(0xFFF5F7FF),
+      borderRadius: BorderRadius.circular(14),
+      border: Border.all(
+          color: const Color(0xFF0D1B2A).withValues(alpha: 0.07)),
+    ),
+    child: TextFormField(
+      controller: ctrl,
+      obscureText: obscure,
+      keyboardType: keyType,
+      validator: validator,
+      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600,
+          color: Color(0xFF0D1B2A)),
+      decoration: InputDecoration(
+        hintText: hint,
+        hintStyle: TextStyle(
+            color: const Color(0xFF0D1B2A).withValues(alpha: 0.3),
+            fontSize: 14),
+        prefixIcon: Icon(icon, size: 20,
+            color: const Color(0xFF1565C0).withValues(alpha: 0.7)),
+        suffixIcon: suffix,
+        border: InputBorder.none,
+        contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16, vertical: 18),
+      ),
+    ),
+  );
+}
 
-    // Orange orb top right (register = orange themed)
-    p.shader = RadialGradient(colors: [
-      const Color(0xFFFF6D00).withValues(alpha: 0.38),
-      const Color(0xFFFF6D00).withValues(alpha: 0),
-    ]).createShader(Rect.fromCircle(
-      center: Offset(s.width * (0.90 + 0.06 * math.sin(t * math.pi)),
-                     s.height * (0.10 + 0.05 * math.cos(t * math.pi))),
-      radius: s.width * 0.6,
-    ));
-    canvas.drawCircle(
-      Offset(s.width * (0.90 + 0.06 * math.sin(t * math.pi)),
-             s.height * (0.10 + 0.05 * math.cos(t * math.pi))),
-      s.width * 0.6, p,
-    );
-
-    // Blue orb bottom left
-    p.shader = RadialGradient(colors: [
-      const Color(0xFF1565C0).withValues(alpha: 0.30),
-      const Color(0xFF1565C0).withValues(alpha: 0),
-    ]).createShader(Rect.fromCircle(
-      center: Offset(s.width * (0.06 + 0.05 * math.cos(t * math.pi)),
-                     s.height * (0.88 + 0.04 * math.sin(t * math.pi))),
-      radius: s.width * 0.5,
-    ));
-    canvas.drawCircle(
-      Offset(s.width * (0.06 + 0.05 * math.cos(t * math.pi)),
-             s.height * (0.88 + 0.04 * math.sin(t * math.pi))),
-      s.width * 0.5, p,
-    );
-
-    // Dot grid
-    final dot = Paint()
-      ..color = Colors.white.withValues(alpha: 0.022)
-      ..style = PaintingStyle.fill;
-    for (int r = 0; r < 22; r++) {
-      for (int c = 0; c < 11; c++) {
-        if ((r + c) % 3 == 0) {
-          canvas.drawCircle(
-              Offset(c * s.width / 10, r * s.height / 21), 1.1, dot);
-        }
-      }
-    }
-  }
+class _PrimaryBtn extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final bool loading;
+  final VoidCallback onTap;
+  const _PrimaryBtn({required this.label, required this.icon,
+      required this.loading, required this.onTap});
 
   @override
-  bool shouldRepaint(_AuthBgPainterReg o) => o.t != t;
+  Widget build(BuildContext context) => GestureDetector(
+    onTap: loading ? null : onTap,
+    child: AnimatedOpacity(
+      opacity: loading ? 0.7 : 1.0,
+      duration: const Duration(milliseconds: 200),
+      child: Container(
+        width: double.infinity, height: 58,
+        decoration: BoxDecoration(
+          color: const Color(0xFF1565C0),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [BoxShadow(
+            color: const Color(0xFF1565C0).withValues(alpha: 0.28),
+            blurRadius: 16, offset: const Offset(0, 6),
+          )],
+        ),
+        child: Center(child: loading
+            ? const SizedBox(width: 22, height: 22,
+                child: CircularProgressIndicator(
+                    color: Colors.white, strokeWidth: 2.5))
+            : Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                Text(label, style: const TextStyle(fontSize: 16,
+                    fontWeight: FontWeight.w900, color: Colors.white)),
+                const SizedBox(width: 8),
+                Icon(icon, color: Colors.white, size: 18),
+              ])),
+      ),
+    ),
+  );
 }

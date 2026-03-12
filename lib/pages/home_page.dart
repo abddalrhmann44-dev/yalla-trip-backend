@@ -962,13 +962,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 h.imagePath,
                 fit: BoxFit.cover,
                 errorBuilder: (_, __, ___) => Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: h.grad,
-                    ),
-                  ),
+                  color: const Color(0xFF1A2540),
                 ),
               ),
             ),

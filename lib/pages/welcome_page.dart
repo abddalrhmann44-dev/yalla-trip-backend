@@ -1,8 +1,8 @@
 // ═══════════════════════════════════════════════════════════════
-//  YALLA TRIP — Welcome Page  (Premium Dark Design)
+//  YALLA TRIP — Welcome Page  (Clean Minimal White — Airbnb style)
 // ═══════════════════════════════════════════════════════════════
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'login_page.dart';
 import 'register_page.dart';
 
@@ -13,352 +13,365 @@ class WelcomePage extends StatefulWidget {
 }
 
 class _WelcomePageState extends State<WelcomePage>
-    with TickerProviderStateMixin {
+    with SingleTickerProviderStateMixin {
 
-  late AnimationController _bgCtrl;
-  late AnimationController _contentCtrl;
+  late AnimationController _ctrl;
   late Animation<double>   _fade;
   late Animation<Offset>   _slide;
 
   @override
   void initState() {
     super.initState();
-    _bgCtrl = AnimationController(
-        vsync: this, duration: const Duration(seconds: 8))..repeat(reverse: true);
-
-    _contentCtrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 900))..forward();
-
-    _fade  = CurvedAnimation(parent: _contentCtrl, curve: Curves.easeOut);
-    _slide = Tween<Offset>(begin: const Offset(0, 0.06), end: Offset.zero)
-        .animate(CurvedAnimation(parent: _contentCtrl, curve: Curves.easeOut));
+    SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.dark,
+    ));
+    _ctrl = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 800))..forward();
+    _fade  = CurvedAnimation(parent: _ctrl, curve: Curves.easeOut);
+    _slide = Tween<Offset>(begin: const Offset(0, 0.05), end: Offset.zero)
+        .animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOut));
   }
 
   @override
-  void dispose() {
-    _bgCtrl.dispose();
-    _contentCtrl.dispose();
-    super.dispose();
-  }
+  void dispose() { _ctrl.dispose(); super.dispose(); }
 
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
+
     return Scaffold(
-      backgroundColor: const Color(0xFF060D1A),
-      body: Stack(fit: StackFit.expand, children: [
-
-        // ── Animated abstract background ───────────────
-        AnimatedBuilder(
-          animation: _bgCtrl,
-          builder: (_, __) => CustomPaint(
-            painter: _WelcomeBgPainter(_bgCtrl.value),
-            size: size,
-          ),
-        ),
-
-        // ── Content ────────────────────────────────────
-        SafeArea(
-          child: FadeTransition(
-            opacity: _fade,
-            child: SlideTransition(
-              position: _slide,
+      backgroundColor: Colors.white,
+      body: FadeTransition(
+        opacity: _fade,
+        child: SlideTransition(
+          position: _slide,
+          child: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 28),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
 
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 48),
 
-                  // ── Logo + name ───────────────────────
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 28),
-                    child: Row(children: [
-                      Container(
-                        width: 46, height: 46,
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFF1565C0), Color(0xFF42A5F5)],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                          borderRadius: BorderRadius.circular(14),
-                          boxShadow: [BoxShadow(
-                            color: const Color(0xFF1565C0).withValues(alpha: 0.5),
-                            blurRadius: 16, offset: const Offset(0, 6),
-                          )],
-                        ),
-                        child: const Icon(Icons.flight_takeoff_rounded,
-                            color: Colors.white, size: 22),
-                      ),
-                      const SizedBox(width: 12),
-                      const Text('Yalla Trip',
-                          style: TextStyle(
-                            fontSize: 22, fontWeight: FontWeight.w900,
-                            color: Colors.white, letterSpacing: -0.5,
-                          )),
-                    ]),
-                  ),
+                  // ══════════════════════════════════════
+                  //  LOGO — هادي وبسيط
+                  // ══════════════════════════════════════
+                  _Logo(),
 
-                  const Spacer(flex: 2),
+                  const SizedBox(height: 20),
 
-                  // ── Hero text ─────────────────────────
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 28),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Pill badge
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFFF6D00).withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(
-                                color: const Color(0xFFFF6D00).withValues(alpha: 0.4)),
-                          ),
-                          child: const Row(mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.auto_awesome_rounded,
-                                  color: Color(0xFFFF6D00), size: 12),
-                              SizedBox(width: 5),
-                              Text('أفضل وجهات مصر',
-                                  style: TextStyle(
-                                    color: Color(0xFFFF6D00), fontSize: 11,
-                                    fontWeight: FontWeight.w800,
-                                    letterSpacing: 0.5,
-                                  )),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        const Text(
-                          'رحلتك\nتبدأ من هنا',
-                          style: TextStyle(
-                            fontSize: 52, fontWeight: FontWeight.w900,
-                            color: Colors.white, height: 1.0,
-                            letterSpacing: -2,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'شاليهات وفيلات على الساحل الشمالي،\nعين السخنة، الجونة وشرم الشيخ',
-                          style: TextStyle(
-                            fontSize: 15,
-                            color: Colors.white.withValues(alpha: 0.6),
-                            height: 1.65,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-                        // Stats row
-                        Row(children: [
-                          _stat('٤٠٠+', 'وجهة'),
-                          _vDivider(),
-                          _stat('٩٨٪', 'رضا'),
-                          _vDivider(),
-                          _stat('٢٤/٧', 'دعم'),
-                        ]),
-                      ],
+                  // App name
+                  const Text(
+                    'Yalla Trip',
+                    style: TextStyle(
+                      fontSize: 32,
+                      fontWeight: FontWeight.w900,
+                      color: Color(0xFF0D1B2A),
+                      letterSpacing: -1.2,
                     ),
                   ),
 
-                  const Spacer(flex: 3),
+                  const SizedBox(height: 8),
 
-                  // ── Buttons ───────────────────────────
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 24),
-                    child: Column(children: [
-
-                      // Login
-                      _PremiumButton(
-                        label: 'تسجيل الدخول',
-                        icon: Icons.arrow_forward_rounded,
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFF1565C0), Color(0xFF1E88E5)],
-                        ),
-                        onTap: () => Navigator.push(context,
-                            MaterialPageRoute(builder: (_) => const LoginPage())),
-                      ),
-
-                      const SizedBox(height: 12),
-
-                      // Register — glass style
-                      _GlassButton(
-                        label: 'إنشاء حساب جديد',
-                        onTap: () => Navigator.push(context,
-                            MaterialPageRoute(builder: (_) => const RegisterPage())),
-                      ),
-
-                      const SizedBox(height: 18),
-
-                      // Guest
-                      GestureDetector(
-                        onTap: () => Navigator.push(context,
-                            MaterialPageRoute(builder: (_) => const LoginPage())),
-                        child: Text('تصفح كزائر  →',
-                            style: TextStyle(
-                              fontSize: 13, fontWeight: FontWeight.w600,
-                              color: Colors.white.withValues(alpha: 0.35),
-                            )),
-                      ),
-
-                      const SizedBox(height: 36),
-                    ]),
+                  // Tagline
+                  Text(
+                    'اكتشف • احجز • استمتع',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFF0D1B2A).withValues(alpha: 0.4),
+                      letterSpacing: 1.5,
+                    ),
                   ),
+
+                  const SizedBox(height: 40),
+
+                  // ══════════════════════════════════════
+                  //  ILLUSTRATION — abstract map dots
+                  // ══════════════════════════════════════
+                  _MapIllustration(size: size),
+
+                  const Spacer(),
+
+                  // ══════════════════════════════════════
+                  //  TAGLINE BLOCK
+                  // ══════════════════════════════════════
+                  Text(
+                    'أجمل الشاليهات والفيلات\nعلى الساحل المصري',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: const Color(0xFF0D1B2A).withValues(alpha: 0.85),
+                      height: 1.5,
+                      letterSpacing: -0.3,
+                    ),
+                  ),
+
+                  const SizedBox(height: 32),
+
+                  // ══════════════════════════════════════
+                  //  BUTTONS
+                  // ══════════════════════════════════════
+
+                  // Login
+                  _PrimaryBtn(
+                    label: 'تسجيل الدخول',
+                    onTap: () => Navigator.push(context,
+                        MaterialPageRoute(builder: (_) => const LoginPage())),
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  // Register
+                  _OutlineBtn(
+                    label: 'إنشاء حساب جديد',
+                    onTap: () => Navigator.push(context,
+                        MaterialPageRoute(builder: (_) => const RegisterPage())),
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  // Guest
+                  GestureDetector(
+                    onTap: () => Navigator.push(context,
+                        MaterialPageRoute(builder: (_) => const LoginPage())),
+                    child: Text(
+                      'تصفح كزائر',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: const Color(0xFF0D1B2A).withValues(alpha: 0.35),
+                        decoration: TextDecoration.underline,
+                        decorationColor:
+                            const Color(0xFF0D1B2A).withValues(alpha: 0.2),
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 36),
                 ],
               ),
             ),
           ),
         ),
-      ]),
+      ),
     );
   }
-
-  Widget _stat(String val, String label) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Text(val, style: const TextStyle(
-          fontSize: 20, fontWeight: FontWeight.w900, color: Colors.white)),
-      Text(label, style: TextStyle(
-          fontSize: 11, color: Colors.white.withValues(alpha: 0.45),
-          fontWeight: FontWeight.w600)),
-    ],
-  );
-
-  Widget _vDivider() => Container(
-    width: 1, height: 32,
-    margin: const EdgeInsets.symmetric(horizontal: 20),
-    color: Colors.white.withValues(alpha: 0.12),
-  );
 }
 
-// ── Premium gradient button ─────────────────────────────────────
-class _PremiumButton extends StatelessWidget {
-  final String label;
-  final IconData icon;
-  final LinearGradient gradient;
-  final VoidCallback onTap;
-  const _PremiumButton({required this.label, required this.icon,
-      required this.gradient, required this.onTap});
+// ══════════════════════════════════════════════════════════════
+//  LOGO WIDGET — هادي وبسيط
+// ══════════════════════════════════════════════════════════════
+class _Logo extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 80, height: 80,
+      decoration: BoxDecoration(
+        color: const Color(0xFF1565C0),
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF1565C0).withValues(alpha: 0.20),
+            blurRadius: 24,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.flight_takeoff_rounded,
+                color: Colors.white, size: 28),
+            const SizedBox(height: 2),
+            Container(
+              width: 24, height: 2,
+              decoration: BoxDecoration(
+                color: const Color(0xFFFF6D00),
+                borderRadius: BorderRadius.circular(1),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+//  MAP ILLUSTRATION — abstract Egypt coastline dots
+// ══════════════════════════════════════════════════════════════
+class _MapIllustration extends StatelessWidget {
+  final Size size;
+  const _MapIllustration({required this.size});
 
   @override
-  Widget build(BuildContext context) => GestureDetector(
-    onTap: onTap,
-    child: Container(
-      width: double.infinity, height: 58,
-      decoration: BoxDecoration(
-        gradient: gradient,
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: [BoxShadow(
-          color: const Color(0xFF1565C0).withValues(alpha: 0.45),
-          blurRadius: 20, offset: const Offset(0, 8),
-        )],
-      ),
-      child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-        Text(label, style: const TextStyle(
-            fontSize: 16, fontWeight: FontWeight.w900, color: Colors.white)),
-        const SizedBox(width: 8),
-        Icon(icon, color: Colors.white, size: 18),
-      ]),
-    ),
-  );
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      height: size.height * 0.28,
+      child: CustomPaint(painter: _MapPainter()),
+    );
+  }
 }
 
-// ── Glass button ───────────────────────────────────────────────
-class _GlassButton extends StatelessWidget {
-  final String label;
-  final VoidCallback onTap;
-  const _GlassButton({required this.label, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) => GestureDetector(
-    onTap: onTap,
-    child: Container(
-      width: double.infinity, height: 58,
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.07),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.15), width: 1.5),
-      ),
-      child: Center(child: Text(label, style: const TextStyle(
-          fontSize: 16, fontWeight: FontWeight.w800, color: Colors.white))),
-    ),
-  );
-}
-
-// ── Animated background painter ────────────────────────────────
-class _WelcomeBgPainter extends CustomPainter {
-  final double t;
-  _WelcomeBgPainter(this.t);
-
+class _MapPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size s) {
-    // Base
-    canvas.drawRect(Offset.zero & s,
-        Paint()..color = const Color(0xFF060D1A));
-
-    final p = Paint()..style = PaintingStyle.fill;
-
-    // Blue orb — top right
-    p.shader = RadialGradient(colors: [
-      const Color(0xFF1565C0).withValues(alpha: 0.55),
-      const Color(0xFF1565C0).withValues(alpha: 0),
-    ]).createShader(Rect.fromCircle(
-      center: Offset(s.width * (0.85 + 0.08 * math.sin(t * math.pi)),
-                     s.height * (0.18 + 0.06 * math.cos(t * math.pi))),
-      radius: s.width * 0.65,
-    ));
-    canvas.drawCircle(
-      Offset(s.width * (0.85 + 0.08 * math.sin(t * math.pi)),
-             s.height * (0.18 + 0.06 * math.cos(t * math.pi))),
-      s.width * 0.65, p,
-    );
-
-    // Orange orb — bottom left
-    p.shader = RadialGradient(colors: [
-      const Color(0xFFFF6D00).withValues(alpha: 0.30),
-      const Color(0xFFFF6D00).withValues(alpha: 0),
-    ]).createShader(Rect.fromCircle(
-      center: Offset(s.width * (0.10 + 0.06 * math.cos(t * math.pi)),
-                     s.height * (0.82 + 0.05 * math.sin(t * math.pi))),
-      radius: s.width * 0.55,
-    ));
-    canvas.drawCircle(
-      Offset(s.width * (0.10 + 0.06 * math.cos(t * math.pi)),
-             s.height * (0.82 + 0.05 * math.sin(t * math.pi))),
-      s.width * 0.55, p,
-    );
-
-    // Teal accent — mid left
-    p.shader = RadialGradient(colors: [
-      const Color(0xFF00838F).withValues(alpha: 0.20),
-      const Color(0xFF00838F).withValues(alpha: 0),
-    ]).createShader(Rect.fromCircle(
-      center: Offset(s.width * 0.05, s.height * 0.45),
-      radius: s.width * 0.4,
-    ));
-    canvas.drawCircle(
-      Offset(s.width * 0.05, s.height * 0.45),
-      s.width * 0.4, p,
-    );
-
-    // Noise dots grid (subtle texture)
-    final dotP = Paint()
-      ..color = Colors.white.withValues(alpha: 0.025)
+    // Light background card
+    final bgPaint = Paint()
+      ..color = const Color(0xFFF5F7FF)
       ..style = PaintingStyle.fill;
-    for (int row = 0; row < 20; row++) {
-      for (int col = 0; col < 10; col++) {
-        if ((row + col) % 3 == 0) {
-          canvas.drawCircle(
-            Offset(col * s.width / 9, row * s.height / 19),
-            1.2, dotP,
-          );
-        }
-      }
+    final bgRRect = RRect.fromRectAndRadius(
+        Rect.fromLTWH(0, 0, s.width, s.height),
+        const Radius.circular(28));
+    canvas.drawRRect(bgRRect, bgPaint);
+
+    // Grid lines (subtle)
+    final gridPaint = Paint()
+      ..color = const Color(0xFF1565C0).withValues(alpha: 0.05)
+      ..strokeWidth = 1;
+    for (int i = 1; i < 6; i++) {
+      canvas.drawLine(Offset(s.width * i / 6, 0),
+          Offset(s.width * i / 6, s.height), gridPaint);
+      canvas.drawLine(Offset(0, s.height * i / 5),
+          Offset(s.width, s.height * i / 5), gridPaint);
+    }
+
+    // Dotted coast path
+    final pathPaint = Paint()
+      ..color = const Color(0xFF1565C0).withValues(alpha: 0.15)
+      ..strokeWidth = 2
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+
+    final path = Path()
+      ..moveTo(s.width * 0.15, s.height * 0.35)
+      ..quadraticBezierTo(s.width * 0.3, s.height * 0.25,
+          s.width * 0.45, s.height * 0.38)
+      ..quadraticBezierTo(s.width * 0.58, s.height * 0.50,
+          s.width * 0.65, s.height * 0.45)
+      ..quadraticBezierTo(s.width * 0.75, s.height * 0.40,
+          s.width * 0.85, s.height * 0.55);
+    canvas.drawPath(path, pathPaint);
+
+    // Location pins
+    final locations = [
+      _Loc(s.width * 0.18, s.height * 0.38, 'عين السخنة',
+          const Color(0xFF1565C0), true),
+      _Loc(s.width * 0.38, s.height * 0.28, 'الساحل الشمالي',
+          const Color(0xFF0288D1), false),
+      _Loc(s.width * 0.60, s.height * 0.44, 'الجونة',
+          const Color(0xFFFF6D00), true),
+      _Loc(s.width * 0.72, s.height * 0.38, 'الغردقة',
+          const Color(0xFF1565C0), false),
+      _Loc(s.width * 0.84, s.height * 0.52, 'شرم الشيخ',
+          const Color(0xFF00838F), true),
+    ];
+
+    for (final loc in locations) {
+      _drawPin(canvas, loc);
     }
   }
 
+  void _drawPin(Canvas canvas, _Loc loc) {
+    // Pulse ring (for featured)
+    if (loc.featured) {
+      final ringPaint = Paint()
+        ..color = loc.color.withValues(alpha: 0.15)
+        ..style = PaintingStyle.fill;
+      canvas.drawCircle(Offset(loc.x, loc.y), 18, ringPaint);
+    }
+
+    // Pin dot
+    final dotPaint = Paint()
+      ..color = loc.color
+      ..style = PaintingStyle.fill;
+    canvas.drawCircle(Offset(loc.x, loc.y), loc.featured ? 8 : 6, dotPaint);
+
+    // White center
+    canvas.drawCircle(Offset(loc.x, loc.y), loc.featured ? 3 : 2,
+        Paint()..color = Colors.white);
+
+    // Label
+    final tp = TextPainter(
+      text: TextSpan(
+        text: loc.label,
+        style: TextStyle(
+          fontSize: loc.featured ? 9.5 : 8.5,
+          fontWeight: FontWeight.w700,
+          color: loc.color,
+        ),
+      ),
+      textDirection: TextDirection.rtl,
+    )..layout();
+    tp.paint(canvas,
+        Offset(loc.x - tp.width / 2, loc.y + (loc.featured ? 12 : 10)));
+  }
+
   @override
-  bool shouldRepaint(_WelcomeBgPainter o) => o.t != t;
+  bool shouldRepaint(_MapPainter o) => false;
+}
+
+class _Loc {
+  final double x, y;
+  final String label;
+  final Color color;
+  final bool featured;
+  const _Loc(this.x, this.y, this.label, this.color, this.featured);
+}
+
+// ══════════════════════════════════════════════════════════════
+//  BUTTONS
+// ══════════════════════════════════════════════════════════════
+class _PrimaryBtn extends StatelessWidget {
+  final String label;
+  final VoidCallback onTap;
+  const _PrimaryBtn({required this.label, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) => GestureDetector(
+    onTap: onTap,
+    child: Container(
+      width: double.infinity, height: 58,
+      decoration: BoxDecoration(
+        color: const Color(0xFF1565C0),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [BoxShadow(
+          color: const Color(0xFF1565C0).withValues(alpha: 0.30),
+          blurRadius: 16, offset: const Offset(0, 6),
+        )],
+      ),
+      child: Center(child: Text(label,
+          style: const TextStyle(fontSize: 16,
+              fontWeight: FontWeight.w900, color: Colors.white))),
+    ),
+  );
+}
+
+class _OutlineBtn extends StatelessWidget {
+  final String label;
+  final VoidCallback onTap;
+  const _OutlineBtn({required this.label, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) => GestureDetector(
+    onTap: onTap,
+    child: Container(
+      width: double.infinity, height: 58,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+            color: const Color(0xFF0D1B2A).withValues(alpha: 0.15), width: 1.5),
+      ),
+      child: Center(child: Text(label,
+          style: const TextStyle(fontSize: 16,
+              fontWeight: FontWeight.w800, color: Color(0xFF0D1B2A)))),
+    ),
+  );
 }
