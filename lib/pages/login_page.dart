@@ -270,9 +270,18 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
             fit: BoxFit.cover,
           ),
         ),
-        Positioned.fill(
+        // Frosted card at bottom — image fully visible at top
+        Positioned(
+          bottom: 0, left: 0, right: 0,
           child: Container(
-            color: Colors.white.withValues(alpha: 0.82),
+            height: MediaQuery.of(context).size.height * 0.72,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.93),
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(32),
+                topRight: Radius.circular(32),
+              ),
+            ),
           ),
         ),
 
