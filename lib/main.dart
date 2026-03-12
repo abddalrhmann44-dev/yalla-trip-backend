@@ -90,8 +90,8 @@ class _YallaTripAppState extends State<YallaTripApp> {
         child: child!,
       ),
 
-      // ── أول شاشة هي الـ SplashScreen ─────────────────
-      home: const _SplashScreen(),
+      // ── أول شاشة — تحقق من Auth مباشرة بدون Splash ───
+      home: const _AuthGate(),
 
       routes: {
         '/welcome':    (_) => const WelcomePage(),
@@ -120,7 +120,7 @@ class _YallaTripAppState extends State<YallaTripApp> {
           case '/payment':
             return MaterialPageRoute(builder: (_) => const HomePage());
           default:
-            return MaterialPageRoute(builder: (_) => const _SplashScreen());
+            return MaterialPageRoute(builder: (_) => const WelcomePage());
         }
       },
     );
@@ -167,163 +167,29 @@ class _YallaTripAppState extends State<YallaTripApp> {
 }
 
 // ══════════════════════════════════════════════════════════════
-//  SPLASH SCREEN
-//  يتحقق من Firebase Auth — لو logged in يروح HomePage
-//  لو مش logged in يروح OnboardingPage (أول مرة) أو LoginPage
+//  AUTH GATE — تحقق فوري من Firebase بدون splash
 // ══════════════════════════════════════════════════════════════
-class _SplashScreen extends StatefulWidget {
-  const _SplashScreen();
-
-  @override
-  State<_SplashScreen> createState() => _SplashScreenState();
-}
-
-class _SplashScreenState extends State<_SplashScreen>
-    with SingleTickerProviderStateMixin {
-
-  late AnimationController _ctrl;
-  late Animation<double>   _scaleAnim;
-  late Animation<double>   _fadeAnim;
-
-  @override
-  void initState() {
-    super.initState();
-
-    _ctrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 1200));
-
-    _scaleAnim = Tween<double>(begin: 0.7, end: 1.0).animate(
-        CurvedAnimation(parent: _ctrl, curve: Curves.elasticOut));
-
-    _fadeAnim = Tween<double>(begin: 0.0, end: 1.0).animate(
-        CurvedAnimation(
-            parent: _ctrl,
-            curve: const Interval(0.0, 0.6, curve: Curves.easeOut)));
-
-    _ctrl.forward();
-
-    // بعد 2.2 ثانية — تحقق من الـ auth state
-    Future.delayed(const Duration(milliseconds: 2200), _checkAuth);
-  }
-
-  @override
-  void dispose() {
-    _ctrl.dispose();
-    super.dispose();
-  }
-
-  Future<void> _checkAuth() async {
-    if (!mounted) return;
-
-    final user = FirebaseAuth.instance.currentUser;
-
-    Widget nextPage;
-
-    if (user != null) {
-      // ── مستخدم مسجل دخوله — روح الرئيسية ─────────────
-      nextPage = const HomePage();
-    } else {
-      // ── مستخدم جديد — روح الـ Onboarding ──────────────
-      // لو عايز تروح LoginPage مباشرة بدل Onboarding:
-      // nextPage = const LoginPage();
-      nextPage = const WelcomePage();
-    }
-
-    if (!mounted) return;
-    Navigator.of(context).pushReplacement(
-      PageRouteBuilder(
-        pageBuilder: (_, animation, __) => nextPage,
-        transitionsBuilder: (_, animation, __, child) => FadeTransition(
-          opacity: animation,
-          child: child,
-        ),
-        transitionDuration: const Duration(milliseconds: 500),
-      ),
-    );
-  }
+class _AuthGate extends StatelessWidget {
+  const _AuthGate();
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFF0A1628),
-      body: Center(
-        child: AnimatedBuilder(
-          animation: _ctrl,
-          builder: (_, __) => FadeTransition(
-            opacity: _fadeAnim,
-            child: ScaleTransition(
-              scale: _scaleAnim,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-
-                  // ── Logo Icon ──────────────────────────
-                  Container(
-                    width: 100, height: 100,
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [Color(0xFF1565C0), Color(0xFF1E88E5)],
-                      ),
-                      borderRadius: BorderRadius.circular(28),
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(0xFF1565C0).withValues(alpha: 0.5),
-                          blurRadius: 30,
-                          offset: const Offset(0, 10),
-                        ),
-                      ],
-                    ),
-                    child: const Icon(
-                      Icons.flight_takeoff_rounded,
-                      color: Colors.white,
-                      size: 48,
-                    ),
-                  ),
-
-                  const SizedBox(height: 24),
-
-                  // ── App Name ───────────────────────────
-                  const Text(
-                    'Yalla Trip',
-                    style: TextStyle(
-                      fontSize: 36,
-                      fontWeight: FontWeight.w900,
-                      color: Colors.white,
-                      letterSpacing: -1,
-                    ),
-                  ),
-
-                  const SizedBox(height: 8),
-
-                  // ── Tagline ────────────────────────────
-                  Text(
-                    'اكتشف • احجز • استمتع',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: const Color(0xFFFF6D00).withValues(alpha: 0.9),
-                      letterSpacing: 1.5,
-                    ),
-                  ),
-
-                  const SizedBox(height: 60),
-
-                  // ── Loading indicator ──────────────────
-                  SizedBox(
-                    width: 28, height: 28,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2.5,
-                      color: Colors.white.withValues(alpha: 0.4),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
+    return StreamBuilder<User?>(
+      stream: FirebaseAuth.instance.authStateChanges(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(
+            backgroundColor: Color(0xFF0A1628),
+            body: SizedBox.shrink(),
+          );
+        }
+        if (snapshot.hasData && snapshot.data != null) {
+          return const HomePage();
+        }
+        return const WelcomePage();
+      },
     );
   }
 }
+
+// ══════════════════════════════════════════════════════════════
