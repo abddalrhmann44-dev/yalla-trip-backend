@@ -153,16 +153,17 @@ class _RegisterPageState extends State<RegisterPage>
         //  2. في pubspec.yaml أضف: - assets/images/register_bg.jpg
         //  3. شيل الـ Container الأبيض واستبدله بـ Image.asset
         // ══════════════════════════════════════════════════════
-        Positioned.fill(child: Container(color: Colors.white)),
-        // ── استبدل السطر فوق بالكود ده لما تضيف الصورة: ──────
-        // Positioned.fill(
-        //   child: Image.asset('assets/images/register_bg.jpg',
-        //       fit: BoxFit.cover),
-        // ),
-        // Positioned.fill(
-        //   child: Container(
-        //       color: Colors.white.withValues(alpha: 0.82)),
-        // ),
+        Positioned.fill(
+          child: Image.asset(
+            'assets/images/register_bg.jpg',
+            fit: BoxFit.cover,
+          ),
+        ),
+        Positioned.fill(
+          child: Container(
+            color: Colors.white.withValues(alpha: 0.82),
+          ),
+        ),
 
         FadeTransition(
         opacity: _fade,

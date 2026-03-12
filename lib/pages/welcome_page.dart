@@ -63,8 +63,17 @@ class _WelcomePageState extends State<WelcomePage>
         //         color: Colors.white.withValues(alpha: 0.82),
         //       )),
         // ══════════════════════════════════════════════
-        Positioned.fill(child: Container(color: Colors.white)),
-        // ── لما تضيف صورة شيل السطر فوق وفك تعليق الكود ──
+        Positioned.fill(
+          child: Image.asset(
+            'assets/images/welcome_bg.jpg',
+            fit: BoxFit.cover,
+          ),
+        ),
+        Positioned.fill(
+          child: Container(
+            color: Colors.white.withValues(alpha: 0.78),
+          ),
+        ),
 
         FadeTransition(
           opacity: _fade,
