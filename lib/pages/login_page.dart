@@ -255,7 +255,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Colors.transparent,
       body: Stack(children: [
 
         // ══════════════════════════════════════════════════════
@@ -270,20 +270,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
             fit: BoxFit.cover,
           ),
         ),
-        // Frosted card at bottom — image fully visible at top
-        Positioned(
-          bottom: 0, left: 0, right: 0,
-          child: Container(
-            height: MediaQuery.of(context).size.height * 0.72,
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.93),
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(32),
-                topRight: Radius.circular(32),
-              ),
-            ),
-          ),
-        ),
+
 
         FadeTransition(
         opacity: _fade,
