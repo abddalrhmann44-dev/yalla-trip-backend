@@ -602,28 +602,7 @@ class _ProfilePageState extends State<ProfilePage> {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Column(children: [
-        // Logout
-        GestureDetector(
-          onTap: _confirmLogout,
-          child: Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 14),
-            decoration: BoxDecoration(
-              color: _kCard,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: _kRed.withValues(alpha: 0.3)),
-            ),
-            child: const Row(mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.logout_rounded, color: _kRed, size: 18),
-                SizedBox(width: 8),
-                Text('تسجيل الخروج',
-                    style: TextStyle(fontSize: 14,
-                        fontWeight: FontWeight.w800, color: _kRed)),
-              ]),
-          ),
-        ),
-        const SizedBox(height: 10),
+        // Delete Account (فوق الخروج)
         GestureDetector(
           onTap: _confirmDeleteAccount,
           child: Container(
@@ -640,6 +619,28 @@ class _ProfilePageState extends State<ProfilePage> {
                     color: _kRed, size: 18),
                 SizedBox(width: 8),
                 Text('حذف الحساب',
+                    style: TextStyle(fontSize: 14,
+                        fontWeight: FontWeight.w800, color: _kRed)),
+              ]),
+          ),
+        ),
+        const SizedBox(height: 10),
+        // Logout
+        GestureDetector(
+          onTap: _confirmLogout,
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 14),
+            decoration: BoxDecoration(
+              color: _kCard,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: _kRed.withValues(alpha: 0.3)),
+            ),
+            child: const Row(mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.logout_rounded, color: _kRed, size: 18),
+                SizedBox(width: 8),
+                Text('تسجيل الخروج',
                     style: TextStyle(fontSize: 14,
                         fontWeight: FontWeight.w800, color: _kRed)),
               ]),

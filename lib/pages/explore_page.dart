@@ -323,7 +323,7 @@ class _ExplorePageState extends State<ExplorePage>
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.15),
-                    blurRadius: 20, offset: Offset(0, 6))],
+                    blurRadius: 20, offset: const Offset(0, 6))],
               ),
               child: Row(children: [
                 const SizedBox(width: 14),
@@ -334,7 +334,7 @@ class _ExplorePageState extends State<ExplorePage>
                   style: const TextStyle(fontSize: 14, color: _kText),
                   decoration: const InputDecoration(
                     hintText: 'Search destination, area, name…',
-                    hintStyle: TextStyle(color: const Color(0xFFBBBBBB), fontSize: 13),
+                    hintStyle: TextStyle(color: Color(0xFFBBBBBB), fontSize: 13),
                     border: InputBorder.none,
                   ),
                 )),
@@ -705,12 +705,12 @@ class _ExplorePageState extends State<ExplorePage>
   Widget _mapIllustration() {
     // Simple stylized dot-map of Egypt coastline
     final spots = [
-      {'x': 0.55, 'y': 0.55, 'label': 'Ain Sokhna', 'color': Color(0xFF0288D1)},
-      {'x': 0.30, 'y': 0.35, 'label': 'North Coast','color': Color(0xFF1976D2)},
-      {'x': 0.65, 'y': 0.72, 'label': 'Ras Sedr',   'color': Color(0xFF00897B)},
-      {'x': 0.75, 'y': 0.62, 'label': 'El Gouna',   'color': Color(0xFFE65100)},
-      {'x': 0.80, 'y': 0.68, 'label': 'Hurghada',   'color': Color(0xFF00695C)},
-      {'x': 0.90, 'y': 0.85, 'label': 'Sharm',      'color': Color(0xFF6A1B9A)},
+      {'x': 0.55, 'y': 0.55, 'label': 'Ain Sokhna', 'color': const Color(0xFF0288D1)},
+      {'x': 0.30, 'y': 0.35, 'label': 'North Coast','color': const Color(0xFF1976D2)},
+      {'x': 0.65, 'y': 0.72, 'label': 'Ras Sedr',   'color': const Color(0xFF00897B)},
+      {'x': 0.75, 'y': 0.62, 'label': 'El Gouna',   'color': const Color(0xFFE65100)},
+      {'x': 0.80, 'y': 0.68, 'label': 'Hurghada',   'color': const Color(0xFF00695C)},
+      {'x': 0.90, 'y': 0.85, 'label': 'Sharm',      'color': const Color(0xFF6A1B9A)},
     ];
     return SizedBox(
       height: 220,
@@ -925,7 +925,7 @@ class _ExplorePageState extends State<ExplorePage>
       decoration: BoxDecoration(
         color: _kCard, borderRadius: BorderRadius.circular(20),
         boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.07),
-            blurRadius: 14, offset: Offset(0, 4))],
+            blurRadius: 14, offset: const Offset(0, 4))],
       ),
       child: Column(children: [
         // Image
@@ -1069,7 +1069,7 @@ class _ExplorePageState extends State<ExplorePage>
                     borderRadius: BorderRadius.circular(12),
                     boxShadow: [BoxShadow(
                         color: _kOcean.withValues(alpha: 0.4),
-                        blurRadius: 10, offset: Offset(0, 3))],
+                        blurRadius: 10, offset: const Offset(0, 3))],
                   ),
                   child: const Text('Book Now',
                       style: TextStyle(color: Colors.white,
@@ -1094,7 +1094,7 @@ class _ExplorePageState extends State<ExplorePage>
         decoration: BoxDecoration(
           color: _kCard, borderRadius: BorderRadius.circular(18),
           boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.07),
-              blurRadius: 10, offset: Offset(0, 3))],
+              blurRadius: 10, offset: const Offset(0, 3))],
         ),
         child: Column(children: [
           ClipRRect(
@@ -1153,7 +1153,7 @@ class _ExplorePageState extends State<ExplorePage>
                         fontWeight: FontWeight.w900, color: _kText)),
                 Row(children: [
                   const Icon(Icons.star_rounded,
-                      color: const Color(0xFFFFC107), size: 11),
+                      color: Color(0xFFFFC107), size: 11),
                   Text('${p.rating}',
                       style: const TextStyle(fontSize: 10,
                           fontWeight: FontWeight.w700, color: _kText)),
