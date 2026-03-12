@@ -266,12 +266,12 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           child: Column(crossAxisAlignment: CrossAxisAlignment.start,
             children: [
             // Header shimmer
-            Row(children: [
-              const _ShimmerBox(width: 80, height: 36, radius: 20),
-              const Spacer(),
-              const _ShimmerBox(width: 36, height: 36, radius: 12),
-              const SizedBox(width: 8),
-              const _ShimmerBox(width: 36, height: 36, radius: 12),
+            Row(children: const [
+              _ShimmerBox(width: 80, height: 36, radius: 20),
+              Spacer(),
+              _ShimmerBox(width: 36, height: 36, radius: 12),
+              SizedBox(width: 8),
+              _ShimmerBox(width: 36, height: 36, radius: 12),
             ]),
             const SizedBox(height: 14),
             const _ShimmerBox(width: double.infinity, height: 52, radius: 16),
@@ -284,10 +284,10 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             const SizedBox(height: 24),
             const _ShimmerBox(width: 180, height: 22, radius: 8),
             const SizedBox(height: 12),
-            Row(children: [
-              const _ShimmerBox(width: 145, height: 130, radius: 20),
-              const SizedBox(width: 12),
-              const _ShimmerBox(width: 145, height: 130, radius: 20),
+            Row(children: const [
+              _ShimmerBox(width: 145, height: 130, radius: 20),
+              SizedBox(width: 12),
+              _ShimmerBox(width: 145, height: 130, radius: 20),
             ]),
             const SizedBox(height: 24),
             const _ShimmerBox(width: 200, height: 22, radius: 8),
@@ -943,17 +943,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   Widget _heroCard(_Hero h) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(24),
-          boxShadow: [
-            BoxShadow(
-              color: h.grad[0].withValues(alpha: 0.50),
-              blurRadius: 22, offset: const Offset(0, 10),
-            ),
-          ],
-        ),
-        child: ClipRRect(
+      child: ClipRRect(
           borderRadius: BorderRadius.circular(24),
           child: Stack(children: [
             // ── صورة حقيقية ───────────────────────────
@@ -973,9 +963,10 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   gradient: LinearGradient(
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
+                    stops: const [0.45, 1.0],
                     colors: [
                       Colors.transparent,
-                      Colors.black.withValues(alpha: 0.65),
+                      Colors.black.withValues(alpha: 0.55),
                     ],
                   ),
                 ),
@@ -1043,13 +1034,13 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                       child: Row(children: [
                         Text('Book Now',
                             style: TextStyle(
-                              color: h.grad[0],
+                              color: const Color(0xFF1565C0),
                               fontSize: 13,
                               fontWeight: FontWeight.w900,
                             )),
                         const SizedBox(width: 4),
                         Icon(Icons.arrow_forward_rounded,
-                            size: 14, color: h.grad[0]),
+                            size: 14, color: const Color(0xFF1565C0)),
                       ]),
                     ),
                   ),
@@ -1058,7 +1049,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             ]),
           ),
         ]),
-      ),
     ),
     );
   }
@@ -1175,7 +1165,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         borderRadius: BorderRadius.circular(22),
         boxShadow: [
           BoxShadow(
-              color: d.grad[0].withValues(alpha: 0.4),
+              color: Colors.black.withValues(alpha: 0.12),
               blurRadius: 14, offset: const Offset(0, 5)),
         ],
       ),

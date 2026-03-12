@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'firebase_options.dart';
@@ -137,10 +136,10 @@ class _YallaTripAppState extends State<YallaTripApp> {
         brightness: brightness,
       ),
       scaffoldBackgroundColor:
-          isDark ? const Color(0xFF0D1117) : const Color(0xFFF5F3EE),
+          isDark ? const Color(0xFF0D1117) : Colors.white,
     );
     return base.copyWith(
-      textTheme: GoogleFonts.outfitTextTheme(base.textTheme).apply(
+      textTheme: base.textTheme.apply(
         bodyColor:    isDark ? Colors.white : const Color(0xFF0D1B2A),
         displayColor: isDark ? Colors.white : const Color(0xFF0D1B2A),
       ),

@@ -42,11 +42,35 @@ class _WelcomePageState extends State<WelcomePage>
 
     return Scaffold(
       backgroundColor: Colors.white,
-      body: FadeTransition(
-        opacity: _fade,
-        child: SlideTransition(
-          position: _slide,
-          child: SafeArea(
+      body: Stack(children: [
+
+        // ══════════════════════════════════════════════
+        //  🖼️  خلفية WELCOME — لإضافة صورتك:
+        //  1. حط الصورة في:
+        //       assets/images/welcome_bg.jpg
+        //  2. في pubspec.yaml تحت flutter › assets أضف:
+        //       - assets/images/welcome_bg.jpg
+        //  3. شيل الـ SizedBox اللي جوا الـ Positioned
+        //     وحط بدله:
+        //       Image.asset(
+        //         'assets/images/welcome_bg.jpg',
+        //         fit: BoxFit.cover,
+        //         width: double.infinity,
+        //         height: double.infinity,
+        //       ),
+        //  4. لو الصورة فاتحة — أضف overlay أبيض:
+        //       Positioned.fill(child: Container(
+        //         color: Colors.white.withValues(alpha: 0.82),
+        //       )),
+        // ══════════════════════════════════════════════
+        Positioned.fill(child: Container(color: Colors.white)),
+        // ── لما تضيف صورة شيل السطر فوق وفك تعليق الكود ──
+
+        FadeTransition(
+          opacity: _fade,
+          child: SlideTransition(
+            position: _slide,
+            child: SafeArea(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 28),
               child: Column(
@@ -156,8 +180,9 @@ class _WelcomePageState extends State<WelcomePage>
               ),
             ),
           ),
+          ),
         ),
-      ),
+      ]),
     );
   }
 }

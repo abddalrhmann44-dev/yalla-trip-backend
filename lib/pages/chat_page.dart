@@ -29,12 +29,12 @@ class ChatPage extends StatefulWidget {
   final String currentPrice;
 
   const ChatPage({
-    Key? key,
+    super.key,
     required this.ownerName,
     required this.propertyName,
     required this.propertyEmoji,
     required this.currentPrice,
-  }) : super(key: key);
+  });
 
   @override
   State<ChatPage> createState() => _ChatPageState();
@@ -307,7 +307,7 @@ class _ChatPageState extends State<ChatPage> {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      color: AppColors.primary.withOpacity(0.05),
+      color: AppColors.primary.withValues(alpha: 0.05),
       child: Row(
         children: [
           const Icon(Icons.local_offer_rounded,
@@ -408,7 +408,7 @@ class _ChatPageState extends State<ChatPage> {
           padding: const EdgeInsets.symmetric(
               horizontal: 8, vertical: 4),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.2),
+            color: Colors.white.withValues(alpha: 0.2),
             borderRadius: BorderRadius.circular(20),
           ),
           child: const Text('🔓 محادثة مفتوحة',
@@ -427,10 +427,10 @@ class _ChatPageState extends State<ChatPage> {
       margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: AppColors.error.withOpacity(0.08),
+        color: AppColors.error.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(AppRadius.md),
         border: Border.all(
-            color: AppColors.error.withOpacity(0.3), width: 1.5),
+            color: AppColors.error.withValues(alpha: 0.3), width: 1.5),
       ),
       child: Row(
         children: [
@@ -571,7 +571,7 @@ class _ChatPageState extends State<ChatPage> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: AppColors.accent.withOpacity(0.15),
+                color: AppColors.accent.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(AppRadius.md),
               ),
               child: const Text(

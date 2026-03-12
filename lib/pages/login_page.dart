@@ -256,7 +256,26 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      body: FadeTransition(
+      body: Stack(children: [
+
+        // ══════════════════════════════════════════════════════
+        //  🖼️  صورة خلفية LOGIN — لإضافة صورتك:
+        //  1. حط الصورة في: assets/images/login_bg.jpg
+        //  2. في pubspec.yaml أضف: - assets/images/login_bg.jpg
+        //  3. شيل الـ Container الأبيض واستبدله بـ Image.asset
+        // ══════════════════════════════════════════════════════
+        Positioned.fill(child: Container(color: Colors.white)),
+        // ── استبدل السطر فوق بالكود ده لما تضيف الصورة: ──────
+        // Positioned.fill(
+        //   child: Image.asset('assets/images/login_bg.jpg',
+        //       fit: BoxFit.cover),
+        // ),
+        // Positioned.fill(
+        //   child: Container(
+        //       color: Colors.white.withValues(alpha: 0.82)),
+        // ),
+
+        FadeTransition(
         opacity: _fade,
         child: SafeArea(
           child: SingleChildScrollView(
@@ -401,7 +420,8 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
             ),
           ),
         ),
-      ),
+        ), // FadeTransition
+      ]), // Stack
     );
   }
 
@@ -577,13 +597,12 @@ class _Field extends StatelessWidget {
   final bool obscure;
   final Widget? suffix;
   final TextInputType? keyType;
-  final List<TextInputFormatter>? formatters;
   final String? Function(String?)? validator;
 
   const _Field({
     required this.ctrl, required this.hint, required this.icon,
     this.obscure = false, this.suffix, this.keyType,
-    this.formatters, this.validator,
+    this.validator,
   });
 
   @override
@@ -598,7 +617,6 @@ class _Field extends StatelessWidget {
       controller: ctrl,
       obscureText: obscure,
       keyboardType: keyType,
-      inputFormatters: formatters,
       validator: validator,
       style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600,
           color: Color(0xFF0D1B2A)),

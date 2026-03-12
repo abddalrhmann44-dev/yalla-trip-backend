@@ -32,7 +32,6 @@ class _ProfilePageState extends State<ProfilePage> {
   String  _name        = '';
   String  _email       = '';
   String  _phone       = '';
-  String  _memberSince = '';
   bool    _isOwner     = false;
   bool    _loading     = true;
 
@@ -75,13 +74,6 @@ class _ProfilePageState extends State<ProfilePage> {
       _email = data['email'] as String? ?? user.email ?? '';
       _phone = data['phone'] as String? ?? user.phoneNumber ?? '';
 
-      // Member since
-      if (data['createdAt'] != null) {
-        final ts = (data['createdAt'] as dynamic).toDate() as DateTime;
-        final months = ['يناير','فبراير','مارس','إبريل','مايو','يونيو',
-                        'يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
-        _memberSince = '${months[ts.month - 1]} ${ts.year}';
-      }
 
       // Owner stats
       if (_isOwner) {
@@ -206,107 +198,79 @@ class _ProfilePageState extends State<ProfilePage> {
 
   // ── Header (Real data) ────────────────────────────────────
   Widget _buildHeader() {
-    final initials = _name.isNotEmpty
-        ? _name.trim().split(' ').map((w) => w.isNotEmpty ? w[0] : '').take(2).join()
-        : '؟';
-
     return Container(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft, end: Alignment.bottomCenter,
-          colors: [Color(0xFF0A2463), Color(0xFF1565C0), Color(0xFF1E88E5)],
-        ),
-      ),
-      child: SafeArea(bottom: false, child: Column(children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
-          child: Row(children: [
-            GestureDetector(
-              onTap: () => Navigator.pop(context),
-              child: Container(
-                width: 38, height: 38,
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(12),
+      color: Colors.white,
+      child: SafeArea(bottom: false, child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ── Top bar: back + role badge ──────────────
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
+            child: Row(children: [
+              GestureDetector(
+                onTap: () => Navigator.pop(context),
+                child: Container(
+                  width: 40, height: 40,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF5F7FF),
+                    borderRadius: BorderRadius.circular(13),
+                    border: Border.all(
+                        color: const Color(0xFF0D1B2A).withValues(alpha: 0.08)),
+                  ),
+                  child: const Icon(Icons.arrow_back_ios_new_rounded,
+                      color: Color(0xFF0D1B2A), size: 16),
                 ),
-                child: const Icon(Icons.arrow_back_ios_new_rounded,
-                    color: Colors.white, size: 16),
               ),
-            ),
-            const Spacer(),
-            // Role badge
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-              decoration: BoxDecoration(
-                color: _isOwner
-                    ? _kOrange.withValues(alpha: 0.85)
-                    : Colors.white.withValues(alpha: 0.2),
-                borderRadius: BorderRadius.circular(20),
+              const Spacer(),
+              // Role badge
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: _isOwner
+                      ? _kOrange.withValues(alpha: 0.1)
+                      : const Color(0xFFF5F7FF),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: _isOwner
+                        ? _kOrange.withValues(alpha: 0.4)
+                        : const Color(0xFF0D1B2A).withValues(alpha: 0.1),
+                  ),
+                ),
+                child: Text(
+                  _isOwner ? '🏠 مالك عقار' : '🧳 عميل',
+                  style: TextStyle(
+                      color: _isOwner
+                          ? _kOrange
+                          : const Color(0xFF0D1B2A).withValues(alpha: 0.6),
+                      fontSize: 11, fontWeight: FontWeight.w800),
+                ),
               ),
-              child: Text(
-                _isOwner ? '🏠 مالك عقار' : '🧳 عميل',
-                style: const TextStyle(
-                    color: Colors.white, fontSize: 11,
-                    fontWeight: FontWeight.w800),
-              ),
-            ),
-          ]),
-        ),
-
-        const SizedBox(height: 20),
-
-        // Avatar with initials
-        Container(
-          width: 90, height: 90,
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.2),
-            shape: BoxShape.circle,
-            border: Border.all(
-                color: Colors.white.withValues(alpha: 0.4), width: 3),
+            ]),
           ),
-          child: Center(child: Text(initials,
+
+          const SizedBox(height: 20),
+
+          // ── اسم المستخدم فقط ────────────────────────
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Text(
+              _name.isNotEmpty ? _name : 'بدون اسم',
               style: const TextStyle(
-                  fontSize: 32, fontWeight: FontWeight.w900,
-                  color: Colors.white))),
-        ),
+                fontSize: 26,
+                fontWeight: FontWeight.w900,
+                color: Color(0xFF0D1B2A),
+                letterSpacing: -0.8,
+              ),
+            ),
+          ),
 
-        const SizedBox(height: 12),
+          const SizedBox(height: 16),
 
-        Text(_name.isNotEmpty ? _name : 'بدون اسم',
-            style: const TextStyle(color: Colors.white,
-                fontSize: 20, fontWeight: FontWeight.w900)),
-        const SizedBox(height: 4),
-
-        if (_phone.isNotEmpty)
-          Text(_phone, style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.75), fontSize: 12)),
-        if (_email.isNotEmpty)
-          Text(_email, style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.65), fontSize: 11)),
-
-        const SizedBox(height: 10),
-
-        Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-          _badge('✅ موثّق', Colors.white.withValues(alpha: 0.2)),
-          if (_memberSince.isNotEmpty) ...[
-            const SizedBox(width: 8),
-            _badge('⭐ عضو منذ $_memberSince',
-                Colors.white.withValues(alpha: 0.2)),
-          ],
-        ]),
-
-        const SizedBox(height: 20),
-      ])),
-    );
-  }
-
-  Widget _badge(String text, Color bg) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-          color: bg, borderRadius: BorderRadius.circular(20)),
-      child: Text(text, style: const TextStyle(
-          color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700)),
+          // ── Thin divider ────────────────────────────
+          Divider(height: 1,
+              color: const Color(0xFF0D1B2A).withValues(alpha: 0.07)),
+        ],
+      )),
     );
   }
 

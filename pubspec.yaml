@@ -61,5 +61,8 @@ flutter:
     - assets/images/properties/
     - assets/images/categories/
     - assets/images/onboarding/
+    - assets/images/welcome_bg.jpg
+    - assets/images/login_bg.jpg
+    - assets/images/register_bg.jpg
     
   
