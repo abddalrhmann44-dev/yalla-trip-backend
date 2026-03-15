@@ -2,6 +2,7 @@
 //  YALLA TRIP — Register Page  (Clean Minimal White — matches Welcome)
 // ═══════════════════════════════════════════════════════════════
 import 'package:flutter/material.dart';
+import '../main.dart' show appSettings;
 import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -41,14 +42,18 @@ class _RegisterPageState extends State<RegisterPage>
   @override
   void initState() {
     super.initState();
+    appSettings.addListener(_onLangChange);
     SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
       statusBarIconBrightness: Brightness.dark,
     ));
   }
 
+  void _onLangChange() { if (mounted) setState(() {}); }
+
   @override
   void dispose() {
+    appSettings.removeListener(_onLangChange);
     _fadeCtrl.dispose();
     _nameCtrl.dispose(); _phoneCtrl.dispose();
     _emailCtrl.dispose(); _passCtrl.dispose(); _confirmCtrl.dispose();
