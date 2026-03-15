@@ -76,26 +76,26 @@ class _ShimmerBoxState extends State<_ShimmerBox>
 // ────────────────────────────────────────────────────────────────
 
 const _kHeroes = [
-  _Hero('Luxury Chalets\nin Ain Sokhna',
-      'From EGP 850 / night — Up to 40% OFF',
+  _Hero('شاليهات فاخرة\nفي عين السخنة',
+      'من ٨٥٠ جنيه / ليلة — خصم ٤٠٪',
       '🌊', '40% OFF',
       [Color(0xFF0277BD), Color(0xFF01579B), Color(0xFF003D6B)],
-      'assets/images/hero/hero_1.jpg'),
-  _Hero('Sea View Resorts\nin Hurghada',
-      'Crystal water & coral reefs',
+      'assets/images/hero/hero_1.jpg', 'عين السخنة'),
+  _Hero('منتجعات إطلالة بحرية\nفي الغردقة',
+      'شعاب مرجانية وبحر بلوري',
       '🐠', 'TRENDING',
       [Color(0xFF00695C), Color(0xFF004D40), Color(0xFF00372B)],
-      'assets/images/hero/hero_2.jpg'),
-  _Hero('North Coast\nSummer Deals',
-      'White sand beaches from EGP 1,200',
+      'assets/images/hero/hero_2.jpg', 'الغردقة'),
+  _Hero('عروض الصيف\nالساحل الشمالي',
+      'شواطئ بيضاء من ١٢٠٠ جنيه',
       '🏖️', 'HOT DEAL',
       [Color(0xFF1565C0), Color(0xFF0D47A1), Color(0xFF082F7C)],
-      'assets/images/hero/hero_3.jpg'),
-  _Hero('Sharm El Sheikh\nLuxury Hotels',
-      'World-class diving paradise',
+      'assets/images/hero/hero_3.jpg', 'الساحل الشمالي'),
+  _Hero('فنادق فاخرة\nشرم الشيخ',
+      'جنة الغطس الحقيقية',
       '🦈', 'NEW',
       [Color(0xFF6A1B9A), Color(0xFF4A148C), Color(0xFF310A6A)],
-      'assets/images/hero/hero_4.jpg'),
+      'assets/images/hero/hero_4.jpg', 'شرم الشيخ'),
 ];
 
 const _kCategories = [
@@ -121,9 +121,9 @@ const _kDestinations = [
 
 // immutable helper models
 class _Hero {
-  final String title, subtitle, emoji, badge, imagePath;
+  final String title, subtitle, emoji, badge, imagePath, area;
   final List<Color> grad;
-  const _Hero(this.title, this.subtitle, this.emoji, this.badge, this.grad, this.imagePath);
+  const _Hero(this.title, this.subtitle, this.emoji, this.badge, this.grad, this.imagePath, this.area);
 }
 class _Cat {
   final String label, emoji, imagePath; final Color color; final IconData icon;
@@ -172,8 +172,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   static const _kAreas = ['الكل','عين السخنة','الساحل الشمالي','الجونة','الغردقة','شرم الشيخ','رأس سدر'];
   static const _kTypes = ['الكل','شاليه','فيلا','فندق','منتجع','بيت شاطئ','أكوا بارك'];
 
-  // favorites
-  // flash deals (mutable — countdown changes)
+  // recent searches
+  final List<String> _recentSearches = [];
   // timers
   Timer? _heroTimer;
 
@@ -266,7 +266,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           child: Column(crossAxisAlignment: CrossAxisAlignment.start,
             children: [
             // Header shimmer
-            Row(children: const [
+            const Row(children: [
               _ShimmerBox(width: 80, height: 36, radius: 20),
               Spacer(),
               _ShimmerBox(width: 36, height: 36, radius: 12),
@@ -284,7 +284,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             const SizedBox(height: 24),
             const _ShimmerBox(width: 180, height: 22, radius: 8),
             const SizedBox(height: 12),
-            Row(children: const [
+            const Row(children: [
               _ShimmerBox(width: 145, height: 130, radius: 20),
               SizedBox(width: 12),
               _ShimmerBox(width: 145, height: 130, radius: 20),
@@ -410,66 +410,69 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               const SizedBox(height: 16),
 
               // ── Search bar ───────────────────────────
-              Container(
-                height: 54,
-                margin: const EdgeInsets.only(bottom: 20),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(18),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.18),
-                      blurRadius: 24, offset: const Offset(0, 8),
-                    ),
-                  ],
-                ),
-                child: Row(children: [
-                  const SizedBox(width: 16),
-                  const Icon(Icons.search_rounded,
-                      color: Color(0xFF1565C0), size: 22),
-                  const SizedBox(width: 10),
-                  const Expanded(
-                    child: Text(
-                      'Search chalets, resorts, or beaches…',
-                      style: TextStyle(
-                          color: Color(0xFFBBBBBB), fontSize: 14),
-                    ),
-                  ),
-                  // Filter pill
-                  GestureDetector(
-                    onTap: _openFilter,
-                    child: Stack(children: [
-                      Container(
-                        margin: const EdgeInsets.all(7),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: _filterActive
-                              ? const Color(0xFFFF6D00)
-                              : const Color(0xFF1565C0),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Row(children: [
-                          Icon(Icons.tune_rounded,
-                              color: Colors.white, size: 14),
-                          SizedBox(width: 4),
-                          Text('Filter',
-                              style: TextStyle(
-                                  color: Colors.white, fontSize: 11,
-                                  fontWeight: FontWeight.w700)),
-                        ]),
+              GestureDetector(
+                onTap: () => _openSearch(),
+                child: Container(
+                  height: 54,
+                  margin: const EdgeInsets.only(bottom: 20),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(18),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.18),
+                        blurRadius: 24, offset: const Offset(0, 8),
                       ),
-                      if (_filterActive)
-                        Positioned(top: 4, right: 4,
-                          child: Container(
-                            width: 8, height: 8,
-                            decoration: const BoxDecoration(
-                              color: Colors.white,
-                              shape: BoxShape.circle),
-                          )),
-                    ]),
+                    ],
                   ),
-                ]),
+                  child: Row(children: [
+                    const SizedBox(width: 16),
+                    const Icon(Icons.search_rounded,
+                        color: Color(0xFF1565C0), size: 22),
+                    const SizedBox(width: 10),
+                    const Expanded(
+                      child: Text(
+                        'ابحث عن شاليه، منتجع، أو شاطئ…',
+                        style: TextStyle(
+                            color: Color(0xFFBBBBBB), fontSize: 14),
+                      ),
+                    ),
+                    // Filter pill
+                    GestureDetector(
+                      onTap: _openFilter,
+                      child: Stack(children: [
+                        Container(
+                          margin: const EdgeInsets.all(7),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: _filterActive
+                                ? const Color(0xFFFF6D00)
+                                : const Color(0xFF1565C0),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Row(children: [
+                            Icon(Icons.tune_rounded,
+                                color: Colors.white, size: 14),
+                            SizedBox(width: 4),
+                            Text('تصفية',
+                                style: TextStyle(
+                                    color: Colors.white, fontSize: 11,
+                                    fontWeight: FontWeight.w700)),
+                          ]),
+                        ),
+                        if (_filterActive)
+                          Positioned(top: 4, right: 4,
+                            child: Container(
+                              width: 8, height: 8,
+                              decoration: const BoxDecoration(
+                                color: Colors.white,
+                                shape: BoxShape.circle),
+                            )),
+                      ]),
+                    ),
+                  ]),
+                ),
               ),
             ]),
           ),
@@ -940,10 +943,46 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     ]);
   }
 
+  // ── Search with suggestions ─────────────────────────────
+  void _openSearch() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _SearchSheet(
+        recentSearches: _recentSearches,
+        onSearch: (query, {area, type}) {
+          setState(() {
+            if (query.isNotEmpty && !_recentSearches.contains(query)) {
+              _recentSearches.insert(0, query);
+              if (_recentSearches.length > 6) _recentSearches.removeLast();
+            }
+          });
+          Navigator.pop(context);
+          Navigator.push(context, MaterialPageRoute(
+            builder: (_) => ExplorePage(
+              initialSearch: query,
+              initialArea: area,
+              initialType: type,
+            ),
+          ));
+        },
+      ),
+    );
+  }
+
+  void _openAreaResults(String area) {
+    Navigator.push(context, MaterialPageRoute(
+      builder: (_) => ExplorePage(initialArea: area),
+    ));
+  }
+
   Widget _heroCard(_Hero h) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-      child: ClipRRect(
+      child: GestureDetector(
+        onTap: () => _openAreaResults(h.area),
+        child: ClipRRect(
           borderRadius: BorderRadius.circular(24),
           child: Stack(children: [
             // ── صورة حقيقية ───────────────────────────
@@ -1018,7 +1057,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 const SizedBox(height: 14),
                 Row(children: [
                   GestureDetector(
-                    onTap: () {},
+                    onTap: () => _openAreaResults(h.area),
                     child: Container(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 18, vertical: 10),
@@ -1031,16 +1070,16 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                               blurRadius: 10, offset: const Offset(0, 4)),
                         ],
                       ),
-                      child: Row(children: [
-                        Text('Book Now',
+                      child: const Row(children: [
+                        Text('استكشف الآن',
                             style: TextStyle(
-                              color: const Color(0xFF1565C0),
+                              color: Color(0xFF1565C0),
                               fontSize: 13,
                               fontWeight: FontWeight.w900,
                             )),
-                        const SizedBox(width: 4),
+                        SizedBox(width: 4),
                         Icon(Icons.arrow_forward_rounded,
-                            size: 14, color: const Color(0xFF1565C0)),
+                            size: 14, color: Color(0xFF1565C0)),
                       ]),
                     ),
                   ),
@@ -1049,7 +1088,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             ]),
           ),
         ]),
-    ),
+        ), // GestureDetector
+      ),
     );
   }
 
@@ -1158,7 +1198,11 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   }
 
   Widget _destCard(_Dest d) {
-    return Container(
+    return GestureDetector(
+      onTap: () => Navigator.push(context, MaterialPageRoute(
+        builder: (_) => ExplorePage(initialArea: d.name),
+      )),
+      child: Container(
       width: 155,
       margin: const EdgeInsets.only(right: 12),
       decoration: BoxDecoration(
@@ -1238,6 +1282,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           ),
         ]),
       ),
+    ),
     );
   }
 
@@ -1437,4 +1482,188 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     );
   }
 
+}
+
+
+// ══════════════════════════════════════════════════════════════
+//  SEARCH SHEET — اقتراحات ذكية
+// ══════════════════════════════════════════════════════════════
+class _SearchSheet extends StatefulWidget {
+  final List<String> recentSearches;
+  final void Function(String query, {String? area, String? type}) onSearch;
+  const _SearchSheet({required this.recentSearches, required this.onSearch});
+  @override State<_SearchSheet> createState() => _SearchSheetState();
+}
+
+class _SearchSheetState extends State<_SearchSheet> {
+  final _ctrl = TextEditingController();
+  final _focus = FocusNode();
+  String _query = '';
+
+  static const _suggestions = [
+    {'label': 'شاليهات عين السخنة',  'icon': '🌊', 'area': 'عين السخنة',      'type': ''},
+    {'label': 'فيلات الساحل الشمالي','icon': '🏖️', 'area': 'الساحل الشمالي',  'type': ''},
+    {'label': 'منتجعات الغردقة',     'icon': '🐠', 'area': 'الغردقة',          'type': ''},
+    {'label': 'فنادق شرم الشيخ',     'icon': '🦈', 'area': 'شرم الشيخ',        'type': ''},
+    {'label': 'شاليهات الجونة',      'icon': '⛵', 'area': 'الجونة',            'type': ''},
+    {'label': 'عروض رأس سدر',        'icon': '🌬️', 'area': 'رأس سدر',          'type': ''},
+    {'label': 'أكوا بارك',           'icon': '🎢', 'area': '',                  'type': 'أكوا بارك'},
+    {'label': 'شاليهات بحمام سباحة', 'icon': '🏊', 'area': '',                  'type': 'شاليه'},
+  ];
+
+  List<Map<String,String>> get _filtered {
+    if (_query.isEmpty) return List<Map<String,String>>.from(_suggestions);
+    return _suggestions.where((s) =>
+      s['label']!.contains(_query) ||
+      (s['area'] ?? '').contains(_query) ||
+      (s['type'] ?? '').contains(_query)
+    ).toList();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    Future.delayed(const Duration(milliseconds: 200), () => _focus.requestFocus());
+  }
+
+  @override
+  void dispose() { _ctrl.dispose(); _focus.dispose(); super.dispose(); }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.88,
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      child: Column(children: [
+        // Handle
+        Container(
+          margin: const EdgeInsets.only(top: 12),
+          width: 40, height: 4,
+          decoration: BoxDecoration(
+              color: Colors.grey[300], borderRadius: BorderRadius.circular(2)),
+        ),
+
+        // Search input
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+          child: Container(
+            height: 54,
+            decoration: BoxDecoration(
+              color: const Color(0xFFF5F7FF),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xFF1565C0).withValues(alpha: 0.25)),
+            ),
+            child: Row(children: [
+              const SizedBox(width: 14),
+              const Icon(Icons.search_rounded, color: Color(0xFF1565C0), size: 22),
+              const SizedBox(width: 10),
+              Expanded(child: TextField(
+                controller: _ctrl,
+                focusNode: _focus,
+                onChanged: (v) => setState(() => _query = v),
+                onSubmitted: (v) {
+                  if (v.trim().isNotEmpty) widget.onSearch(v.trim());
+                },
+                decoration: const InputDecoration(
+                  hintText: 'ابحث عن وجهة، نوع، أو اسم عقار…',
+                  hintStyle: TextStyle(color: Color(0xFFBBBBBB), fontSize: 14),
+                  border: InputBorder.none,
+                ),
+                textInputAction: TextInputAction.search,
+                style: const TextStyle(fontSize: 15, color: Color(0xFF0D1B2A)),
+              )),
+              if (_query.isNotEmpty)
+                GestureDetector(
+                  onTap: () { _ctrl.clear(); setState(() => _query = ''); },
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 12),
+                    child: Icon(Icons.close_rounded, color: Color(0xFFAAAAAA), size: 20),
+                  ),
+                ),
+            ]),
+          ),
+        ),
+
+        const SizedBox(height: 20),
+
+        // Recent searches
+        if (_query.isEmpty && widget.recentSearches.isNotEmpty) ...[
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
+            child: Row(children: [
+              const Icon(Icons.history_rounded, size: 16, color: Color(0xFFAAAAAA)),
+              const SizedBox(width: 6),
+              const Text('بحث سابق',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700,
+                      color: Color(0xFFAAAAAA))),
+            ]),
+          ),
+          ...widget.recentSearches.take(3).map((r) => ListTile(
+            dense: true,
+            leading: const Icon(Icons.history_rounded,
+                color: Color(0xFFCCCCCC), size: 18),
+            title: Text(r, style: const TextStyle(
+                fontSize: 14, color: Color(0xFF0D1B2A))),
+            onTap: () => widget.onSearch(r),
+          )),
+          const Divider(height: 24, indent: 20, endIndent: 20),
+        ],
+
+        // Suggestions label
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
+          child: Row(children: [
+            Icon(
+              _query.isEmpty ? Icons.bolt_rounded : Icons.search_rounded,
+              size: 16, color: const Color(0xFF1565C0)),
+            const SizedBox(width: 6),
+            Text(
+              _query.isEmpty ? 'اقتراحات مميزة' : 'نتائج البحث',
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700,
+                  color: Color(0xFF1565C0))),
+          ]),
+        ),
+
+        // Suggestions list
+        Expanded(
+          child: ListView.builder(
+            padding: EdgeInsets.zero,
+            itemCount: _filtered.length,
+            itemBuilder: (_, i) {
+              final s = _filtered[i];
+              return ListTile(
+                leading: Container(
+                  width: 42, height: 42,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1565C0).withValues(alpha: 0.07),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Center(child: Text(s['icon']!,
+                      style: const TextStyle(fontSize: 20))),
+                ),
+                title: Text(s['label']!,
+                    style: const TextStyle(
+                        fontSize: 15, fontWeight: FontWeight.w700,
+                        color: Color(0xFF0D1B2A))),
+                subtitle: Text(
+                  s['area']!.isNotEmpty ? s['area']! : s['type']!,
+                  style: const TextStyle(fontSize: 12, color: Color(0xFFAAAAAA)),
+                ),
+                trailing: const Icon(Icons.arrow_forward_ios_rounded,
+                    size: 13, color: Color(0xFFCCCCCC)),
+                onTap: () => widget.onSearch(
+                  s['label']!,
+                  area: s['area']!.isNotEmpty ? s['area'] : null,
+                  type: s['type']!.isNotEmpty ? s['type'] : null,
+                ),
+              );
+            },
+          ),
+        ),
+      ]),
+    );
+  }
 }

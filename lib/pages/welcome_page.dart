@@ -67,18 +67,17 @@ class _WelcomePageState extends State<WelcomePage>
             fit: BoxFit.cover,
           ),
         ),
-        // dark gradient overlay — bottom only, so image stays visible
         Positioned.fill(
-          child: Container(
+          child: DecoratedBox(
             decoration: const BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
                 stops: [0.0, 0.55, 1.0],
                 colors: [
-                  Color(0x33000000),   // top: very subtle dark
-                  Color(0x55000000),   // middle
-                  Color(0xCC000000),   // bottom: darker for text readability
+                  Color(0x33000000),
+                  Color(0x55000000),
+                  Color(0xCC000000),
                 ],
               ),
             ),
@@ -97,13 +96,6 @@ class _WelcomePageState extends State<WelcomePage>
                 children: [
 
                   const SizedBox(height: 48),
-
-                  // ══════════════════════════════════════
-                  //  LOGO — هادي وبسيط
-                  // ══════════════════════════════════════
-                  _Logo(),
-
-                  const SizedBox(height: 20),
 
                   // App name
                   const Text(
@@ -201,45 +193,7 @@ class _WelcomePageState extends State<WelcomePage>
   }
 }
 
-// ══════════════════════════════════════════════════════════════
-//  LOGO WIDGET — هادي وبسيط
-// ══════════════════════════════════════════════════════════════
-class _Logo extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 80, height: 80,
-      decoration: BoxDecoration(
-        color: const Color(0xFF1565C0),
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.30),
-            blurRadius: 24,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.flight_takeoff_rounded,
-                color: Colors.white, size: 28),
-            const SizedBox(height: 2),
-            Container(
-              width: 24, height: 2,
-              decoration: BoxDecoration(
-                color: const Color(0xFFFF6D00),
-                borderRadius: BorderRadius.circular(1),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
+
 
 
 // ══════════════════════════════════════════════════════════════

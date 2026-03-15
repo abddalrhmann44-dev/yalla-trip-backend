@@ -95,7 +95,10 @@ const _kCategories = [
 // ════════════════════════════════════════════════════════════
 
 class ExplorePage extends StatefulWidget {
-  const ExplorePage({super.key});
+  final String? initialArea;
+  final String? initialType;
+  final String? initialSearch;
+  const ExplorePage({super.key, this.initialArea, this.initialType, this.initialSearch});
   @override State<ExplorePage> createState() => _ExplorePageState();
 }
 
@@ -131,6 +134,17 @@ class _ExplorePageState extends State<ExplorePage>
   @override
   void initState() {
     super.initState();
+    // تطبيق الـ initial filters القادمة من HomePage
+    if (widget.initialArea != null && widget.initialArea!.isNotEmpty) {
+      _selArea = widget.initialArea!;
+    }
+    if (widget.initialType != null && widget.initialType!.isNotEmpty) {
+      _selCat = widget.initialType!;
+    }
+    if (widget.initialSearch != null && widget.initialSearch!.isNotEmpty) {
+      _query = widget.initialSearch!;
+      _searchCtrl.text = widget.initialSearch!;
+    }
     _tabCtrl = TabController(length: 4, vsync: this);
     _searchCtrl.addListener(() =>
         setState(() => _query = _searchCtrl.text.toLowerCase()));

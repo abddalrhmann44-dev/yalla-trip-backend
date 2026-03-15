@@ -255,19 +255,18 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.transparent,
+      backgroundColor: Colors.black,
+      extendBodyBehindAppBar: true,
       body: Stack(children: [
 
-        // ══════════════════════════════════════════════════════
-        //  🖼️  صورة خلفية LOGIN — لإضافة صورتك:
-        //  1. حط الصورة في: assets/images/login_bg.jpg
-        //  2. في pubspec.yaml أضف: - assets/images/login_bg.jpg
-        //  3. شيل الـ Container الأبيض واستبدله بـ Image.asset
-        // ══════════════════════════════════════════════════════
-        Positioned.fill(
+        // ── صورة الخلفية كاملة ──────────────────────────────
+        SizedBox(
+          width: double.infinity,
+          height: double.infinity,
           child: Image.asset(
             'assets/images/login_bg.jpg',
             fit: BoxFit.cover,
+            alignment: Alignment.center,
           ),
         ),
 
@@ -287,9 +286,6 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                   _BackBtn(onTap: () => Navigator.pop(context)),
                   const SizedBox(height: 32),
 
-                  // ── Logo + headline ─────────────────
-                  _MiniLogo(),
-                  const SizedBox(height: 20),
 
                   const Text('تسجيل الدخول',
                       style: TextStyle(
@@ -508,31 +504,7 @@ class _BackBtn extends StatelessWidget {
   );
 }
 
-class _MiniLogo extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) => Container(
-    width: 48, height: 48,
-    decoration: BoxDecoration(
-      color: const Color(0xFF1565C0),
-      borderRadius: BorderRadius.circular(15),
-      boxShadow: [BoxShadow(
-        color: const Color(0xFF1565C0).withValues(alpha: 0.20),
-        blurRadius: 12, offset: const Offset(0, 5),
-      )],
-    ),
-    child: Center(
-      child: Column(mainAxisSize: MainAxisSize.min, children: [
-        const Icon(Icons.flight_takeoff_rounded,
-            color: Colors.white, size: 20),
-        const SizedBox(height: 2),
-        Container(width: 16, height: 2,
-          decoration: BoxDecoration(
-            color: const Color(0xFFFF6D00),
-            borderRadius: BorderRadius.circular(1))),
-      ]),
-    ),
-  );
-}
+
 
 class _TabSelector extends StatelessWidget {
   final int selected;
