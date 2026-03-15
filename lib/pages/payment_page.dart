@@ -6,6 +6,8 @@
 // ═══════════════════════════════════════════════════════════════
 
 import 'package:flutter/material.dart';
+import '../main.dart' show appSettings;
+import '../utils/app_strings.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -29,17 +31,19 @@ class _PayMethod {
       this.color, this.bg);
 }
 
-const _kMethods = [
-  _PayMethod('visa',     'فيزا / ماستر كارد', 'بطاقة ائتمان أو خصم مباشر',
-      '💳', Color(0xFF1565C0), Color(0xFFEEF2FF)),
-  _PayMethod('meeza',    'ميزة',              'البطاقة الوطنية المصرية',
-      '🇪🇬', Color(0xFF006633), Color(0xFFE8F5E9)),
-  _PayMethod('fawry',    'فوري Pay',          'ادفع إلكترونياً عبر فوري',
-      '🟡', Color(0xFFFF6600), Color(0xFFFFF3E0)),
-  _PayMethod('vodafone', 'فودافون كاش',       'ادفع عبر محفظة فودافون',
-      '🔴', Color(0xFFE53935), Color(0xFFFFEBEE)),
-  _PayMethod('etisalat', 'اتصالات كاش',       'ادفع عبر محفظة اتصالات',
-      '🟢', Color(0xFF2E7D32), Color(0xFFE8F5E9)),
+// Payment methods — use S. getters in display, keep Arabic keys for logic
+List<_PayMethod> get _kMethods => [
+  _PayMethod('visa',     S.visaMaster, S.visaDesc,
+      '💳', const Color(0xFF1565C0), const Color(0xFFEEF2FF)),
+  _PayMethod('meeza',    S.meeza,      S.meezaDesc,
+      '🇪🇬', const Color(0xFF006633), const Color(0xFFE8F5E9)),
+  _PayMethod('fawry',    S.fawry,      S.fawryDesc,
+      '🟡', const Color(0xFFFF6600), const Color(0xFFFFF3E0)),
+  _PayMethod('vodafone', S.vodafone,   S.vodafoneDesc,
+      '🔴', const Color(0xFFE53935), const Color(0xFFFFEBEE)),
+  _PayMethod('etisalat', S.ar ? 'اتصالات كاش' : 'Etisalat Cash',
+      S.ar ? 'ادفع عبر محفظة اتصالات' : 'Pay via Etisalat wallet',
+      '🟢', const Color(0xFF2E7D32), const Color(0xFFE8F5E9)),
 ];
 
 // ══════════════════════════════════════════════════════════════
@@ -77,8 +81,11 @@ class _PaymentPageState extends State<PaymentPage> {
   final _cvvCtrl  = TextEditingController();
   final _nameCtrl = TextEditingController();
 
+  void _onLangChange() { if (mounted) setState(() {}); }
+
   @override
   void dispose() {
+    appSettings.removeListener(_onLangChange);
     _numCtrl.dispose(); _expCtrl.dispose();
     _cvvCtrl.dispose(); _nameCtrl.dispose();
     super.dispose();
@@ -263,9 +270,9 @@ class _PaymentPageState extends State<PaymentPage> {
       _row('${p.price.toInt()} × ${widget.nights} ليالي',
           '${widget.baseAmount} جنيه'),
       if (widget.cleaningFee > 0)
-        _row('رسوم التنظيف', '${widget.cleaningFee} جنيه'),
+        _row(S.cleaningFee, '${widget.cleaningFee} جنيه'),
       const Divider(height: 14, color: _kBorder),
-      _row('الإجمالي', '${widget.totalAmount} جنيه', bold: true),
+      _row(S.totalPrice, '${widget.totalAmount} جنيه', bold: true),
     ]),
   );
 
@@ -641,10 +648,10 @@ class _PaymentPageState extends State<PaymentPage> {
 
   String _methodLabel() {
     switch (_sel) {
-      case 'visa':     return 'فيزا / ماستر كارد';
-      case 'meeza':    return 'ميزة';
-      case 'fawry':    return 'فوري Pay';
-      case 'vodafone': return 'فودافون كاش';
+      case 'visa':     return S.visaMaster;
+      case 'meeza':    return S.meeza;
+      case 'fawry':    return S.fawry;
+      case 'vodafone': return S.vodafone;
       case 'etisalat': return 'اتصالات كاش';
       default:         return '';
     }

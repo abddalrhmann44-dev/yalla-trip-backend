@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../main.dart' show appSettings;
+import '../utils/app_strings.dart';
 import '../widgets/constants.dart';
 import '../widgets/chat_bubble.dart';
 
@@ -93,6 +95,7 @@ class _ChatPageState extends State<ChatPage> {
   @override
   void initState() {
     super.initState();
+    appSettings.addListener(_onLangChange);
     // Fix initial messages with property name
     _messages[0] = ChatMessage(
       id: '1',
@@ -110,8 +113,11 @@ class _ChatPageState extends State<ChatPage> {
     );
   }
 
+  void _onLangChange() { if (mounted) setState(() {}); }
+
   @override
   void dispose() {
+    appSettings.removeListener(_onLangChange);
     _msgController.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -267,12 +273,12 @@ class _ChatPageState extends State<ChatPage> {
                   ),
                 ),
                 Row(
-                  children: const [
+                  children: [
                     Icon(Icons.circle,
                         size: 8, color: AppColors.success),
                     SizedBox(width: 4),
                     Text(
-                      'متصل الآن',
+                      S.online,
                       style: TextStyle(
                         fontSize: 11,
                         color: AppColors.success,

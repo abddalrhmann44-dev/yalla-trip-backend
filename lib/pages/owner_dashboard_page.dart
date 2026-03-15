@@ -4,6 +4,7 @@
 // ═══════════════════════════════════════════════════════════════
 
 import 'package:flutter/material.dart';
+import '../main.dart' show appSettings;
 import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -62,15 +63,13 @@ class _Property {
   }
 
   Color get areaColor {
-    switch (area) {
-      case 'عين السخنة':     return const Color(0xFF0288D1);
-      case 'الساحل الشمالي': return const Color(0xFF1976D2);
-      case 'الجونة':         return const Color(0xFFE65100);
-      case 'الغردقة':        return const Color(0xFF00695C);
-      case 'شرم الشيخ':      return const Color(0xFF6A1B9A);
-      case 'رأس سدر':        return const Color(0xFF00897B);
-      default:               return _kOcean;
-    }
+    if (area == 'عين السخنة')     return const Color(0xFF0288D1);
+    if (area == 'الساحل الشمالي') return const Color(0xFF1976D2);
+    if (area == 'الجونة')         return const Color(0xFFE65100);
+    if (area == 'الغردقة')        return const Color(0xFF00695C);
+    if (area == 'شرم الشيخ')      return const Color(0xFF6A1B9A);
+    if (area == 'رأس سدر')        return const Color(0xFF00897B);
+    return const Color(0xFF1565C0);
   }
 
   String get formattedPrice =>
@@ -101,14 +100,18 @@ class _OwnerDashboardPageState extends State<OwnerDashboardPage>
   @override
   void initState() {
     super.initState();
+    appSettings.addListener(_onLangChange);
     _fadeCtrl = AnimationController(
         vsync: this, duration: const Duration(milliseconds: 600));
     _fadeAnim = CurvedAnimation(parent: _fadeCtrl, curve: Curves.easeOut);
     _checkOwnerAccess();
   }
 
+  void _onLangChange() { if (mounted) setState(() {}); }
+
   @override
-  void dispose() { _fadeCtrl.dispose(); super.dispose(); }
+  void dispose() {
+    appSettings.removeListener(_onLangChange); _fadeCtrl.dispose(); super.dispose(); }
 
 
 
@@ -195,7 +198,7 @@ class _OwnerDashboardPageState extends State<OwnerDashboardPage>
         rated.length;
   }
   int get _totalReviews =>
-      _properties.fold(0, (sum, p) => sum + p.reviewCount);
+      _properties.fold(0, (acc, p) => acc + p.reviewCount);
 
   // ════════════════════════════════════════════════════════════
   //  BUILD
@@ -633,7 +636,7 @@ class _OwnerDashboardPageState extends State<OwnerDashboardPage>
             // ── Action buttons ──
             Row(children: [
               // Reviews count
-              Icon(Icons.rate_review_rounded,
+              const Icon(Icons.rate_review_rounded,
                   size: 14, color: _kSub),
               const SizedBox(width: 4),
               Text('${p.reviewCount} مراجعة',

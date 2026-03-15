@@ -4,6 +4,8 @@
 // ═══════════════════════════════════════════════════════════════
 
 import 'package:flutter/material.dart';
+import '../main.dart' show appSettings;
+import '../utils/app_strings.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -58,7 +60,7 @@ class _Notif {
 
   String get timeAgo {
     final diff = DateTime.now().difference(createdAt);
-    if (diff.inMinutes < 1)  return 'الآن';
+    if (diff.inMinutes < 1)  return S.justNow;
     if (diff.inMinutes < 60) return 'منذ ${diff.inMinutes} دقيقة';
     if (diff.inHours < 24)   return 'منذ ${diff.inHours} ساعة';
     if (diff.inDays < 7)     return 'منذ ${diff.inDays} يوم';
@@ -83,9 +85,13 @@ class _NotificationsPageState extends State<NotificationsPage> {
   List<_Notif> _notifs  = [];
   bool         _loading = true;
 
+  void _onLangChange() { if (mounted) setState(() {}); }
+
   @override
   void initState() {
     super.initState();
+    appSettings.addListener(_onLangChange);
+
     _loadNotifs();
   }
 
@@ -218,7 +224,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
           onPressed: () => Navigator.pop(context),
         ),
         title: Row(mainAxisSize: MainAxisSize.min, children: [
-          const Text('الإشعارات',
+          Text(S.notificationsTitle,
               style: TextStyle(fontSize: 17,
                   fontWeight: FontWeight.w900, color: _kText)),
           if (_unreadCount > 0) ...[

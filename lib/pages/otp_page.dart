@@ -5,6 +5,8 @@
 
 import 'dart:async';
 import 'package:flutter/material.dart';
+import '../main.dart' show appSettings;
+import '../utils/app_strings.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -53,6 +55,7 @@ class _OtpPageState extends State<OtpPage>
   @override
   void initState() {
     super.initState();
+    appSettings.addListener(_onLangChange);
     _verificationId = widget.verificationId;
     _animCtrl = AnimationController(
         vsync: this, duration: const Duration(milliseconds: 600));
@@ -64,8 +67,11 @@ class _OtpPageState extends State<OtpPage>
     });
   }
 
+  void _onLangChange() { if (mounted) setState(() {}); }
+
   @override
   void dispose() {
+    appSettings.removeListener(_onLangChange);
     _timer?.cancel();
     _animCtrl.dispose();
     for (final c in _ctrls) { c.dispose(); }
@@ -91,7 +97,7 @@ class _OtpPageState extends State<OtpPage>
 
   Future<void> _verifyOTP() async {
     if (_otpCode.length < 6) {
-      _showError('أدخل الكود المكون من 6 أرقام كاملاً');
+      _showError(S.otpEnterCode);
       return;
     }
     setState(() => _isLoading = true);
@@ -138,11 +144,11 @@ class _OtpPageState extends State<OtpPage>
         _goHome();
       }
     } on FirebaseAuthException catch (e) {
-      String msg = 'الكود غير صحيح، حاول مرة أخرى';
+      String msg = S.otpWrong;
       if (e.code == 'session-expired') {
-        msg = 'انتهت صلاحية الكود، اطلب كوداً جديداً';
+        msg = S.otpExpired;
       } else if (e.code == 'invalid-verification-code') {
-        msg = 'الكود المدخل غير صحيح';
+        msg = S.otpInvalid;
       }
       _showError(msg);
       for (final c in _ctrls) { c.clear(); }
@@ -168,7 +174,7 @@ class _OtpPageState extends State<OtpPage>
         _startTimer();
         for (final c in _ctrls) { c.clear(); }
         _foci[0].requestFocus();
-        _showSuccess('تم إرسال كود جديد ✅');
+        _showSuccess(S.otpResent);
       },
 
       verificationCompleted: (PhoneAuthCredential credential) async {
@@ -178,7 +184,7 @@ class _OtpPageState extends State<OtpPage>
 
       verificationFailed: (FirebaseAuthException e) {
         setState(() => _isLoading = false);
-        _showError('فشل إرسال الكود، حاول مرة أخرى');
+        _showError(S.otpResendFailed);
       },
 
       codeAutoRetrievalTimeout: (_) {},

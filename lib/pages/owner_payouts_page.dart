@@ -5,6 +5,8 @@
 // ═══════════════════════════════════════════════════════════════
 
 import 'package:flutter/material.dart';
+import '../main.dart' show appSettings;
+import '../utils/app_strings.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -60,12 +62,12 @@ class _Payout {
 
   String get statusAr {
     switch (status) {
-      case 'paid': return 'تم التحويل ✅';
-      case 'processing': return 'جاري التحويل ⏳';
+      case 'paid': return S.paid;
+      case 'processing': return S.processing;
       default:
         final now  = DateTime.now();
         final diff = payoutRelease.difference(now);
-        if (diff.isNegative || diff.inSeconds == 0) { return 'جاهز للصرف 🟢'; }
+        if (diff.isNegative || diff.inSeconds == 0) { return S.readyToPay; }
         if (diff.inDays > 0) { return 'بعد ${diff.inDays} يوم ⏳'; }
         return 'بعد ${diff.inHours} ساعة ⏳';
     }
@@ -92,12 +94,16 @@ class _OwnerPayoutsPageState extends State<OwnerPayoutsPage>
   @override
   void initState() {
     super.initState();
+    appSettings.addListener(_onLangChange);
     _tabs = TabController(length: 3, vsync: this);
     _load();
   }
 
+  void _onLangChange() { if (mounted) setState(() {}); }
+
   @override
-  void dispose() { _tabs.dispose(); super.dispose(); }
+  void dispose() {
+    appSettings.removeListener(_onLangChange); _tabs.dispose(); super.dispose(); }
 
   Future<void> _load() async {
     try {
@@ -153,7 +159,7 @@ class _OwnerPayoutsPageState extends State<OwnerPayoutsPage>
                   color: Colors.white, size: 18),
               onPressed: () => Navigator.pop(context),
             ),
-            title: const Text('مستحقاتي',
+            title: Text(S.myPayouts,
                 style: TextStyle(fontSize: 17,
                     fontWeight: FontWeight.w900, color: Colors.white)),
             centerTitle: true,
@@ -185,7 +191,7 @@ class _OwnerPayoutsPageState extends State<OwnerPayoutsPage>
                               fontSize: 36,
                               fontWeight: FontWeight.w900,
                               color: Colors.white)),
-                      const Text('إجمالي ما استلمته',
+                      Text(S.totalRevenue,
                           style: TextStyle(
                               color: Colors.white70, fontSize: 13)),
                     ]),

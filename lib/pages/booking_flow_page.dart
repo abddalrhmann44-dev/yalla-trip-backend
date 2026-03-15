@@ -4,6 +4,8 @@
 // ═══════════════════════════════════════════════════════════════
 
 import 'package:flutter/material.dart';
+import '../main.dart' show appSettings;
+import '../utils/app_strings.dart';
 import '../models/property_model.dart';
 import 'payment_page.dart';
 
@@ -54,6 +56,7 @@ class _BookingFlowPageState extends State<BookingFlowPage>
   @override
   void initState() {
     super.initState();
+    appSettings.addListener(_onLangChange);
     _progressCtrl = AnimationController(
         vsync: this, duration: const Duration(milliseconds: 400));
     _progressAnim = Tween(begin: 0.33, end: 0.33)
@@ -62,8 +65,11 @@ class _BookingFlowPageState extends State<BookingFlowPage>
     _progressCtrl.forward();
   }
 
+  void _onLangChange() { if (mounted) setState(() {}); }
+
   @override
   void dispose() {
+    appSettings.removeListener(_onLangChange);
     _progressCtrl.dispose();
     _noteCtrl.dispose();
     _pageCtrl.dispose();
@@ -135,9 +141,9 @@ class _BookingFlowPageState extends State<BookingFlowPage>
 
   String _stepTitle() {
     switch (_step) {
-      case 0:  return 'اختر مواعيدك';
-      case 1:  return 'تفاصيل الحجز';
-      default: return 'تأكيد الحجز';
+      case 0:  return S.chooseDates;
+      case 1:  return S.bookingDetails;
+      default: return S.confirmBooking;
     }
   }
 
@@ -154,7 +160,7 @@ class _BookingFlowPageState extends State<BookingFlowPage>
         const SizedBox(height: 20),
 
         // Calendar header
-        const Text('تاريخ الوصول والمغادرة',
+        Text(S.dateRange,
             style: TextStyle(fontSize: 18,
                 fontWeight: FontWeight.w900, color: _kText)),
         const SizedBox(height: 4),
@@ -165,7 +171,7 @@ class _BookingFlowPageState extends State<BookingFlowPage>
         // Date range tiles
         Row(children: [
           Expanded(child: _dateTile(
-            label: 'تاريخ الوصول',
+            label: S.arrivalDate,
             icon: Icons.login_rounded,
             date: _checkIn,
             color: _kGreen,
@@ -173,7 +179,7 @@ class _BookingFlowPageState extends State<BookingFlowPage>
           )),
           const SizedBox(width: 12),
           Expanded(child: _dateTile(
-            label: 'تاريخ المغادرة',
+            label: S.departureDate,
             icon: Icons.logout_rounded,
             date: _checkOut,
             color: _kOrange,
@@ -347,7 +353,7 @@ class _BookingFlowPageState extends State<BookingFlowPage>
         const SizedBox(height: 20),
 
         // Guests
-        const Text('عدد الضيوف',
+        Text(S.guestsNum,
             style: TextStyle(fontSize: 16,
                 fontWeight: FontWeight.w900, color: _kText)),
         const SizedBox(height: 12),
@@ -635,9 +641,9 @@ class _BookingFlowPageState extends State<BookingFlowPage>
       _priceRow('${p.price.toInt()} جنيه × $_nights ليالي',
           '$_baseTotal جنيه'),
       if (_cleaningFee > 0)
-        _priceRow('رسوم التنظيف', '$_cleaningFee جنيه'),
+        _priceRow(S.cleaningFee, '$_cleaningFee جنيه'),
       const Divider(height: 20, color: _kBorder),
-      _priceRow('الإجمالي', '$_grandTotal جنيه', bold: true),
+      _priceRow(S.totalPrice, '$_grandTotal جنيه', bold: true),
     ]),
   );
 

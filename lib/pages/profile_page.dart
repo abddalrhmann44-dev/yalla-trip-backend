@@ -238,7 +238,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   ),
                 ),
                 child: Text(
-                  _isOwner ? '🏠 مالك عقار' : '🧳 عميل',
+                  _isOwner ? '🏠 ${S.ownerBadge}' : '🧳 ${S.guestBadge}',
                   style: TextStyle(
                       color: _isOwner
                           ? _kOrange
@@ -337,8 +337,8 @@ class _ProfilePageState extends State<ProfilePage> {
               Padding(
                 padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
                 child: Row(children: [
-                  const Text('بياناتي الشخصية',
-                      style: TextStyle(fontSize: 20,
+                  Text(S.myProfile,
+                      style: const TextStyle(fontSize: 20,
                           fontWeight: FontWeight.w900,
                           color: Color(0xFF0D1B2A))),
                   const Spacer(),
@@ -364,14 +364,14 @@ class _ProfilePageState extends State<ProfilePage> {
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: Column(children: [
                   _sheetField(Icons.person_rounded,
-                      'الاسم الكامل', nameCtrl),
+                      S.fullName, nameCtrl),
                   const SizedBox(height: 12),
                   _sheetField(Icons.phone_rounded,
-                      'رقم الهاتف', phoneCtrl,
+                      S.phone, phoneCtrl,
                       keyType: TextInputType.phone),
                   const SizedBox(height: 12),
                   _sheetField(Icons.email_rounded,
-                      'البريد الإلكتروني', emailCtrl,
+                      S.email, emailCtrl,
                       keyType: TextInputType.emailAddress),
                 ]),
               ),
@@ -397,12 +397,13 @@ class _ProfilePageState extends State<ProfilePage> {
                         });
                       }
                       if (!mounted) return;
+                      final nav = Navigator.of(context);
                       setState(() {
                         _name  = nameCtrl.text.trim();
                         _phone = phoneCtrl.text.trim();
                         _email = emailCtrl.text.trim();
                       });
-                      if (mounted) Navigator.pop(ctx);
+                      nav.pop();
                     } catch (_) {
                       setSheet(() => saving = false);
                     }
@@ -419,8 +420,8 @@ class _ProfilePageState extends State<ProfilePage> {
                             child: CircularProgressIndicator(
                                 strokeWidth: 2,
                                 color: Colors.white))
-                        : const Text('حفظ التعديلات',
-                            style: TextStyle(
+                        : Text(S.saveChanges,
+                            style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 15,
                                 fontWeight: FontWeight.w800))),
@@ -482,17 +483,17 @@ class _ProfilePageState extends State<ProfilePage> {
               color: _kOrange.withValues(alpha: 0.35),
               blurRadius: 12, offset: const Offset(0, 4))],
         ),
-        child: const Row(children: [
+        child: Row(children: [
           Text('🏠', style: TextStyle(fontSize: 32)),
           SizedBox(width: 12),
           Expanded(child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('هل عندك عقار؟',
-                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w900,
+              Text(S.becomeOwner,
+                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900,
                       color: Colors.white)),
-              Text('حوّل حسابك لمالك وضيف عقارك الآن',
-                  style: TextStyle(fontSize: 11,
+              Text(S.becomeOwnerSub,
+                  style: const TextStyle(fontSize: 11,
                       color: Colors.white70)),
             ],
           )),
@@ -516,9 +517,9 @@ class _ProfilePageState extends State<ProfilePage> {
       child: Row(children: [
         const Icon(Icons.home_work_rounded, color: _kOcean, size: 20),
         const SizedBox(width: 10),
-        const Expanded(
-          child: Text('أنت في وضع المالك',
-              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800,
+        Expanded(
+          child: Text(S.ownerMode,
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800,
                   color: _kOcean)),
         ),
         GestureDetector(
@@ -544,9 +545,9 @@ class _ProfilePageState extends State<ProfilePage> {
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
-          _statCard(_tripsCount.toString(),  'رحلاتي',   '✈️', _kOcean),
+          _statCard(_tripsCount.toString(),  S.tripsCount,   '✈️', _kOcean),
           const SizedBox(width: 12),
-          _statCard(_reviewsCount.toString(),'تقييماتي', '⭐', const Color(0xFFFFC107)),
+          _statCard(_reviewsCount.toString(),S.reviewsCountL, '⭐', const Color(0xFFFFC107)),
         ]),
 
         const SizedBox(height: 20),
@@ -590,8 +591,8 @@ class _ProfilePageState extends State<ProfilePage> {
             Expanded(child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('إجمالي ما استلمته',
-                    style: TextStyle(color: Colors.white70, fontSize: 11)),
+                Text(S.totalRevenue,
+                    style: const TextStyle(color: Colors.white70, fontSize: 11)),
                 Text(
                   _totalRevenue > 0
                       ? 'EGP ${_totalRevenue.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]},')}'
@@ -601,7 +602,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 Text(
                   _bookingsCount > 0
                       ? '$_bookingsCount حجز حتى الآن'
-                      : 'لا يوجد حجوزات بعد',
+                      : S.noBookingsYet,
                   style: const TextStyle(color: Colors.white70, fontSize: 11)),
               ],
             )),
@@ -623,17 +624,17 @@ class _ProfilePageState extends State<ProfilePage> {
               border: Border.all(
                   color: _kOrange.withValues(alpha: 0.3), width: 1.5),
             ),
-            child: const Row(children: [
+            child: Row(children: [
               Text('➕', style: TextStyle(fontSize: 24)),
               SizedBox(width: 12),
               Expanded(child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('إضافة عقار جديد',
-                      style: TextStyle(fontSize: 14,
+                  Text(S.addProperty,
+                      style: const TextStyle(fontSize: 14,
                           fontWeight: FontWeight.w800, color: _kText)),
-                  Text('أضف شاليهك أو فيلتك في دقائق',
-                      style: TextStyle(fontSize: 11, color: _kSub)),
+                  Text(S.addPropertySub,
+                      style: const TextStyle(fontSize: 11, color: _kSub)),
                 ],
               )),
               Icon(Icons.arrow_forward_ios_rounded,
@@ -676,14 +677,14 @@ class _ProfilePageState extends State<ProfilePage> {
 
         _sectionTitle(S.notifications),
         const SizedBox(height: 10),
-        _switchTile('📅 تحديثات الحجز',
-            'اعرف أي جديد في حجوزاتك',
+        _switchTile(S.notifBookings,
+            S.notifBookingsSub,
             _notifBookings, (v) => setState(() => _notifBookings = v)),
-        _switchTile('💬 الرسائل',
-            'رسائل جديدة من الملاك أو الضيوف',
+        _switchTile(S.notifMessages,
+            S.notifMessagesSub,
             _notifMessages, (v) => setState(() => _notifMessages = v)),
-        _switchTile('⚡ عروض خاصة',
-            'عروض محدودة الوقت على العقارات',
+        _switchTile(S.notifDeals,
+            S.notifDealsSub,
             _notifDeals, (v) => setState(() => _notifDeals = v)),
 
         const SizedBox(height: 20),
@@ -716,7 +717,7 @@ class _ProfilePageState extends State<ProfilePage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(S.language,
-                    style: TextStyle(fontSize: 14,
+                    style: const TextStyle(fontSize: 14,
                         fontWeight: FontWeight.w700,
                         color: Color(0xFF0D1B2A))),
                 Text(S.langLabel,
@@ -775,7 +776,7 @@ class _ProfilePageState extends State<ProfilePage> {
         ),
 
         const SizedBox(height: 20),
-        _sectionTitle('الدعم'),
+        _sectionTitle(S.support),
         const SizedBox(height: 10),
         _navTile(Icons.help_outline_rounded, S.helpCenter, _kOcean,
             onTap: () {}),
@@ -804,12 +805,12 @@ class _ProfilePageState extends State<ProfilePage> {
               border: Border.all(color: _kRed.withValues(alpha: 0.5)),
             ),
             child: Row(mainAxisAlignment: MainAxisAlignment.center,
-              children: const [
-                Icon(Icons.delete_forever_rounded,
+              children: [
+                const Icon(Icons.delete_forever_rounded,
                     color: _kRed, size: 18),
-                SizedBox(width: 8),
-                Text('حذف الحساب',
-                    style: TextStyle(fontSize: 14,
+                const SizedBox(width: 8),
+                Text(S.deleteAccount,
+                    style: const TextStyle(fontSize: 14,
                         fontWeight: FontWeight.w800, color: _kRed)),
               ]),
           ),
@@ -827,11 +828,11 @@ class _ProfilePageState extends State<ProfilePage> {
               border: Border.all(color: _kRed.withValues(alpha: 0.3)),
             ),
             child: Row(mainAxisAlignment: MainAxisAlignment.center,
-              children: const [
-                Icon(Icons.logout_rounded, color: _kRed, size: 18),
-                SizedBox(width: 8),
-                Text('تسجيل الخروج',
-                    style: TextStyle(fontSize: 14,
+              children: [
+                const Icon(Icons.logout_rounded, color: _kRed, size: 18),
+                const SizedBox(width: 8),
+                Text(S.logout,
+                    style: const TextStyle(fontSize: 14,
                         fontWeight: FontWeight.w800, color: _kRed)),
               ]),
           ),

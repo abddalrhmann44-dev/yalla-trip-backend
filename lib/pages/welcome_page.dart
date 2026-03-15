@@ -24,6 +24,8 @@ class _WelcomePageState extends State<WelcomePage>
   @override
   void initState() {
     super.initState();
+    // Rebuild page when language changes
+    appSettings.addListener(_onLangChange);
     SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
       statusBarIconBrightness: Brightness.dark,
@@ -35,8 +37,11 @@ class _WelcomePageState extends State<WelcomePage>
         .animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOut));
   }
 
+  void _onLangChange() { if (mounted) setState(() {}); }
+
   @override
-  void dispose() { _ctrl.dispose(); super.dispose(); }
+  void dispose() {
+    appSettings.removeListener(_onLangChange); _ctrl.dispose(); super.dispose(); }
 
   @override
   Widget build(BuildContext context) {
@@ -94,11 +99,9 @@ class _WelcomePageState extends State<WelcomePage>
               padding: const EdgeInsets.fromLTRB(0, 12, 16, 0),
               child: Align(
                 alignment: Alignment.centerRight,
-                child: StatefulBuilder(
-                  builder: (ctx, setBtn) => GestureDetector(
+                child: GestureDetector(
                     onTap: () {
                       appSettings.toggleArabic();
-                      setBtn(() {});
                     },
                     child: Container(
                       padding: const EdgeInsets.symmetric(
@@ -120,7 +123,6 @@ class _WelcomePageState extends State<WelcomePage>
                                 fontWeight: FontWeight.w700)),
                       ]),
                     ),
-                  ),
                 ),
               ),
             ),

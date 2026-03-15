@@ -4,6 +4,8 @@
 // ═══════════════════════════════════════════════════════════════
 
 import 'package:flutter/material.dart';
+import '../main.dart' show appSettings;
+import '../utils/app_strings.dart';
 import '../models/property_model.dart';
 import 'booking_flow_page.dart';
 
@@ -30,8 +32,11 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
 
   PropertyModel get p => widget.property;
 
+  void _onLangChange() { if (mounted) setState(() {}); }
+
   @override
-  void dispose() { _imgCtrl.dispose(); super.dispose(); }
+  void dispose() {
+    appSettings.removeListener(_onLangChange); _imgCtrl.dispose(); super.dispose(); }
 
   // ═══════════════════════════════════════
   //  BUILD
@@ -187,7 +192,7 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
                           const Color(0xFFF3F4F6), _kSub),
                       if (p.featured) ...[
                         const SizedBox(width: 8),
-                        _badge('⭐', 'مميز',
+                        _badge('⭐', S.featured,
                             const Color(0xFFFFF8E1), const Color(0xFFF59E0B)),
                       ],
                     ]),
@@ -238,10 +243,10 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
                       const SizedBox(width: 10),
                       if (p.instant)
                         _infoBadge(Icons.bolt_rounded,
-                            'حجز فوري', const Color(0xFF22C55E)),
+                            S.instantBooking, const Color(0xFF22C55E)),
                       if (!p.instant)
                         _infoBadge(Icons.schedule_rounded,
-                            'يحتاج موافقة', _kSub),
+                            S.needsApproval, _kSub),
                     ]),
                   ],
                 ),
@@ -255,13 +260,13 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
                 padding: const EdgeInsets.symmetric(
                     vertical: 16, horizontal: 20),
                 child: Row(children: [
-                  _stat('🛏️', '${p.bedrooms}', 'غرف'),
+                  _stat('🛏️', '${p.bedrooms}', S.rooms),
                   _divV(),
-                  _stat('🛁', '${p.bathrooms}', 'حمامات'),
+                  _stat('🛁', '${p.bathrooms}', S.bathrooms),
                   _divV(),
-                  _stat('👥', '${p.guests}', 'ضيوف'),
+                  _stat('👥', '${p.guests}', S.maxGuests),
                   _divV(),
-                  _stat('🌙', '${p.minNights}+', 'ليالي'),
+                  _stat('🌙', '${p.minNights}+', S.nights),
                 ]),
               ),
 
@@ -275,7 +280,7 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('عن العقار',
+                      Text(S.aboutProperty,
                           style: TextStyle(fontSize: 16,
                               fontWeight: FontWeight.w900, color: _kText)),
                       const SizedBox(height: 10),
@@ -469,7 +474,7 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
       _priceRow('سعر نهاية الأسبوع',
           '${p.weekendPrice.toInt()} جنيه'),
     if (p.cleaningFee > 0)
-      _priceRow('رسوم التنظيف',
+      _priceRow(S.cleaningFee,
           '${p.cleaningFee.toInt()} جنيه'),
     const Divider(color: _kBorder, height: 24),
     _priceRow('الحد الأدنى للإقامة',

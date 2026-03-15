@@ -3,6 +3,8 @@
 // ═══════════════════════════════════════════════════════════════
 
 import 'package:flutter/material.dart';
+import '../main.dart' show appSettings;
+import '../utils/app_strings.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -51,15 +53,13 @@ class _Booking {
   }
 
   Color get areaColor {
-    switch (area) {
-      case 'عين السخنة':     return const Color(0xFF0288D1);
-      case 'الساحل الشمالي': return const Color(0xFF1976D2);
-      case 'الجونة':         return const Color(0xFFE65100);
-      case 'الغردقة':        return const Color(0xFF00695C);
-      case 'شرم الشيخ':      return const Color(0xFF6A1B9A);
-      case 'رأس سدر':        return const Color(0xFF00897B);
-      default:               return _kOcean;
-    }
+    if (area == 'عين السخنة')     return const Color(0xFF0288D1);
+    if (area == 'الساحل الشمالي') return const Color(0xFF1976D2);
+    if (area == 'الجونة')         return const Color(0xFFE65100);
+    if (area == 'الغردقة')        return const Color(0xFF00695C);
+    if (area == 'شرم الشيخ')      return const Color(0xFF6A1B9A);
+    if (area == 'رأس سدر')        return const Color(0xFF00897B);
+    return _kOcean;
   }
 }
 
@@ -81,12 +81,16 @@ class _BookingsPageState extends State<BookingsPage>
   @override
   void initState() {
     super.initState();
+    appSettings.addListener(_onLangChange);
     _tabCtrl = TabController(length: 3, vsync: this);
     _loadBookings();
   }
 
+  void _onLangChange() { if (mounted) setState(() {}); }
+
   @override
-  void dispose() { _tabCtrl.dispose(); super.dispose(); }
+  void dispose() {
+    appSettings.removeListener(_onLangChange); _tabCtrl.dispose(); super.dispose(); }
 
   Future<void> _loadBookings() async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
@@ -165,7 +169,7 @@ class _BookingsPageState extends State<BookingsPage>
               ),
             ),
             const SizedBox(width: 12),
-            const Expanded(child: Text('حجوزاتي',
+            Expanded(child: Text(S.myBookingsTitle,
                 style: TextStyle(color: Colors.white,
                     fontSize: 20, fontWeight: FontWeight.w900))),
             if (upcoming > 0)

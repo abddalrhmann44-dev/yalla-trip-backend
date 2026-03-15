@@ -4,6 +4,8 @@
 // ═══════════════════════════════════════════════════════════════
 
 import 'package:flutter/material.dart';
+import '../main.dart' show appSettings;
+import '../utils/app_strings.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'property_details_page.dart';
 import '../models/property_model.dart';
@@ -77,16 +79,16 @@ class _Property {
 
 // ── Static Data ───────────────────────────────────────────────
 final List<Map<String, dynamic>> _kAreas = [
-  {'name': 'Ain Sokhna',  'emoji': '🏖️', 'count': '48',  'color': const Color(0xFF0288D1)},
-  {'name': 'North Coast', 'emoji': '🌴', 'count': '120', 'color': const Color(0xFF1976D2)},
-  {'name': 'El Gouna',    'emoji': '⛵', 'count': '67',  'color': const Color(0xFFE65100)},
-  {'name': 'Hurghada',    'emoji': '🐠', 'count': '95',  'color': const Color(0xFF00695C)},
-  {'name': 'Sharm',       'emoji': '🦈', 'count': '142', 'color': const Color(0xFF6A1B9A)},
-  {'name': 'Ras Sedr',    'emoji': '🌬️', 'count': '31',  'color': const Color(0xFF00897B)},
+  {'name': S.ainSokhna,  'emoji': '🏖️', 'count': '48',  'color': const Color(0xFF0288D1)},
+  {'name': S.northCoast, 'emoji': '🌴', 'count': '120', 'color': const Color(0xFF1976D2)},
+  {'name': S.gouna,    'emoji': '⛵', 'count': '67',  'color': const Color(0xFFE65100)},
+  {'name': S.hurghada,    'emoji': '🐠', 'count': '95',  'color': const Color(0xFF00695C)},
+  {'name': S.sharm,       'emoji': '🦈', 'count': '142', 'color': const Color(0xFF6A1B9A)},
+  {'name': S.rasSedr,    'emoji': '🌬️', 'count': '31',  'color': const Color(0xFF00897B)},
 ];
 
 const _kCategories = [
-  'All', 'Chalets', 'Hotels', 'Resorts', 'Villas', 'Aqua Parks', 'Beach Houses',
+  'الكل', 'شاليهات', 'فنادق', 'منتجعات', 'فيلات', 'أكوا بارك', 'بيت شاطئ',
 ];
 
 
@@ -113,8 +115,8 @@ class _ExplorePageState extends State<ExplorePage>
   // ── Search & Filter ─────────────────────────────────────────
   final _searchCtrl = TextEditingController();
   String _query       = '';
-  String _selArea     = 'All';
-  String _selCat      = 'All';
+  String _selArea     = S.all;
+  String _selCat      = S.all;
   int    _maxPrice    = 10000;
   double _minRating   = 0;
   bool   _instantOnly = false;
@@ -134,6 +136,7 @@ class _ExplorePageState extends State<ExplorePage>
   @override
   void initState() {
     super.initState();
+    appSettings.addListener(_onLangChange);
     // تطبيق الـ initial filters القادمة من HomePage
     if (widget.initialArea != null && widget.initialArea!.isNotEmpty) {
       _selArea = widget.initialArea!;
@@ -151,8 +154,11 @@ class _ExplorePageState extends State<ExplorePage>
     _loadProperties();
   }
 
+  void _onLangChange() { if (mounted) setState(() {}); }
+
   @override
   void dispose() {
+    appSettings.removeListener(_onLangChange);
     _tabCtrl.dispose();
     _searchCtrl.dispose();
     super.dispose();
@@ -226,8 +232,8 @@ class _ExplorePageState extends State<ExplorePage>
           p.name.toLowerCase().contains(_query) ||
           p.area.toLowerCase().contains(_query) ||
           p.location.toLowerCase().contains(_query);
-      final matchArea = _selArea == 'All' || p.area == _selArea;
-      final matchCat  = _selCat  == 'All' || p.category == _selCat;
+      final matchArea = _selArea == S.all || p.area == _selArea;
+      final matchCat  = _selCat  == S.all || p.category == _selCat;
       final matchPrice   = p.price  <= _maxPrice;
       final matchRating  = p.rating >= _minRating;
       final matchInstant = !_instantOnly || p.instant;
@@ -420,7 +426,7 @@ class _ExplorePageState extends State<ExplorePage>
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: Row(children: [
-            _areaChip('All'),
+            _areaChip(S.all),
             ..._kAreas.map((a) => _areaChip(a['name'] as String)),
           ]),
         ),
@@ -487,7 +493,7 @@ class _ExplorePageState extends State<ExplorePage>
           child: Container(
             alignment: Alignment.center,
             padding: const EdgeInsets.symmetric(vertical: 8),
-            child: const Text('Reset All Filters',
+            child: Text(S.resetFilters,
                 style: TextStyle(fontSize: 12,
                     color: _kOrange, fontWeight: FontWeight.w700)),
           ),
@@ -497,7 +503,7 @@ class _ExplorePageState extends State<ExplorePage>
   }
 
   void _resetFilters() => setState(() {
-    _selArea = 'All'; _selCat = 'All';
+    _selArea = S.all; _selCat = S.all;
     _maxPrice = 10000; _minRating = 0;
     _instantOnly = false; _onlineOnly = false;
     _selAmenities.clear();
@@ -536,7 +542,7 @@ class _ExplorePageState extends State<ExplorePage>
           borderRadius: BorderRadius.circular(20),
           border: Border.all(color: sel ? _kOrange : _kBorder),
         ),
-        child: Text(cat, style: TextStyle(
+        child: Text(S.catName(cat), style: TextStyle(
             fontSize: 11, fontWeight: FontWeight.w700,
             color: sel ? Colors.white : _kSub)),
       ),
@@ -571,7 +577,7 @@ class _ExplorePageState extends State<ExplorePage>
               style: const TextStyle(fontSize: 13,
                   fontWeight: FontWeight.w700, color: _kText)),
           const Spacer(),
-          Text(_selArea == 'All' ? 'All Areas' : _selArea,
+          Text(_selArea == S.all ? S.allAreas : _selArea,
               style: const TextStyle(fontSize: 12, color: _kSub)),
         ]),
       ),
@@ -711,12 +717,12 @@ class _ExplorePageState extends State<ExplorePage>
   Widget _mapIllustration() {
     // Simple stylized dot-map of Egypt coastline
     final spots = [
-      {'x': 0.55, 'y': 0.55, 'label': 'Ain Sokhna', 'color': const Color(0xFF0288D1)},
-      {'x': 0.30, 'y': 0.35, 'label': 'North Coast','color': const Color(0xFF1976D2)},
-      {'x': 0.65, 'y': 0.72, 'label': 'Ras Sedr',   'color': const Color(0xFF00897B)},
-      {'x': 0.75, 'y': 0.62, 'label': 'El Gouna',   'color': const Color(0xFFE65100)},
-      {'x': 0.80, 'y': 0.68, 'label': 'Hurghada',   'color': const Color(0xFF00695C)},
-      {'x': 0.90, 'y': 0.85, 'label': 'Sharm',      'color': const Color(0xFF6A1B9A)},
+      {'x': 0.55, 'y': 0.55, 'label': S.ainSokhna, 'color': const Color(0xFF0288D1)},
+      {'x': 0.30, 'y': 0.35, 'label': S.northCoast,'color': const Color(0xFF1976D2)},
+      {'x': 0.65, 'y': 0.72, 'label': S.rasSedr,   'color': const Color(0xFF00897B)},
+      {'x': 0.75, 'y': 0.62, 'label': S.gouna,   'color': const Color(0xFFE65100)},
+      {'x': 0.80, 'y': 0.68, 'label': S.hurghada,   'color': const Color(0xFF00695C)},
+      {'x': 0.90, 'y': 0.85, 'label': S.sharm,      'color': const Color(0xFF6A1B9A)},
     ];
     return SizedBox(
       height: 220,
