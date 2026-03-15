@@ -10,6 +10,7 @@ import '../services/user_role_service.dart';
 import 'owner_add_property_page.dart';
 import 'login_page.dart';
 import '../main.dart' show appSettings;
+import '../utils/app_strings.dart';
 
 const _kOcean  = Color(0xFF1565C0);
 const _kOrange = Color(0xFFFF6D00);
@@ -250,17 +251,43 @@ class _ProfilePageState extends State<ProfilePage> {
 
           const SizedBox(height: 20),
 
-          // ── اسم المستخدم فقط ────────────────────────
+          // ── اسم المستخدم — tappable ─────────────────
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Text(
-              _name.isNotEmpty ? _name : 'بدون اسم',
-              style: const TextStyle(
-                fontSize: 26,
-                fontWeight: FontWeight.w900,
-                color: Color(0xFF0D1B2A),
-                letterSpacing: -0.8,
-              ),
+            child: GestureDetector(
+              onTap: _showProfileSheet,
+              child: Row(children: [
+                Expanded(
+                  child: Text(
+                    _name.isNotEmpty ? _name : S.noData,
+                    style: const TextStyle(
+                      fontSize: 26,
+                      fontWeight: FontWeight.w900,
+                      color: Color(0xFF0D1B2A),
+                      letterSpacing: -0.8,
+                    ),
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF5F7FF),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                        color: const Color(0xFF0D1B2A).withValues(alpha: 0.08)),
+                  ),
+                  child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                    Icon(Icons.edit_rounded,
+                        size: 13, color: Color(0xFF1565C0)),
+                    SizedBox(width: 4),
+                    Text('تعديل',
+                        style: TextStyle(
+                            fontSize: 11, fontWeight: FontWeight.w700,
+                            color: Color(0xFF1565C0))),
+                  ]),
+                ),
+              ]),
             ),
           ),
 
@@ -271,6 +298,172 @@ class _ProfilePageState extends State<ProfilePage> {
               color: const Color(0xFF0D1B2A).withValues(alpha: 0.07)),
         ],
       )),
+    );
+  }
+
+  // ── Profile info bottom sheet ─────────────────────────────
+  void _showProfileSheet() {
+    final nameCtrl  = TextEditingController(text: _name);
+    final phoneCtrl = TextEditingController(text: _phone);
+    final emailCtrl = TextEditingController(text: _email);
+    bool saving = false;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheet) => Padding(
+          padding: EdgeInsets.only(
+              bottom: MediaQuery.of(ctx).viewInsets.bottom),
+          child: Container(
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(
+                  top: Radius.circular(28)),
+            ),
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+
+              // Handle
+              Container(
+                margin: const EdgeInsets.only(top: 12),
+                width: 40, height: 4,
+                decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(2)),
+              ),
+
+              // Header
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+                child: Row(children: [
+                  const Text('بياناتي الشخصية',
+                      style: TextStyle(fontSize: 20,
+                          fontWeight: FontWeight.w900,
+                          color: Color(0xFF0D1B2A))),
+                  const Spacer(),
+                  GestureDetector(
+                    onTap: () => Navigator.pop(ctx),
+                    child: Container(
+                      width: 32, height: 32,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF5F7FF),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(Icons.close_rounded,
+                          size: 16, color: Color(0xFF0D1B2A)),
+                    ),
+                  ),
+                ]),
+              ),
+
+              const Divider(height: 24, indent: 20, endIndent: 20),
+
+              // Fields
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Column(children: [
+                  _sheetField(Icons.person_rounded,
+                      'الاسم الكامل', nameCtrl),
+                  const SizedBox(height: 12),
+                  _sheetField(Icons.phone_rounded,
+                      'رقم الهاتف', phoneCtrl,
+                      keyType: TextInputType.phone),
+                  const SizedBox(height: 12),
+                  _sheetField(Icons.email_rounded,
+                      'البريد الإلكتروني', emailCtrl,
+                      keyType: TextInputType.emailAddress),
+                ]),
+              ),
+
+              const SizedBox(height: 20),
+
+              // Save button
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
+                child: GestureDetector(
+                  onTap: saving ? null : () async {
+                    setSheet(() => saving = true);
+                    try {
+                      final uid = FirebaseAuth.instance.currentUser?.uid;
+                      if (uid != null) {
+                        await FirebaseFirestore.instance
+                            .collection('users')
+                            .doc(uid)
+                            .update({
+                          'name':  nameCtrl.text.trim(),
+                          'phone': phoneCtrl.text.trim(),
+                          'email': emailCtrl.text.trim(),
+                        });
+                      }
+                      if (!mounted) return;
+                      setState(() {
+                        _name  = nameCtrl.text.trim();
+                        _phone = phoneCtrl.text.trim();
+                        _email = emailCtrl.text.trim();
+                      });
+                      if (mounted) Navigator.pop(ctx);
+                    } catch (_) {
+                      setSheet(() => saving = false);
+                    }
+                  },
+                  child: Container(
+                    width: double.infinity,
+                    height: 52,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1565C0),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Center(child: saving
+                        ? const SizedBox(width: 20, height: 20,
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white))
+                        : const Text('حفظ التعديلات',
+                            style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 15,
+                                fontWeight: FontWeight.w800))),
+                  ),
+                ),
+              ),
+            ]),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _sheetField(IconData icon, String label,
+      TextEditingController ctrl, {TextInputType? keyType}) {
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFFF5F7FF),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+            color: const Color(0xFF0D1B2A).withValues(alpha: 0.08)),
+      ),
+      child: Row(children: [
+        const SizedBox(width: 14),
+        Icon(icon, size: 18, color: const Color(0xFF1565C0)),
+        const SizedBox(width: 10),
+        Expanded(child: TextField(
+          controller: ctrl,
+          keyboardType: keyType,
+          style: const TextStyle(
+              fontSize: 14, fontWeight: FontWeight.w600,
+              color: Color(0xFF0D1B2A)),
+          decoration: InputDecoration(
+            labelText: label,
+            labelStyle: TextStyle(
+                fontSize: 11,
+                color: const Color(0xFF0D1B2A).withValues(alpha: 0.4)),
+            border: InputBorder.none,
+            contentPadding: const EdgeInsets.symmetric(vertical: 14),
+          ),
+        )),
+        const SizedBox(width: 14),
+      ]),
     );
   }
 
@@ -355,16 +548,6 @@ class _ProfilePageState extends State<ProfilePage> {
           const SizedBox(width: 12),
           _statCard(_reviewsCount.toString(),'تقييماتي', '⭐', const Color(0xFFFFC107)),
         ]),
-
-        const SizedBox(height: 20),
-
-        _sectionTitle('بياناتي'),
-        const SizedBox(height: 10),
-
-        _infoTile(Icons.person_rounded,    'الاسم الكامل', _name.isNotEmpty  ? _name  : '—'),
-        _infoTile(Icons.phone_rounded,     'رقم الهاتف',   _phone.isNotEmpty ? _phone : '—'),
-        if (_email.isNotEmpty)
-          _infoTile(Icons.email_rounded,   'البريد الإلكتروني', _email),
 
         const SizedBox(height: 20),
       ]),
@@ -460,18 +643,6 @@ class _ProfilePageState extends State<ProfilePage> {
         ),
 
         const SizedBox(height: 20),
-
-        _sectionTitle('بياناتي'),
-        const SizedBox(height: 10),
-
-        _infoTile(Icons.person_rounded, 'الاسم الكامل',
-            _name.isNotEmpty ? _name : '—'),
-        _infoTile(Icons.phone_rounded, 'رقم الهاتف',
-            _phone.isNotEmpty ? _phone : '—'),
-        if (_email.isNotEmpty)
-          _infoTile(Icons.email_rounded, 'البريد الإلكتروني', _email),
-
-        const SizedBox(height: 20),
       ]),
     );
   }
@@ -496,29 +667,6 @@ class _ProfilePageState extends State<ProfilePage> {
     ));
   }
 
-  Widget _infoTile(IconData icon, String label, String val) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: _kCard, borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: _kBorder),
-      ),
-      child: Row(children: [
-        Icon(icon, size: 18, color: _kOcean),
-        const SizedBox(width: 10),
-        Expanded(child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(label, style: const TextStyle(
-                fontSize: 10, color: _kSub, fontWeight: FontWeight.w600)),
-            Text(val, style: const TextStyle(
-                fontSize: 13, fontWeight: FontWeight.w700, color: _kText)),
-          ],
-        )),
-      ]),
-    );
-  }
 
   // ── Settings ──────────────────────────────────────────────
   Widget _buildSettings() {
@@ -526,7 +674,7 @@ class _ProfilePageState extends State<ProfilePage> {
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
 
-        _sectionTitle('الإشعارات'),
+        _sectionTitle(S.notifications),
         const SizedBox(height: 10),
         _switchTile('📅 تحديثات الحجز',
             'اعرف أي جديد في حجوزاتك',
@@ -539,9 +687,9 @@ class _ProfilePageState extends State<ProfilePage> {
             _notifDeals, (v) => setState(() => _notifDeals = v)),
 
         const SizedBox(height: 20),
-        _sectionTitle('التفضيلات'),
+        _sectionTitle(S.preferences),
         const SizedBox(height: 10),
-        _switchTile('🌙 الوضع الداكن', 'تحويل للثيم الداكن',
+        _switchTile('🌙 ${S.darkMode}', '',
             appSettings.darkMode,
             (v) { appSettings.toggleDark(); setState(() {}); }),
         // ── Language Toggle ────────────────────────────────
@@ -567,11 +715,11 @@ class _ProfilePageState extends State<ProfilePage> {
             Expanded(child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('اللغة / Language',
+                Text(S.language,
                     style: TextStyle(fontSize: 14,
                         fontWeight: FontWeight.w700,
                         color: Color(0xFF0D1B2A))),
-                Text(appSettings.arabic ? 'عربي' : 'English',
+                Text(S.langLabel,
                     style: const TextStyle(fontSize: 12,
                         color: Color(0xFF6B7280))),
               ],
@@ -629,9 +777,9 @@ class _ProfilePageState extends State<ProfilePage> {
         const SizedBox(height: 20),
         _sectionTitle('الدعم'),
         const SizedBox(height: 10),
-        _navTile(Icons.help_outline_rounded, 'مركز المساعدة', _kOcean,
+        _navTile(Icons.help_outline_rounded, S.helpCenter, _kOcean,
             onTap: () {}),
-        _navTile(Icons.star_rate_rounded, 'قيّم التطبيق ⭐', _kOrange,
+        _navTile(Icons.star_rate_rounded, S.rateApp, _kOrange,
             onTap: () {}),
 
         const SizedBox(height: 20),
@@ -655,8 +803,8 @@ class _ProfilePageState extends State<ProfilePage> {
               borderRadius: BorderRadius.circular(14),
               border: Border.all(color: _kRed.withValues(alpha: 0.5)),
             ),
-            child: const Row(mainAxisAlignment: MainAxisAlignment.center,
-              children: [
+            child: Row(mainAxisAlignment: MainAxisAlignment.center,
+              children: const [
                 Icon(Icons.delete_forever_rounded,
                     color: _kRed, size: 18),
                 SizedBox(width: 8),
@@ -678,8 +826,8 @@ class _ProfilePageState extends State<ProfilePage> {
               borderRadius: BorderRadius.circular(14),
               border: Border.all(color: _kRed.withValues(alpha: 0.3)),
             ),
-            child: const Row(mainAxisAlignment: MainAxisAlignment.center,
-              children: [
+            child: Row(mainAxisAlignment: MainAxisAlignment.center,
+              children: const [
                 Icon(Icons.logout_rounded, color: _kRed, size: 18),
                 SizedBox(width: 8),
                 Text('تسجيل الخروج',

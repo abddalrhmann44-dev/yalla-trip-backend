@@ -7,6 +7,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'home_page.dart';
+import '../utils/app_strings.dart';
 import 'otp_page.dart';
 import 'register_page.dart';
 
@@ -287,13 +288,13 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                   const SizedBox(height: 32),
 
 
-                  const Text('تسجيل الدخول',
-                      style: TextStyle(
+                  Text(S.loginTitle,
+                      style: const TextStyle(
                         fontSize: 30, fontWeight: FontWeight.w900,
                         color: Color(0xFF0D1B2A), letterSpacing: -1,
                       )),
                   const SizedBox(height: 6),
-                  Text('أهلاً بك مجدداً في Yalla Trip',
+                  Text(S.loginSubtitle,
                       style: TextStyle(fontSize: 14,
                           color: const Color(0xFF0D1B2A).withValues(alpha: 0.4),
                           fontWeight: FontWeight.w500)),
@@ -336,9 +337,9 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                       child: Row(mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Container(width: 20, height: 20,
-                            decoration: BoxDecoration(
+                            decoration: const BoxDecoration(
                                 shape: BoxShape.circle,
-                                color: const Color(0xFFF1F3F4)),
+                                color: Color(0xFFF1F3F4)),
                             child: const Center(child: Text('G',
                                 style: TextStyle(fontSize: 12,
                                     fontWeight: FontWeight.w900,
@@ -375,7 +376,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                             size: 18,
                             color: const Color(0xFF0D1B2A).withValues(alpha: 0.5)),
                         const SizedBox(width: 8),
-                        Text('تصفح كزائر',
+                        Text(S.guestBtn,
                             style: TextStyle(fontSize: 14,
                                 fontWeight: FontWeight.w700,
                                 color: const Color(0xFF0D1B2A)
@@ -392,7 +393,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                           MaterialPageRoute(
                               builder: (_) => const RegisterPage())),
                       child: RichText(text: TextSpan(
-                        text: 'مش عندك حساب؟  ',
+                        text: '${S.noAccount}  ',
                         style: TextStyle(
                             color: const Color(0xFF0D1B2A).withValues(alpha: 0.4),
                             fontSize: 13.5),
@@ -422,7 +423,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
 
   Widget _phoneForm() => Column(key: const ValueKey('phone'), children: [
     _Field(
-      ctrl: _nameCtrl, hint: 'الاسم الكامل',
+      ctrl: _nameCtrl, hint: S.namePlaceholder,
       icon: Icons.person_outline_rounded,
       validator: (v) => _tabIndex == 0 && (v == null || v.trim().length < 3)
           ? 'أدخل اسمك الكامل' : null,
@@ -444,7 +445,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
 
   Widget _emailForm() => Column(key: const ValueKey('email'), children: [
     _Field(
-      ctrl: _emailCtrl, hint: 'البريد الإلكتروني',
+      ctrl: _emailCtrl, hint: S.emailPlaceholder,
       icon: Icons.email_outlined,
       keyType: TextInputType.emailAddress,
       validator: (v) => _tabIndex == 1 && (v == null || !v.contains('@'))
@@ -452,7 +453,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
     ),
     const SizedBox(height: 12),
     _Field(
-      ctrl: _passCtrl, hint: 'كلمة المرور',
+      ctrl: _passCtrl, hint: S.passPlaceholder,
       icon: Icons.lock_outline_rounded,
       obscure: _obscurePass,
       suffix: IconButton(
@@ -473,8 +474,8 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
             padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 6),
             minimumSize: Size.zero,
             tapTargetSize: MaterialTapTargetSize.shrinkWrap),
-        child: const Text('نسيت كلمة المرور؟',
-            style: TextStyle(fontSize: 13, color: Color(0xFF1565C0),
+        child: Text(S.forgotPass,
+            style: const TextStyle(fontSize: 13, color: Color(0xFF1565C0),
                 fontWeight: FontWeight.w700)),
       )),
   ]);

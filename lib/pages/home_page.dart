@@ -11,6 +11,7 @@ import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'explore_page.dart';
 import 'area_results_page.dart';
+import '../utils/app_strings.dart';
 import 'bookings_page.dart';
 import 'profile_page.dart';
 
@@ -419,9 +420,9 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                     const Icon(Icons.search_rounded,
                         color: Color(0xFF1565C0), size: 22),
                     const SizedBox(width: 10),
-                    const Expanded(
+                    Expanded(
                       child: Text(
-                        'ابحث عن شاليه، منتجع، أو شاطئ…',
+                        S.searchHint,
                         style: TextStyle(
                             color: Color(0xFFBBBBBB), fontSize: 14),
                       ),
@@ -440,11 +441,11 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                 : const Color(0xFF1565C0),
                             borderRadius: BorderRadius.circular(12),
                           ),
-                          child: const Row(children: [
+                          child: Row(children: const [
                             Icon(Icons.tune_rounded,
                                 color: Colors.white, size: 14),
                             SizedBox(width: 4),
-                            Text('تصفية',
+                            Text('Filter',
                                 style: TextStyle(
                                     color: Colors.white, fontSize: 11,
                                     fontWeight: FontWeight.w700)),
@@ -1109,7 +1110,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       padding: const EdgeInsets.fromLTRB(20, 26, 20, 0),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-        _secTitle('Explore by Type', action: ''),
+        _secTitle(S.exploreType, action: ''),
         const SizedBox(height: 14),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1189,8 +1190,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       children: [
       Padding(
         padding: const EdgeInsets.fromLTRB(20, 26, 20, 14),
-        child: _secTitle('Explore Beach Destinations',
-            action: 'See All'),
+        child: _secTitle(S.destinations,
+            action: S.seeAll),
       ),
 
       SizedBox(height: 145,
@@ -1600,10 +1601,10 @@ class _SearchSheetState extends State<_SearchSheet> {
         if (_query.isEmpty && widget.recentSearches.isNotEmpty) ...[
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
-            child: Row(children: [
-              const Icon(Icons.history_rounded, size: 16, color: Color(0xFFAAAAAA)),
-              const SizedBox(width: 6),
-              const Text('بحث سابق',
+            child: const Row(children: [
+              Icon(Icons.history_rounded, size: 16, color: Color(0xFFAAAAAA)),
+              SizedBox(width: 6),
+              Text('بحث سابق',
                   style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700,
                       color: Color(0xFFAAAAAA))),
             ]),

@@ -7,6 +7,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'otp_page.dart';
 import 'home_page.dart';
+import '../utils/app_strings.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -102,9 +103,9 @@ class _RegisterPageState extends State<RegisterPage>
       if (mounted) _goHome();
     } on FirebaseAuthException catch (e) {
       String msg = 'حدث خطأ، حاول مرة أخرى';
-      if (e.code == 'email-already-in-use') msg = 'البريد الإلكتروني مسجل مسبقاً';
-      else if (e.code == 'weak-password')   msg = 'كلمة المرور ضعيفة جداً';
-      else if (e.code == 'invalid-email')   msg = 'البريد الإلكتروني غير صحيح';
+      if (e.code == 'email-already-in-use') { msg = 'البريد الإلكتروني مسجل مسبقاً'; }
+      else if (e.code == 'weak-password')       { msg = 'كلمة المرور ضعيفة جداً'; }
+      else if (e.code == 'invalid-email')        { msg = 'البريد الإلكتروني غير صحيح'; }
       _err(msg);
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -174,13 +175,13 @@ class _RegisterPageState extends State<RegisterPage>
                 const SizedBox(height: 32),
 
 
-                const Text('إنشاء حساب',
-                    style: TextStyle(
+                Text(S.registerTitle,
+                    style: const TextStyle(
                       fontSize: 30, fontWeight: FontWeight.w900,
                       color: Color(0xFF0D1B2A), letterSpacing: -1,
                     )),
                 const SizedBox(height: 6),
-                Text('انضم لـ Yalla Trip واكتشف أجمل الوجهات',
+                Text(S.registerSub,
                     style: TextStyle(fontSize: 14,
                         color: const Color(0xFF0D1B2A).withValues(alpha: 0.4),
                         fontWeight: FontWeight.w500)),
@@ -196,7 +197,7 @@ class _RegisterPageState extends State<RegisterPage>
 
                 // ── Name (always) ────────────────────
                 _Field(
-                  ctrl: _nameCtrl, hint: 'الاسم الكامل',
+                  ctrl: _nameCtrl, hint: S.namePlaceholder,
                   icon: Icons.person_outline_rounded,
                   validator: (v) => (v == null || v.trim().length < 3)
                       ? 'أدخل اسمك الكامل' : null,
@@ -304,7 +305,7 @@ class _RegisterPageState extends State<RegisterPage>
     key: _formKey,
     child: Column(key: const ValueKey('email'), children: [
       _Field(
-        ctrl: _emailCtrl, hint: 'البريد الإلكتروني',
+        ctrl: _emailCtrl, hint: S.emailPlaceholder,
         icon: Icons.email_outlined,
         keyType: TextInputType.emailAddress,
         validator: (v) => (v == null || !v.contains('@'))
@@ -312,7 +313,7 @@ class _RegisterPageState extends State<RegisterPage>
       ),
       const SizedBox(height: 14),
       _Field(
-        ctrl: _passCtrl, hint: 'كلمة المرور',
+        ctrl: _passCtrl, hint: S.passPlaceholder,
         icon: Icons.lock_outline_rounded,
         obscure: _obscurePass,
         suffix: IconButton(
@@ -328,7 +329,7 @@ class _RegisterPageState extends State<RegisterPage>
       ),
       const SizedBox(height: 14),
       _Field(
-        ctrl: _confirmCtrl, hint: 'تأكيد كلمة المرور',
+        ctrl: _confirmCtrl, hint: S.confirmPass,
         icon: Icons.lock_outline_rounded,
         obscure: _obscureConf,
         suffix: IconButton(

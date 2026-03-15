@@ -3,6 +3,7 @@
 // ═══════════════════════════════════════════════════════════════
 import 'package:flutter/material.dart';
 import '../main.dart' show appSettings;
+import '../utils/app_strings.dart';
 import 'package:flutter/services.dart';
 import 'login_page.dart';
 import 'register_page.dart';
@@ -109,10 +110,10 @@ class _WelcomePageState extends State<WelcomePage>
                             color: Colors.white.withValues(alpha: 0.4)),
                       ),
                       child: Row(mainAxisSize: MainAxisSize.min, children: [
-                        Text(appSettings.arabic ? '🇬🇧' : '🇪🇬',
+                        Text(S.langFlag,
                             style: const TextStyle(fontSize: 16)),
                         const SizedBox(width: 6),
-                        Text(appSettings.arabic ? 'English' : 'عربي',
+                        Text(S.langLabel,
                             style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 13,
@@ -154,7 +155,7 @@ class _WelcomePageState extends State<WelcomePage>
 
                   // Tagline
                   Text(
-                    'اكتشف • احجز • استمتع',
+                    S.welcomeTagline,
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
@@ -171,7 +172,7 @@ class _WelcomePageState extends State<WelcomePage>
                   //  TAGLINE BLOCK
                   // ══════════════════════════════════════
                   Text(
-                    'أجمل الشاليهات والفيلات\nعلى الساحل المصري',
+                    S.welcomeSubtitle,
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 18,
@@ -190,7 +191,7 @@ class _WelcomePageState extends State<WelcomePage>
 
                   // Login
                   _PrimaryBtn(
-                    label: 'تسجيل الدخول',
+                    label: S.loginBtn,
                     onTap: () => Navigator.push(context,
                         MaterialPageRoute(builder: (_) => const LoginPage())),
                   ),
@@ -199,7 +200,7 @@ class _WelcomePageState extends State<WelcomePage>
 
                   // Register
                   _OutlineBtn(
-                    label: 'إنشاء حساب جديد',
+                    label: S.registerBtn,
                     onTap: () => Navigator.push(context,
                         MaterialPageRoute(builder: (_) => const RegisterPage())),
                   ),
@@ -211,7 +212,7 @@ class _WelcomePageState extends State<WelcomePage>
                     onTap: () => Navigator.push(context,
                         MaterialPageRoute(builder: (_) => const LoginPage())),
                     child: Text(
-                      'تصفح كزائر',
+                      S.browseGuest,
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
