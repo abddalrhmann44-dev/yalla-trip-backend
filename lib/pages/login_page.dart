@@ -312,196 +312,202 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
   // ── Build ────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      extendBodyBehindAppBar: true,
-      body: Stack(children: [
-        // ── صورة الخلفية كاملة ──────────────────────────────
-        SizedBox(
-          width: double.infinity,
-          height: double.infinity,
-          child: Image.asset(
-            'assets/images/login_bg.jpg',
-            fit: BoxFit.cover,
-            alignment: Alignment.center,
+    final isAr = appSettings.arabic;
+    return Directionality(
+      textDirection: isAr ? TextDirection.rtl : TextDirection.ltr,
+      child: Scaffold(
+        backgroundColor: Colors.black,
+        extendBodyBehindAppBar: true,
+        body: Stack(children: [
+          // ── صورة الخلفية كاملة ──────────────────────────────
+          SizedBox(
+            width: double.infinity,
+            height: double.infinity,
+            child: Image.asset(
+              'assets/images/login_bg.jpg',
+              fit: BoxFit.cover,
+              alignment: Alignment.center,
+            ),
           ),
-        ),
 
-        FadeTransition(
-          opacity: _fade,
-          child: SafeArea(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // ── Back ───────────────────────────
-                    _BackBtn(onTap: () => Navigator.pop(context)),
-                    const SizedBox(height: 32),
+          FadeTransition(
+            opacity: _fade,
+            child: SafeArea(
+              child: SingleChildScrollView(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // ── Back ───────────────────────────
+                      _BackBtn(onTap: () => Navigator.pop(context)),
+                      const SizedBox(height: 32),
 
-                    Text(S.loginTitle,
-                        style: const TextStyle(
-                          fontSize: 30,
-                          fontWeight: FontWeight.w900,
-                          color: Color(0xFF0D1B2A),
-                          letterSpacing: -1,
+                      Text(S.loginTitle,
+                          style: const TextStyle(
+                            fontSize: 30,
+                            fontWeight: FontWeight.w900,
+                            color: Color(0xFF0D1B2A),
+                            letterSpacing: -1,
+                          )),
+                      const SizedBox(height: 6),
+                      Text(S.loginSubtitle,
+                          style: TextStyle(
+                              fontSize: 14,
+                              color: const Color(0xFF0D1B2A)
+                                  .withValues(alpha: 0.4),
+                              fontWeight: FontWeight.w500)),
+
+                      const SizedBox(height: 32),
+
+                      // ── Tab ─────────────────────────────
+                      _TabSelector(
+                        selected: _tabIndex,
+                        onChanged: (i) => setState(() => _tabIndex = i),
+                        label0: appSettings.arabic ? 'رقم الهاتف' : 'Phone',
+                        label1: appSettings.arabic ? 'البريد' : 'Email',
+                      ),
+                      const SizedBox(height: 24),
+
+                      // ── Fields ──────────────────────────
+                      AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 260),
+                        child: _tabIndex == 0 ? _phoneForm() : _emailForm(),
+                      ),
+                      const SizedBox(height: 24),
+
+                      // ── Main button ─────────────────────
+                      _PrimaryBtn(
+                        label: _tabIndex == 0
+                            ? (appSettings.arabic
+                                ? 'إرسال رمز التحقق'
+                                : 'Send Code')
+                            : S.loginAction,
+                        icon: _tabIndex == 0
+                            ? Icons.sms_outlined
+                            : Icons.arrow_forward_rounded,
+                        loading: _isLoading,
+                        onTap: _signIn,
+                      ),
+                      const SizedBox(height: 28),
+
+                      // ── Divider ─────────────────────────
+                      _Divider(),
+                      const SizedBox(height: 20),
+
+                      // ── Social ──────────────────────────
+                      Row(children: [
+                        Expanded(
+                            child: _SocialBtn(
+                          onTap: _isLoading ? null : _googleSignIn,
+                          child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Container(
+                                    width: 20,
+                                    height: 20,
+                                    decoration: const BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        color: Color(0xFFF1F3F4)),
+                                    child: const Center(
+                                        child: Text('G',
+                                            style: TextStyle(
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w900,
+                                                color: Color(0xFF4285F4))))),
+                                const SizedBox(width: 8),
+                                const Text('Google',
+                                    style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w700,
+                                        color: Color(0xFF0D1B2A))),
+                              ]),
                         )),
-                    const SizedBox(height: 6),
-                    Text(S.loginSubtitle,
-                        style: TextStyle(
-                            fontSize: 14,
-                            color:
-                                const Color(0xFF0D1B2A).withValues(alpha: 0.4),
-                            fontWeight: FontWeight.w500)),
+                        const SizedBox(width: 10),
+                        Expanded(
+                            child: _SocialBtn(
+                          onTap: _isLoading ? null : _appleSignIn,
+                          child: const Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.apple_rounded,
+                                    color: Color(0xFF0D1B2A), size: 20),
+                                SizedBox(width: 8),
+                                Text('Apple',
+                                    style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w700,
+                                        color: Color(0xFF0D1B2A))),
+                              ]),
+                        )),
+                      ]),
 
-                    const SizedBox(height: 32),
+                      const SizedBox(height: 10),
 
-                    // ── Tab ─────────────────────────────
-                    _TabSelector(
-                      selected: _tabIndex,
-                      onChanged: (i) => setState(() => _tabIndex = i),
-                      label0: appSettings.arabic ? 'رقم الهاتف' : 'Phone',
-                      label1: appSettings.arabic ? 'البريد' : 'Email',
-                    ),
-                    const SizedBox(height: 24),
-
-                    // ── Fields ──────────────────────────
-                    AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 260),
-                      child: _tabIndex == 0 ? _phoneForm() : _emailForm(),
-                    ),
-                    const SizedBox(height: 24),
-
-                    // ── Main button ─────────────────────
-                    _PrimaryBtn(
-                      label: _tabIndex == 0
-                          ? (appSettings.arabic
-                              ? 'إرسال رمز التحقق'
-                              : 'Send Code')
-                          : S.loginAction,
-                      icon: _tabIndex == 0
-                          ? Icons.sms_outlined
-                          : Icons.arrow_forward_rounded,
-                      loading: _isLoading,
-                      onTap: _signIn,
-                    ),
-                    const SizedBox(height: 28),
-
-                    // ── Divider ─────────────────────────
-                    _Divider(),
-                    const SizedBox(height: 20),
-
-                    // ── Social ──────────────────────────
-                    Row(children: [
-                      Expanded(
-                          child: _SocialBtn(
-                        onTap: _isLoading ? null : _googleSignIn,
+                      // ── Guest ───────────────────────────
+                      _SocialBtn(
+                        onTap: _isLoading ? null : _guestLogin,
                         child: Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Container(
-                                  width: 20,
-                                  height: 20,
-                                  decoration: const BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      color: Color(0xFFF1F3F4)),
-                                  child: const Center(
-                                      child: Text('G',
-                                          style: TextStyle(
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.w900,
-                                              color: Color(0xFF4285F4))))),
+                              Icon(Icons.person_outline_rounded,
+                                  size: 18,
+                                  color: const Color(0xFF0D1B2A)
+                                      .withValues(alpha: 0.5)),
                               const SizedBox(width: 8),
-                              const Text('Google',
+                              Text(S.guestBtn,
                                   style: TextStyle(
                                       fontSize: 14,
                                       fontWeight: FontWeight.w700,
-                                      color: Color(0xFF0D1B2A))),
+                                      color: const Color(0xFF0D1B2A)
+                                          .withValues(alpha: 0.6))),
                             ]),
-                      )),
-                      const SizedBox(width: 10),
-                      Expanded(
-                          child: _SocialBtn(
-                        onTap: _isLoading ? null : _appleSignIn,
-                        child: const Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.apple_rounded,
-                                  color: Color(0xFF0D1B2A), size: 20),
-                              SizedBox(width: 8),
-                              Text('Apple',
-                                  style: TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w700,
-                                      color: Color(0xFF0D1B2A))),
-                            ]),
-                      )),
-                    ]),
-
-                    const SizedBox(height: 10),
-
-                    // ── Guest ───────────────────────────
-                    _SocialBtn(
-                      onTap: _isLoading ? null : _guestLogin,
-                      child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.person_outline_rounded,
-                                size: 18,
-                                color: const Color(0xFF0D1B2A)
-                                    .withValues(alpha: 0.5)),
-                            const SizedBox(width: 8),
-                            Text(S.guestBtn,
-                                style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w700,
-                                    color: const Color(0xFF0D1B2A)
-                                        .withValues(alpha: 0.6))),
-                          ]),
-                    ),
-
-                    const SizedBox(height: 28),
-
-                    // ── Register link ───────────────────
-                    Center(
-                      child: GestureDetector(
-                        onTap: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                                builder: (_) => const RegisterPage())),
-                        child: RichText(
-                            text: TextSpan(
-                          text:
-                              '${appSettings.arabic ? S.noAccount : "Don't have an account?"}  ',
-                          style: TextStyle(
-                              color: const Color(0xFF0D1B2A)
-                                  .withValues(alpha: 0.4),
-                              fontSize: 13.5),
-                          children: [
-                            TextSpan(
-                              text: appSettings.arabic
-                                  ? 'سجّل دلوقتي'
-                                  : 'Register',
-                              style: TextStyle(
-                                  color: Color(0xFF1565C0),
-                                  fontWeight: FontWeight.w800,
-                                  decoration: TextDecoration.underline,
-                                  decorationColor: Color(0xFF1565C0)),
-                            )
-                          ],
-                        )),
                       ),
-                    ),
-                    const SizedBox(height: 32),
-                  ],
+
+                      const SizedBox(height: 28),
+
+                      // ── Register link ───────────────────
+                      Center(
+                        child: GestureDetector(
+                          onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (_) => const RegisterPage())),
+                          child: RichText(
+                              text: TextSpan(
+                            text: appSettings.arabic
+                                ? '${S.noAccount}  '
+                                : "Don't have an account?  ",
+                            style: TextStyle(
+                                color: const Color(0xFF0D1B2A)
+                                    .withValues(alpha: 0.4),
+                                fontSize: 13.5),
+                            children: [
+                              TextSpan(
+                                text: appSettings.arabic
+                                    ? 'سجّل دلوقتي'
+                                    : 'Register',
+                                style: const TextStyle(
+                                    color: Color(0xFF1565C0),
+                                    fontWeight: FontWeight.w800,
+                                    decoration: TextDecoration.underline,
+                                    decorationColor: Color(0xFF1565C0)),
+                              )
+                            ],
+                          )),
+                        ),
+                      ),
+                      const SizedBox(height: 32),
+                    ],
+                  ),
                 ),
               ),
             ),
-          ),
-        ), // FadeTransition
-      ]), // Stack
+          ), // FadeTransition
+        ]), // Stack
+      ),
     );
   }
 

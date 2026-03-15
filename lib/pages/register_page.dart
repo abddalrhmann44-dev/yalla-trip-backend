@@ -150,7 +150,10 @@ class _RegisterPageState extends State<RegisterPage>
   // ── Build ────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    final isAr = appSettings.arabic;
+    return Directionality(
+      textDirection: isAr ? TextDirection.rtl : TextDirection.ltr,
+      child: Scaffold(
       backgroundColor: Colors.black,
       extendBodyBehindAppBar: true,
       body: Stack(children: [
@@ -259,6 +262,7 @@ class _RegisterPageState extends State<RegisterPage>
         ),
         ), // FadeTransition
       ]), // Stack
+      ),
     );
   }
 
