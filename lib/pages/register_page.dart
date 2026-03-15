@@ -173,9 +173,6 @@ class _RegisterPageState extends State<RegisterPage>
                 _BackBtn(onTap: () => Navigator.pop(context)),
                 const SizedBox(height: 32),
 
-                // ── Logo + headline ──────────────────
-                _MiniLogo(),
-                const SizedBox(height: 20),
 
                 const Text('إنشاء حساب',
                     style: TextStyle(
@@ -373,31 +370,7 @@ class _BackBtn extends StatelessWidget {
   );
 }
 
-class _MiniLogo extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) => Container(
-    width: 48, height: 48,
-    decoration: BoxDecoration(
-      color: const Color(0xFF1565C0),
-      borderRadius: BorderRadius.circular(15),
-      boxShadow: [BoxShadow(
-        color: const Color(0xFF1565C0).withValues(alpha: 0.20),
-        blurRadius: 12, offset: const Offset(0, 5),
-      )],
-    ),
-    child: Center(
-      child: Column(mainAxisSize: MainAxisSize.min, children: [
-        const Icon(Icons.flight_takeoff_rounded,
-            color: Colors.white, size: 20),
-        const SizedBox(height: 2),
-        Container(width: 16, height: 2,
-          decoration: BoxDecoration(
-            color: const Color(0xFFFF6D00),
-            borderRadius: BorderRadius.circular(1))),
-      ]),
-    ),
-  );
-}
+
 
 class _TabSelector extends StatelessWidget {
   final int selected;
