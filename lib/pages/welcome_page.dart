@@ -2,6 +2,7 @@
 //  YALLA TRIP — Welcome Page  (Clean Minimal White — Airbnb style)
 // ═══════════════════════════════════════════════════════════════
 import 'package:flutter/material.dart';
+import '../main.dart' show appSettings;
 import 'package:flutter/services.dart';
 import 'login_page.dart';
 import 'register_page.dart';
@@ -79,6 +80,47 @@ class _WelcomePageState extends State<WelcomePage>
                   Color(0x55000000),
                   Color(0xCC000000),
                 ],
+              ),
+            ),
+          ),
+        ),
+
+        // ── Language toggle ─────────────────────────
+        Positioned(
+          top: 0, right: 0, left: 0,
+          child: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(0, 12, 16, 0),
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: StatefulBuilder(
+                  builder: (ctx, setBtn) => GestureDetector(
+                    onTap: () {
+                      appSettings.toggleArabic();
+                      setBtn(() {});
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 7),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.18),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.4)),
+                      ),
+                      child: Row(mainAxisSize: MainAxisSize.min, children: [
+                        Text(appSettings.arabic ? '🇬🇧' : '🇪🇬',
+                            style: const TextStyle(fontSize: 16)),
+                        const SizedBox(width: 6),
+                        Text(appSettings.arabic ? 'English' : 'عربي',
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700)),
+                      ]),
+                    ),
+                  ),
+                ),
               ),
             ),
           ),

@@ -77,26 +77,14 @@ class _ShimmerBoxState extends State<_ShimmerBox>
 // ────────────────────────────────────────────────────────────────
 
 const _kHeroes = [
-  _Hero('شاليهات فاخرة\nفي عين السخنة',
-      'من ٨٥٠ جنيه / ليلة — خصم ٤٠٪',
-      '🌊', '40% OFF',
-      [Color(0xFF0277BD), Color(0xFF01579B), Color(0xFF003D6B)],
-      'assets/images/hero/hero_1.jpg', 'عين السخنة'),
-  _Hero('منتجعات إطلالة بحرية\nفي الغردقة',
-      'شعاب مرجانية وبحر بلوري',
-      '🐠', 'TRENDING',
-      [Color(0xFF00695C), Color(0xFF004D40), Color(0xFF00372B)],
-      'assets/images/hero/hero_2.jpg', 'الغردقة'),
-  _Hero('عروض الصيف\nالساحل الشمالي',
-      'شواطئ بيضاء من ١٢٠٠ جنيه',
-      '🏖️', 'HOT DEAL',
-      [Color(0xFF1565C0), Color(0xFF0D47A1), Color(0xFF082F7C)],
-      'assets/images/hero/hero_3.jpg', 'الساحل الشمالي'),
-  _Hero('فنادق فاخرة\nشرم الشيخ',
-      'جنة الغطس الحقيقية',
-      '🦈', 'NEW',
-      [Color(0xFF6A1B9A), Color(0xFF4A148C), Color(0xFF310A6A)],
-      'assets/images/hero/hero_4.jpg', 'شرم الشيخ'),
+  _Hero('عين السخنة', 'عروض حتى 40% خصم',     '40% OFF', 'assets/images/hero/hero_1.jpg', 'عين السخنة',
+      ['شاليهات', 'فيلات', 'منتجعات', 'بيت شاطئ']),
+  _Hero('الغردقة',   'شعاب مرجانية وبحر بلوري','TRENDING', 'assets/images/hero/hero_2.jpg', 'الغردقة',
+      ['غوص', 'فنادق', 'منتجعات', 'رياضات بحرية']),
+  _Hero('الساحل الشمالي', 'شواطئ بيضاء راقية',  'HOT DEAL', 'assets/images/hero/hero_3.jpg', 'الساحل الشمالي',
+      ['شاليهات', 'فيلات', 'أكوا بارك', 'مارينا']),
+  _Hero('شرم الشيخ', 'جنة الغطس والاسترخاء',   'NEW',      'assets/images/hero/hero_4.jpg', 'شرم الشيخ',
+      ['فنادق', 'منتجعات', 'غوص', 'رياضات بحرية']),
 ];
 
 const _kCategories = [
@@ -122,9 +110,9 @@ const _kDestinations = [
 
 // immutable helper models
 class _Hero {
-  final String title, subtitle, emoji, badge, imagePath, area;
-  final List<Color> grad;
-  const _Hero(this.title, this.subtitle, this.emoji, this.badge, this.grad, this.imagePath, this.area);
+  final String title, subtitle, badge, imagePath, area;
+  final List<String> categories;
+  const _Hero(this.title, this.subtitle, this.badge, this.imagePath, this.area, this.categories);
 }
 class _Cat {
   final String label, emoji, imagePath; final Color color; final IconData icon;
@@ -988,116 +976,126 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
   Widget _heroCard(_Hero h) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
       child: GestureDetector(
         onTap: () => _openAreaResults(h.area),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(24),
-          child: Stack(children: [
-            // ── صورة حقيقية ───────────────────────────
-            Positioned.fill(
-              child: Image.asset(
-                h.imagePath,
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => Container(
-                  color: const Color(0xFF1A2540),
+          borderRadius: BorderRadius.circular(22),
+          child: SizedBox(
+            height: 210,
+            child: Stack(children: [
+
+              // ── صورة كاملة بدون أي شريط ─────────────
+              Positioned.fill(
+                child: Image.asset(
+                  h.imagePath,
+                  fit: BoxFit.cover,
+                  alignment: Alignment.center,
+                  errorBuilder: (_, __, ___) =>
+                      Container(color: const Color(0xFF1A2540)),
                 ),
               ),
-            ),
-            // ── Gradient overlay ──────────────────────
-            Positioned.fill(
-              child: Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    stops: const [0.45, 1.0],
-                    colors: [
-                      Colors.transparent,
-                      Colors.black.withValues(alpha: 0.55),
+
+              // ── gradient خفيف من الأسفل بس ──────────
+              Positioned.fill(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      stops: const [0.35, 1.0],
+                      colors: [
+                        Colors.transparent,
+                        Colors.black.withValues(alpha: 0.72),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+
+              // ── Badge فوق يسار ───────────────────────
+              Positioned(
+                top: 14, left: 14,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFF6D00),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(h.badge,
+                      style: const TextStyle(
+                          color: Colors.white, fontSize: 10,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 0.5)),
+                ),
+              ),
+
+              // ── المحتوى تحت ─────────────────────────
+              Positioned(
+                bottom: 0, left: 0, right: 0,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+
+                      // اسم المنطقة كبير فوق
+                      Text(h.title,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 22,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: -0.5,
+                            height: 1.1,
+                          )),
+
+                      const SizedBox(height: 4),
+
+                      // subtitle
+                      Text(h.subtitle,
+                          style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.75),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500)),
+
+                      const SizedBox(height: 10),
+
+                      // الأماكن المتاحة — chips بدون إيموجي
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        children: h.categories.map((cat) =>
+                          GestureDetector(
+                            onTap: () => Navigator.push(context,
+                              MaterialPageRoute(builder: (_) =>
+                                AreaResultsPage(area: h.area, initialType: cat))),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 5),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.18),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(
+                                    color: Colors.white.withValues(alpha: 0.35)),
+                              ),
+                              child: Text(cat,
+                                  style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600)),
+                            ),
+                          ),
+                        ).toList(),
+                      ),
                     ],
                   ),
                 ),
               ),
-            ),
-
-          // Content
-          Padding(
-            padding: const EdgeInsets.all(22),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-              // Badge
-              Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 11, vertical: 5),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFF6D00),
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                        color: const Color(0xFFFF6D00).withValues(alpha: 0.5),
-                        blurRadius: 10, offset: const Offset(0, 3)),
-                  ],
-                ),
-                child: Text(h.badge,
-                    style: const TextStyle(
-                        color: Colors.white, fontSize: 11,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: 0.6)),
-              ),
-
-              Column(crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                Text(h.title,
-                    style: const TextStyle(
-                      color: Colors.white, fontSize: 22,
-                      fontWeight: FontWeight.w900, height: 1.2,
-                      letterSpacing: -0.5,
-                      shadows: [Shadow(color: Colors.black26,
-                          blurRadius: 8)],
-                    )),
-                const SizedBox(height: 5),
-                Text(h.subtitle,
-                    style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.82),
-                        fontSize: 12.5)),
-                const SizedBox(height: 14),
-                Row(children: [
-                  GestureDetector(
-                    onTap: () => _openAreaResults(h.area),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 18, vertical: 10),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(22),
-                        boxShadow: [
-                          BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.15),
-                              blurRadius: 10, offset: const Offset(0, 4)),
-                        ],
-                      ),
-                      child: const Row(children: [
-                        Text('استكشف الآن',
-                            style: TextStyle(
-                              color: Color(0xFF1565C0),
-                              fontSize: 13,
-                              fontWeight: FontWeight.w900,
-                            )),
-                        SizedBox(width: 4),
-                        Icon(Icons.arrow_forward_rounded,
-                            size: 14, color: Color(0xFF1565C0)),
-                      ]),
-                    ),
-                  ),
-                ]),
-              ]),
             ]),
           ),
-        ]),
-        ), // GestureDetector
+        ),
       ),
     );
   }

@@ -544,9 +544,87 @@ class _ProfilePageState extends State<ProfilePage> {
         _switchTile('🌙 الوضع الداكن', 'تحويل للثيم الداكن',
             appSettings.darkMode,
             (v) { appSettings.toggleDark(); setState(() {}); }),
-        _switchTile('🇦🇪 الواجهة العربية', 'تحويل للعربية',
-            appSettings.arabic,
-            (v) { appSettings.toggleArabic(); setState(() {}); }),
+        // ── Language Toggle ────────────────────────────────
+        Container(
+          margin: const EdgeInsets.symmetric(vertical: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: const Color(0xFFE5E7EB)),
+          ),
+          child: Row(children: [
+            Container(
+              width: 38, height: 38,
+              decoration: BoxDecoration(
+                color: _kOcean.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Center(child: Text('🌐',
+                  style: TextStyle(fontSize: 18))),
+            ),
+            const SizedBox(width: 12),
+            Expanded(child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('اللغة / Language',
+                    style: TextStyle(fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF0D1B2A))),
+                Text(appSettings.arabic ? 'عربي' : 'English',
+                    style: const TextStyle(fontSize: 12,
+                        color: Color(0xFF6B7280))),
+              ],
+            )),
+            // Toggle بين AR / EN
+            GestureDetector(
+              onTap: () {
+                appSettings.toggleArabic();
+                setState(() {});
+              },
+              child: Container(
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF5F7FF),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                      color: _kOcean.withValues(alpha: 0.2)),
+                ),
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 7),
+                    decoration: BoxDecoration(
+                      color: appSettings.arabic
+                          ? _kOcean : Colors.transparent,
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+                    child: Text('AR',
+                        style: TextStyle(
+                            fontSize: 12, fontWeight: FontWeight.w800,
+                            color: appSettings.arabic
+                                ? Colors.white : const Color(0xFF6B7280))),
+                  ),
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 7),
+                    decoration: BoxDecoration(
+                      color: !appSettings.arabic
+                          ? _kOcean : Colors.transparent,
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+                    child: Text('EN',
+                        style: TextStyle(
+                            fontSize: 12, fontWeight: FontWeight.w800,
+                            color: !appSettings.arabic
+                                ? Colors.white : const Color(0xFF6B7280))),
+                  ),
+                ]),
+              ),
+            ),
+          ]),
+        ),
 
         const SizedBox(height: 20),
         _sectionTitle('الدعم'),
