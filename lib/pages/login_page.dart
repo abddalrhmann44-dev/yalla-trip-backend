@@ -63,7 +63,9 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
   }
 
   void _onLangChange() {
-    if (mounted) setState(() {});
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   @override
@@ -127,15 +129,23 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
       verificationCompleted: (cred) async {
         await _auth.signInWithCredential(cred);
         if (name.isNotEmpty) await _auth.currentUser?.updateDisplayName(name);
-        if (mounted) _goHome();
+        if (mounted) {
+          _goHome();
+        }
       },
       verificationFailed: (e) {
         setState(() => _isLoading = false);
         _showError(e.code == 'invalid-phone-number'
-            ? 'رقم الهاتف غير صحيح'
+            ? (appSettings.arabic
+                ? 'رقم الهاتف غير صحيح'
+                : 'Invalid phone number')
             : e.code == 'too-many-requests'
-                ? 'محاولات كثيرة، انتظر قليلاً'
-                : 'حدث خطأ، حاول مرة أخرى');
+                ? (appSettings.arabic
+                    ? 'محاولات كثيرة، انتظر قليلاً'
+                    : 'Too many attempts, wait a moment')
+                : (appSettings.arabic
+                    ? 'حدث خطأ، حاول مرة أخرى'
+                    : 'An error occurred, try again'));
       },
       codeAutoRetrievalTimeout: (_) {},
     );
@@ -146,15 +156,26 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
     try {
       await _auth.signInWithEmailAndPassword(
           email: _emailCtrl.text.trim(), password: _passCtrl.text.trim());
-      if (mounted) _goHome();
+      if (mounted) {
+        _goHome();
+      }
     } on FirebaseAuthException catch (e) {
-      String msg = 'حدث خطأ، حاول مرة أخرى';
-      if (e.code == 'user-not-found') msg = 'البريد الإلكتروني غير مسجل';
-      if (e.code == 'wrong-password') msg = 'كلمة المرور غير صحيحة';
-      if (e.code == 'invalid-email') msg = 'البريد الإلكتروني غير صحيح';
+      String msg =
+          appSettings.arabic ? 'حدث خطأ، حاول مرة أخرى' : 'An error occurred';
+      if (e.code == 'user-not-found')
+        msg = appSettings.arabic
+            ? 'البريد الإلكتروني غير مسجل'
+            : 'Email not found';
+      if (e.code == 'wrong-password')
+        msg = appSettings.arabic ? 'كلمة المرور غير صحيحة' : 'Wrong password';
+      if (e.code == 'invalid-email')
+        msg =
+            appSettings.arabic ? 'البريد الإلكتروني غير صحيح' : 'Invalid email';
       _showError(msg);
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -170,11 +191,17 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
       final cred = GoogleAuthProvider.credential(
           accessToken: ga.accessToken, idToken: ga.idToken);
       await _auth.signInWithCredential(cred);
-      if (mounted) _goHome();
+      if (mounted) {
+        _goHome();
+      }
     } catch (_) {
-      _showError('حدث خطأ في تسجيل الدخول بـ Google');
+      _showError(appSettings.arabic
+          ? 'حدث خطأ في تسجيل الدخول بـ Google'
+          : 'Google sign-in failed');
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -188,13 +215,18 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
       final cred = OAuthProvider('apple.com').credential(
           idToken: apC.identityToken, accessToken: apC.authorizationCode);
       await _auth.signInWithCredential(cred);
-      if (mounted) _goHome();
+      if (mounted) {
+        _goHome();
+      }
     } on SignInWithAppleAuthorizationException catch (e) {
       if (e.code != AuthorizationErrorCode.canceled) {
-        _showError('Apple Sign In فشل');
+        _showError(
+            appSettings.arabic ? 'Apple Sign In فشل' : 'Apple Sign In failed');
       }
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -202,11 +234,16 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
     setState(() => _isLoading = true);
     try {
       await _auth.signInAnonymously();
-      if (mounted) _goHome();
+      if (mounted) {
+        _goHome();
+      }
     } catch (_) {
-      _showError('حدث خطأ، حاول مرة أخرى');
+      _showError(
+          appSettings.arabic ? 'حدث خطأ، حاول مرة أخرى' : 'An error occurred');
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -325,6 +362,8 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                     _TabSelector(
                       selected: _tabIndex,
                       onChanged: (i) => setState(() => _tabIndex = i),
+                      label0: appSettings.arabic ? 'رقم الهاتف' : 'Phone',
+                      label1: appSettings.arabic ? 'البريد' : 'Email',
                     ),
                     const SizedBox(height: 24),
 
@@ -434,14 +473,17 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                                 builder: (_) => const RegisterPage())),
                         child: RichText(
                             text: TextSpan(
-                          text: '${S.noAccount}  ',
+                          text:
+                              '${appSettings.arabic ? S.noAccount : "Don't have an account?"}  ',
                           style: TextStyle(
                               color: const Color(0xFF0D1B2A)
                                   .withValues(alpha: 0.4),
                               fontSize: 13.5),
-                          children: const [
+                          children: [
                             TextSpan(
-                              text: 'سجّل دلوقتي',
+                              text: appSettings.arabic
+                                  ? 'سجّل دلوقتي'
+                                  : 'Register',
                               style: TextStyle(
                                   color: Color(0xFF1565C0),
                                   fontWeight: FontWeight.w800,
@@ -510,7 +552,9 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
           icon: Icons.email_outlined,
           keyType: TextInputType.emailAddress,
           validator: (v) => _tabIndex == 1 && (v == null || !v.contains('@'))
-              ? 'أدخل بريد إلكتروني صحيح'
+              ? (appSettings.arabic
+                  ? 'أدخل بريد إلكتروني صحيح'
+                  : 'Enter a valid email')
               : null,
         ),
         const SizedBox(height: 12),
@@ -529,7 +573,9 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
             onPressed: () => setState(() => _obscurePass = !_obscurePass),
           ),
           validator: (v) => _tabIndex == 1 && (v == null || v.length < 6)
-              ? 'كلمة المرور قصيرة جداً'
+              ? (appSettings.arabic
+                  ? 'كلمة المرور قصيرة جداً'
+                  : 'Password too short')
               : null,
         ),
         Align(
@@ -578,7 +624,13 @@ class _BackBtn extends StatelessWidget {
 class _TabSelector extends StatelessWidget {
   final int selected;
   final ValueChanged<int> onChanged;
-  const _TabSelector({required this.selected, required this.onChanged});
+  final String label0;
+  final String label1;
+  const _TabSelector(
+      {required this.selected,
+      required this.onChanged,
+      this.label0 = 'Phone',
+      this.label1 = 'Email'});
 
   @override
   Widget build(BuildContext context) => Container(
@@ -588,8 +640,8 @@ class _TabSelector extends StatelessWidget {
           borderRadius: BorderRadius.circular(14),
         ),
         child: Row(children: [
-          _item(0, Icons.phone_android_rounded, 'رقم الهاتف'),
-          _item(1, Icons.email_outlined, 'البريد الإلكتروني'),
+          _item(0, Icons.phone_android_rounded, label0),
+          _item(1, Icons.email_outlined, label1),
         ]),
       );
 
@@ -768,7 +820,7 @@ class _CountryPhoneField extends StatelessWidget {
             ),
           ]),
         ),
-      );
+      ); // end Directionality
 }
 
 class _PrimaryBtn extends StatelessWidget {
@@ -861,7 +913,7 @@ class _Divider extends StatelessWidget {
                 Divider(color: const Color(0xFF0D1B2A).withValues(alpha: 0.1))),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 14),
-          child: Text('أو تابع بـ',
+          child: Text(appSettings.arabic ? 'أو تابع بـ' : 'or continue with',
               style: TextStyle(
                   fontSize: 12,
                   color: const Color(0xFF0D1B2A).withValues(alpha: 0.35),

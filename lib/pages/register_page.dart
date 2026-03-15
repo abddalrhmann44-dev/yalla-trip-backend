@@ -64,8 +64,8 @@ class _RegisterPageState extends State<RegisterPage>
   Future<void> _registerPhone() async {
     final name  = _nameCtrl.text.trim();
     final phone = _phoneCtrl.text.trim();
-    if (name.length < 3)  { _err('أدخل اسمك الكامل (3 أحرف على الأقل)'); return; }
-    if (phone.length < 9) { _err('أدخل رقم هاتف صحيح'); return; }
+    if (name.length < 3)  { _err(appSettings.arabic ? 'أدخل اسمك الكامل (3 أحرف على الأقل)' : 'Enter your full name (min 3 chars)'); return; }
+    if (phone.length < 9) { _err(appSettings.arabic ? 'أدخل رقم هاتف صحيح' : 'Enter a valid phone number'); return; }
 
     setState(() => _loading = true);
     final raw  = phone.startsWith('0') ? phone.substring(1) : phone;
@@ -82,7 +82,8 @@ class _RegisterPageState extends State<RegisterPage>
       verificationFailed: (e) {
         setState(() => _loading = false);
         _err(e.code == 'invalid-phone-number'
-            ? 'رقم الهاتف غير صحيح' : 'حدث خطأ، حاول مرة أخرى');
+            ? (appSettings.arabic ? 'رقم الهاتف غير صحيح' : 'Invalid phone number')
+            : (appSettings.arabic ? 'حدث خطأ، حاول مرة أخرى' : 'An error occurred'));
       },
       codeSent: (verId, token) {
         setState(() => _loading = false);
@@ -107,10 +108,10 @@ class _RegisterPageState extends State<RegisterPage>
       await _saveUser(_nameCtrl.text.trim(), _emailCtrl.text.trim(), '');
       if (mounted) _goHome();
     } on FirebaseAuthException catch (e) {
-      String msg = 'حدث خطأ، حاول مرة أخرى';
-      if (e.code == 'email-already-in-use') { msg = 'البريد الإلكتروني مسجل مسبقاً'; }
-      else if (e.code == 'weak-password')       { msg = 'كلمة المرور ضعيفة جداً'; }
-      else if (e.code == 'invalid-email')        { msg = 'البريد الإلكتروني غير صحيح'; }
+      String msg = appSettings.arabic ? 'حدث خطأ، حاول مرة أخرى' : 'An error occurred';
+      if (e.code == 'email-already-in-use') { msg = appSettings.arabic ? 'البريد الإلكتروني مسجل مسبقاً' : 'Email already in use'; }
+      else if (e.code == 'weak-password')   { msg = appSettings.arabic ? 'كلمة المرور ضعيفة جداً' : 'Password too weak'; }
+      else if (e.code == 'invalid-email')   { msg = appSettings.arabic ? 'البريد الإلكتروني غير صحيح' : 'Invalid email'; }
       _err(msg);
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -197,6 +198,8 @@ class _RegisterPageState extends State<RegisterPage>
                 _TabSelector(
                   selected: _tab,
                   onChanged: (i) => setState(() => _tab = i),
+                  label0: appSettings.arabic ? 'رقم الهاتف' : 'Phone',
+                  label1: appSettings.arabic ? 'البريد' : 'Email',
                 ),
                 const SizedBox(height: 24),
 
@@ -205,7 +208,7 @@ class _RegisterPageState extends State<RegisterPage>
                   ctrl: _nameCtrl, hint: S.namePlaceholder,
                   icon: Icons.person_outline_rounded,
                   validator: (v) => (v == null || v.trim().length < 3)
-                      ? 'أدخل اسمك الكامل' : null,
+                      ? (appSettings.arabic ? 'أدخل اسمك الكامل' : 'Enter your full name') : null,
                 ),
                 const SizedBox(height: 14),
 
@@ -218,7 +221,9 @@ class _RegisterPageState extends State<RegisterPage>
 
                 // ── Submit ───────────────────────────
                 _PrimaryBtn(
-                  label: _tab == 0 ? 'إرسال رمز التحقق' : 'إنشاء الحساب',
+                  label: _tab == 0
+                      ? (appSettings.arabic ? 'إرسال رمز التحقق' : 'Send Code')
+                      : S.registerAction,
                   icon: _tab == 0
                       ? Icons.sms_outlined
                       : Icons.arrow_forward_rounded,
@@ -232,12 +237,12 @@ class _RegisterPageState extends State<RegisterPage>
                   child: GestureDetector(
                     onTap: () => Navigator.pop(context),
                     child: RichText(text: TextSpan(
-                      text: 'عندك حساب بالفعل؟  ',
+                      text: appSettings.arabic ? 'عندك حساب بالفعل؟  ' : 'Already have an account?  ',
                       style: TextStyle(
                           color: const Color(0xFF0D1B2A).withValues(alpha: 0.4),
                           fontSize: 13.5),
-                      children: const [TextSpan(
-                        text: 'سجّل دخولك',
+                      children: [TextSpan(
+                        text: appSettings.arabic ? 'سجّل دخولك' : 'Sign In',
                         style: TextStyle(
                             color: Color(0xFF1565C0),
                             fontWeight: FontWeight.w800,
@@ -259,7 +264,9 @@ class _RegisterPageState extends State<RegisterPage>
 
   // ── Form widgets ─────────────────────────────────────────────
 
-  Widget _phoneFields() => Column(
+  Widget _phoneFields() => Directionality(
+    textDirection: TextDirection.ltr,
+    child: Column(
     key: const ValueKey('phone'),
     children: [
       Container(
@@ -292,7 +299,7 @@ class _RegisterPageState extends State<RegisterPage>
             style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600,
                 color: Color(0xFF0D1B2A)),
             decoration: InputDecoration(
-              hintText: '01X XXXX XXXX',
+              hintText: appSettings.arabic ? '01X XXXX XXXX' : '01X XXXX XXXX',
               hintStyle: TextStyle(
                   color: const Color(0xFF0D1B2A).withValues(alpha: 0.3),
                   fontSize: 14),
@@ -304,7 +311,8 @@ class _RegisterPageState extends State<RegisterPage>
         ]),
       ),
     ],
-  );
+    ),
+  ); // end Directionality
 
   Widget _emailFields() => Form(
     key: _formKey,
@@ -314,7 +322,7 @@ class _RegisterPageState extends State<RegisterPage>
         icon: Icons.email_outlined,
         keyType: TextInputType.emailAddress,
         validator: (v) => (v == null || !v.contains('@'))
-            ? 'أدخل بريد إلكتروني صحيح' : null,
+            ? (appSettings.arabic ? 'أدخل بريد إلكتروني صحيح' : 'Enter a valid email') : null,
       ),
       const SizedBox(height: 14),
       _Field(
@@ -330,7 +338,7 @@ class _RegisterPageState extends State<RegisterPage>
           onPressed: () => setState(() => _obscurePass = !_obscurePass),
         ),
         validator: (v) => (v == null || v.length < 6)
-            ? 'كلمة المرور 6 أحرف على الأقل' : null,
+            ? (appSettings.arabic ? 'كلمة المرور 6 أحرف على الأقل' : 'Password must be at least 6 characters') : null,
       ),
       const SizedBox(height: 14),
       _Field(
@@ -346,7 +354,7 @@ class _RegisterPageState extends State<RegisterPage>
           onPressed: () => setState(() => _obscureConf = !_obscureConf),
         ),
         validator: (v) => v != _passCtrl.text
-            ? 'كلمتا المرور غير متطابقتين' : null,
+            ? (appSettings.arabic ? 'كلمتا المرور غير متطابقتين' : 'Passwords do not match') : null,
       ),
     ]),
   );
@@ -381,7 +389,10 @@ class _BackBtn extends StatelessWidget {
 class _TabSelector extends StatelessWidget {
   final int selected;
   final ValueChanged<int> onChanged;
-  const _TabSelector({required this.selected, required this.onChanged});
+  final String label0;
+  final String label1;
+  const _TabSelector({required this.selected, required this.onChanged,
+      this.label0 = 'Phone', this.label1 = 'Email'});
 
   @override
   Widget build(BuildContext context) => Container(
@@ -391,8 +402,8 @@ class _TabSelector extends StatelessWidget {
       borderRadius: BorderRadius.circular(14),
     ),
     child: Row(children: [
-      _item(0, Icons.phone_android_rounded, 'رقم الهاتف'),
-      _item(1, Icons.email_outlined, 'البريد الإلكتروني'),
+      _item(0, Icons.phone_android_rounded, label0),
+      _item(1, Icons.email_outlined, label1),
     ]),
   );
 
