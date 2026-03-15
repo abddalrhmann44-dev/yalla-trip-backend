@@ -9,7 +9,7 @@
       "client_info": {
         "mobilesdk_app_id": "1:862731638391:android:c39a8d14ec8857f0815872",
         "android_client_info": {
-          "package_name": "com.example.yalla_trip"
+          "package_name": "com.yallatrip.app"
         }
       },
       "oauth_client": [
@@ -34,7 +34,7 @@
               "client_id": "862731638391-0s0lnqc4og8q718envarh8tf6hqsr3uo.apps.googleusercontent.com",
               "client_type": 2,
               "ios_info": {
-                "bundle_id": "com.yallatrip.app.ios"
+                "bundle_id": "com.yallatrip.app"
               }
             }
           ]
