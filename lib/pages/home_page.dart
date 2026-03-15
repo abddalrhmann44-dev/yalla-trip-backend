@@ -10,6 +10,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'explore_page.dart';
+import 'area_results_page.dart';
 import 'bookings_page.dart';
 import 'profile_page.dart';
 
@@ -959,13 +960,21 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             }
           });
           Navigator.pop(context);
-          Navigator.push(context, MaterialPageRoute(
-            builder: (_) => ExplorePage(
-              initialSearch: query,
-              initialArea: area,
-              initialType: type,
-            ),
-          ));
+          if (area != null && area.isNotEmpty) {
+            Navigator.push(context, MaterialPageRoute(
+              builder: (_) => AreaResultsPage(
+                area: area,
+                initialType: type,
+              ),
+            ));
+          } else {
+            Navigator.push(context, MaterialPageRoute(
+              builder: (_) => ExplorePage(
+                initialSearch: query,
+                initialType: type,
+              ),
+            ));
+          }
         },
       ),
     );
@@ -973,7 +982,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
   void _openAreaResults(String area) {
     Navigator.push(context, MaterialPageRoute(
-      builder: (_) => ExplorePage(initialArea: area),
+      builder: (_) => AreaResultsPage(area: area),
     ));
   }
 
@@ -1200,7 +1209,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   Widget _destCard(_Dest d) {
     return GestureDetector(
       onTap: () => Navigator.push(context, MaterialPageRoute(
-        builder: (_) => ExplorePage(initialArea: d.name),
+        builder: (_) => AreaResultsPage(area: d.name),
       )),
       child: Container(
       width: 155,

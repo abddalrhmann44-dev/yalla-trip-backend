@@ -615,15 +615,7 @@ class _ExplorePageState extends State<ExplorePage>
       physics: const BouncingScrollPhysics(),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-        const Text('Egyptian Coastal Destinations',
-            style: TextStyle(fontSize: 18,
-                fontWeight: FontWeight.w900, color: _kText)),
-        const SizedBox(height: 4),
-        const Text('Tap an area to explore its properties',
-            style: TextStyle(fontSize: 12, color: _kSub)),
-        const SizedBox(height: 16),
-
-        // Visual "map" — styled area cards
+        // Area cards
         // Row 1
         Row(children: [
           _bigAreaCard(_kAreas[0]),
