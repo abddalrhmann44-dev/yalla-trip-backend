@@ -2,13 +2,13 @@
 //  YALLA TRIP — Register Page
 // ═══════════════════════════════════════════════════════════════
 import 'package:flutter/material.dart';
-import '../main.dart' show appSettings;
 import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'otp_page.dart';
 import 'home_page.dart';
 import '../utils/app_strings.dart';
+import '../main.dart' show appSettings;
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -39,6 +39,10 @@ class _RegisterPageState extends State<RegisterPage>
   late final Animation<double> _fade =
       CurvedAnimation(parent: _fadeCtrl, curve: Curves.easeOut);
 
+  // ── helper ────────────────────────────────────────────────
+  bool get _ar => appSettings.arabic;
+  String _t(String ar, String en) => _ar ? ar : en;
+
   @override
   void initState() {
     super.initState();
@@ -49,7 +53,7 @@ class _RegisterPageState extends State<RegisterPage>
     ));
   }
 
-  void _onLangChange() { if (mounted) { setState(() {}); } }
+  void _onLangChange() { if (mounted) setState(() {}); }
 
   @override
   void dispose() {
@@ -60,14 +64,7 @@ class _RegisterPageState extends State<RegisterPage>
     super.dispose();
   }
 
-  bool get _ar => appSettings.arabic;
-  String _t(String ar, String en) => _ar ? ar : en;
-
-  // ── Actions ────────────────────────────────────────────────
-  Future<void> _submit() async {
-    _tab == 0 ? await _registerPhone() : await _registerEmail();
-  }
-
+  // ── Actions ─────────────────────────────────────────────────
   Future<void> _registerPhone() async {
     final name  = _nameCtrl.text.trim();
     final phone = _phoneCtrl.text.trim();
@@ -91,7 +88,7 @@ class _RegisterPageState extends State<RegisterPage>
       verificationCompleted: (cred) async {
         await _auth.signInWithCredential(cred);
         await _saveUser(name, '', full);
-        if (mounted) { _goHome(); }
+        if (mounted) _goHome();
       },
       verificationFailed: (e) {
         setState(() => _loading = false);
@@ -118,11 +115,10 @@ class _RegisterPageState extends State<RegisterPage>
     setState(() => _loading = true);
     try {
       final cred = await _auth.createUserWithEmailAndPassword(
-          email: _emailCtrl.text.trim(),
-          password: _passCtrl.text.trim());
+          email: _emailCtrl.text.trim(), password: _passCtrl.text.trim());
       await cred.user!.updateDisplayName(_nameCtrl.text.trim());
       await _saveUser(_nameCtrl.text.trim(), _emailCtrl.text.trim(), '');
-      if (mounted) { _goHome(); }
+      if (mounted) _goHome();
     } on FirebaseAuthException catch (e) {
       String msg = _t('حدث خطأ، حاول مرة أخرى', 'An error occurred');
       if (e.code == 'email-already-in-use') {
@@ -134,7 +130,7 @@ class _RegisterPageState extends State<RegisterPage>
       }
       _err(msg);
     } finally {
-      if (mounted) { setState(() => _loading = false); }
+      if (mounted) setState(() => _loading = false);
     }
   }
 
@@ -167,276 +163,235 @@ class _RegisterPageState extends State<RegisterPage>
     ));
   }
 
-  // ── Build ──────────────────────────────────────────────────
+  // ── Build ────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     return Directionality(
       textDirection: _ar ? TextDirection.rtl : TextDirection.ltr,
       child: Scaffold(
-        backgroundColor: Colors.white,
-        extendBodyBehindAppBar: true,
-        body: Stack(children: [
+      backgroundColor: Colors.black,
+      extendBodyBehindAppBar: true,
+      body: Stack(children: [
 
-          // Background image
-          Positioned.fill(
-            child: Image.asset(
-              'assets/images/register_bg.jpg',
-              fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) =>
-                  Container(color: const Color(0xFF1565C0)),
-            ),
+        // Background image
+        Positioned.fill(
+          child: Image.asset(
+            'assets/images/register_bg.jpg',
+            fit: BoxFit.cover,
+            alignment: Alignment.center,
+            errorBuilder: (_, __, ___) =>
+                Container(color: const Color(0xFF1565C0)),
           ),
+        ),
 
-          // White overlay
-          Positioned.fill(
-            child: Container(
-              color: Colors.white.withValues(alpha: 0.88),
-            ),
-          ),
+        FadeTransition(
+          opacity: _fade,
+          child: SafeArea(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
 
-          // Content
-          FadeTransition(
-            opacity: _fade,
-            child: SafeArea(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 28, vertical: 16),
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
+                  _BackBtn(onTap: () => Navigator.pop(context)),
+                  const SizedBox(height: 32),
 
-                      _BackBtn(onTap: () => Navigator.pop(context)),
-                      const SizedBox(height: 32),
+                  Text(S.registerTitle,
+                      style: const TextStyle(
+                        fontSize: 30, fontWeight: FontWeight.w900,
+                        color: Color(0xFF0D1B2A), letterSpacing: -1,
+                      )),
+                  const SizedBox(height: 6),
+                  Text(S.registerSub,
+                      style: TextStyle(fontSize: 14,
+                          color: const Color(0xFF0D1B2A).withValues(alpha: 0.4),
+                          fontWeight: FontWeight.w500)),
 
-                      Text(S.registerTitle,
+                  const SizedBox(height: 32),
+
+                  // Tab selector
+                  _TabSelector(
+                    selected: _tab,
+                    onChanged: (i) => setState(() => _tab = i),
+                    tab0: _t('رقم الهاتف', 'Phone'),
+                    tab1: _t('البريد الإلكتروني', 'Email'),
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Name — always shown
+                  _Field(
+                    ctrl: _nameCtrl,
+                    hint: S.namePlaceholder,
+                    icon: Icons.person_outline_rounded,
+                    validator: (v) => (v == null || v.trim().length < 3)
+                        ? _t('أدخل اسمك الكامل', 'Enter your full name')
+                        : null,
+                  ),
+                  const SizedBox(height: 14),
+
+                  // Tab fields — if/else بدل AnimatedSwitcher
+                  if (_tab == 0) _phoneFields() else _emailFields(),
+                  const SizedBox(height: 28),
+
+                  // Submit button
+                  _PrimaryBtn(
+                    label: _tab == 0
+                        ? _t('إرسال رمز التحقق', 'Send Code')
+                        : S.registerAction,
+                    icon: _tab == 0
+                        ? Icons.sms_outlined
+                        : Icons.arrow_forward_rounded,
+                    loading: _loading,
+                    onTap: _tab == 0 ? _registerPhone : _registerEmail,
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Login link
+                  Center(
+                    child: GestureDetector(
+                      onTap: () => Navigator.pop(context),
+                      child: RichText(text: TextSpan(
+                        text: _ar
+                            ? 'عندك حساب بالفعل؟  '
+                            : 'Already have an account?  ',
+                        style: TextStyle(
+                            color: const Color(0xFF0D1B2A).withValues(alpha: 0.4),
+                            fontSize: 13.5),
+                        children: [TextSpan(
+                          text: _t('سجّل دخولك', 'Sign In'),
                           style: const TextStyle(
-                            fontSize: 30, fontWeight: FontWeight.w900,
-                            color: Color(0xFF0D1B2A), letterSpacing: -1,
-                          )),
-                      const SizedBox(height: 6),
-                      Text(S.registerSub,
-                          style: TextStyle(fontSize: 14,
-                              color: const Color(0xFF0D1B2A)
-                                  .withValues(alpha: 0.4),
-                              fontWeight: FontWeight.w500)),
-
-                      const SizedBox(height: 32),
-
-                      // Tab
-                      _TabSelector(
-                        selected: _tab,
-                        onChanged: (i) => setState(() => _tab = i),
-                        label0: _t('رقم الهاتف', 'Phone'),
-                        label1: _t('البريد الإلكتروني', 'Email'),
-                      ),
-                      const SizedBox(height: 24),
-
-                      // Name field (always visible)
-                      _Field(
-                        ctrl: _nameCtrl,
-                        hint: S.namePlaceholder,
-                        icon: Icons.person_outline_rounded,
-                        validator: (v) => (v == null || v.trim().length < 3)
-                            ? _t('أدخل اسمك الكامل',
-                                'Enter your full name')
-                            : null,
-                      ),
-                      const SizedBox(height: 14),
-
-                      // Tab-specific fields
-                      IndexedStack(
-                        index: _tab,
-                        children: [
-                          _phoneFields(),
-                          _emailFields(),
-                        ],
-                      ),
-                      const SizedBox(height: 28),
-
-                      // Submit
-                      _PrimaryBtn(
-                        label: _tab == 0
-                            ? _t('إرسال رمز التحقق', 'Send Code')
-                            : S.registerAction,
-                        icon: _tab == 0
-                            ? Icons.sms_outlined
-                            : Icons.arrow_forward_rounded,
-                        loading: _loading,
-                        onTap: _submit,
-                      ),
-                      const SizedBox(height: 24),
-
-                      // Login link
-                      Center(
-                        child: GestureDetector(
-                          onTap: () => Navigator.pop(context),
-                          child: RichText(text: TextSpan(
-                            text: _ar
-                                ? 'عندك حساب بالفعل؟  '
-                                : 'Already have an account?  ',
-                            style: TextStyle(
-                                color: const Color(0xFF0D1B2A)
-                                    .withValues(alpha: 0.45),
-                                fontSize: 13.5),
-                            children: [TextSpan(
-                              text: _ar ? 'سجّل دخولك' : 'Sign In',
-                              style: const TextStyle(
-                                  color: Color(0xFF1565C0),
-                                  fontWeight: FontWeight.w800,
-                                  decoration: TextDecoration.underline,
-                                  decorationColor: Color(0xFF1565C0)),
-                            )],
-                          )),
-                        ),
-                      ),
-                      const SizedBox(height: 32),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ]),
-      ),
-    );
-  }
-
-  // ── Phone fields ───────────────────────────────────────────
-  Widget _phoneFields() {
-    return Directionality(
-      textDirection: TextDirection.ltr,
-      child: Column(
-        key: const ValueKey('phone'),
-        children: [
-          Container(
-            decoration: BoxDecoration(
-              color: const Color(0xFFF5F7FF),
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(
-                  color: const Color(0xFF0D1B2A).withValues(alpha: 0.07)),
-            ),
-            child: Row(children: [
-              Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 14, vertical: 18),
-                decoration: BoxDecoration(
-                    border: Border(right: BorderSide(
-                        color: const Color(0xFF0D1B2A)
-                            .withValues(alpha: 0.07)))),
-                child: const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text('🇪🇬', style: TextStyle(fontSize: 22)),
-                      SizedBox(width: 6),
-                      Text('+20',
-                          style: TextStyle(
+                              color: Color(0xFF1565C0),
                               fontWeight: FontWeight.w800,
-                              color: Color(0xFF0D1B2A),
-                              fontSize: 14)),
-                    ]),
-              ),
-              Expanded(
-                child: TextFormField(
-                  controller: _phoneCtrl,
-                  keyboardType: TextInputType.phone,
-                  textDirection: TextDirection.ltr,
-                  inputFormatters: [
-                    FilteringTextInputFormatter.digitsOnly,
-                    LengthLimitingTextInputFormatter(11),
-                  ],
-                  style: const TextStyle(fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF0D1B2A)),
-                  decoration: InputDecoration(
-                    hintText: '01X XXXX XXXX',
-                    hintStyle: TextStyle(
-                        color: const Color(0xFF0D1B2A).withValues(alpha: 0.3),
-                        fontSize: 14),
-                    border: InputBorder.none,
-                    contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 18),
+                              decoration: TextDecoration.underline,
+                              decorationColor: Color(0xFF1565C0)),
+                        )],
+                      )),
+                    ),
                   ),
-                ),
+                  const SizedBox(height: 32),
+                ],
               ),
-            ]),
-          ),
-          const SizedBox(height: 6),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: Text(
-              _t('سيتم إرسال رمز التحقق على رقمك',
-                  'A verification code will be sent to your number'),
-              textDirection: TextDirection.ltr,
-              style: TextStyle(
-                  fontSize: 12,
-                  color: const Color(0xFF0D1B2A).withValues(alpha: 0.4)),
             ),
           ),
-        ],
-      ),
+        ),
+      ]),
+    ),
     );
   }
 
-  // ── Email fields ───────────────────────────────────────────
-  Widget _emailFields() {
-    return Column(
-      key: const ValueKey('email'),
-      children: [
-        _Field(
-          ctrl: _emailCtrl,
-          hint: S.emailPlaceholder,
-          icon: Icons.email_outlined,
-          keyType: TextInputType.emailAddress,
-          validator: (v) => (v == null || !v.contains('@'))
-              ? _t('أدخل بريد إلكتروني صحيح', 'Enter a valid email')
-              : null,
-        ),
-        const SizedBox(height: 14),
-        _Field(
-          ctrl: _passCtrl,
-          hint: S.passPlaceholder,
-          icon: Icons.lock_outline_rounded,
-          obscure: _obscurePass,
-          suffix: IconButton(
-            icon: Icon(
-                _obscurePass
-                    ? Icons.visibility_outlined
-                    : Icons.visibility_off_outlined,
-                size: 20,
-                color: const Color(0xFF0D1B2A).withValues(alpha: 0.35)),
-            onPressed: () =>
-                setState(() => _obscurePass = !_obscurePass),
+  // ── Phone fields ─────────────────────────────────────────────
+  Widget _phoneFields() => Column(
+    key: const ValueKey('phone'),
+    children: [
+      // Phone row — force LTR so +20 doesn't flip in Arabic
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: Container(
+          decoration: BoxDecoration(
+            color: const Color(0xFFF5F7FF),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+                color: const Color(0xFF0D1B2A).withValues(alpha: 0.07)),
           ),
-          validator: (v) => (v == null || v.length < 6)
-              ? _t('كلمة المرور 6 أحرف على الأقل',
-                  'Password must be at least 6 characters')
-              : null,
+          child: Row(children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 18),
+              decoration: BoxDecoration(
+                  border: Border(right: BorderSide(
+                      color: const Color(0xFF0D1B2A).withValues(alpha: 0.07)))),
+              child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                Text('🇪🇬', style: TextStyle(fontSize: 22)),
+                SizedBox(width: 6),
+                Text('+20', style: TextStyle(
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF0D1B2A),
+                    fontSize: 14)),
+              ]),
+            ),
+            Expanded(
+              child: TextFormField(
+                controller: _phoneCtrl,
+                keyboardType: TextInputType.phone,
+                textDirection: TextDirection.ltr,
+                inputFormatters: [
+                  FilteringTextInputFormatter.digitsOnly,
+                  LengthLimitingTextInputFormatter(11),
+                ],
+                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600,
+                    color: Color(0xFF0D1B2A)),
+                decoration: InputDecoration(
+                  hintText: '01X XXXX XXXX',
+                  hintStyle: TextStyle(
+                      color: const Color(0xFF0D1B2A).withValues(alpha: 0.3),
+                      fontSize: 14),
+                  border: InputBorder.none,
+                  contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16, vertical: 18),
+                ),
+              ),
+            ),
+          ]),
         ),
-        const SizedBox(height: 14),
-        _Field(
-          ctrl: _confirmCtrl,
-          hint: S.confirmPass,
-          icon: Icons.lock_outline_rounded,
-          obscure: _obscureConf,
-          suffix: IconButton(
-            icon: Icon(
-                _obscureConf
-                    ? Icons.visibility_outlined
-                    : Icons.visibility_off_outlined,
-                size: 20,
-                color: const Color(0xFF0D1B2A).withValues(alpha: 0.35)),
-            onPressed: () =>
-                setState(() => _obscureConf = !_obscureConf),
-          ),
-          validator: (v) => v != _passCtrl.text
-              ? _t('كلمتا المرور غير متطابقتين', 'Passwords do not match')
-              : null,
+      ),
+      const SizedBox(height: 6),
+      Align(
+        alignment: _ar ? Alignment.centerRight : Alignment.centerLeft,
+        child: Text(
+          _t('سيتم إرسال رمز التحقق على رقمك',
+              'OTP code will be sent to your number'),
+          style: TextStyle(fontSize: 12,
+              color: const Color(0xFF0D1B2A).withValues(alpha: 0.4)),
         ),
-      ],
-    );
-  }
+      ),
+    ],
+  );
+
+  // ── Email fields ─────────────────────────────────────────────
+  Widget _emailFields() => Form(
+    key: _formKey,
+    child: Column(key: const ValueKey('email'), children: [
+      _Field(
+        ctrl: _emailCtrl, hint: S.emailPlaceholder,
+        icon: Icons.email_outlined,
+        keyType: TextInputType.emailAddress,
+        validator: (v) => (v == null || !v.contains('@'))
+            ? _t('أدخل بريد إلكتروني صحيح', 'Enter a valid email') : null,
+      ),
+      const SizedBox(height: 14),
+      _Field(
+        ctrl: _passCtrl, hint: S.passPlaceholder,
+        icon: Icons.lock_outline_rounded,
+        obscure: _obscurePass,
+        suffix: IconButton(
+          icon: Icon(_obscurePass
+              ? Icons.visibility_outlined
+              : Icons.visibility_off_outlined,
+              size: 20,
+              color: const Color(0xFF0D1B2A).withValues(alpha: 0.35)),
+          onPressed: () => setState(() => _obscurePass = !_obscurePass),
+        ),
+        validator: (v) => (v == null || v.length < 6)
+            ? _t('كلمة المرور 6 أحرف على الأقل',
+                'Password must be at least 6 characters') : null,
+      ),
+      const SizedBox(height: 14),
+      _Field(
+        ctrl: _confirmCtrl, hint: S.confirmPass,
+        icon: Icons.lock_outline_rounded,
+        obscure: _obscureConf,
+        suffix: IconButton(
+          icon: Icon(_obscureConf
+              ? Icons.visibility_outlined
+              : Icons.visibility_off_outlined,
+              size: 20,
+              color: const Color(0xFF0D1B2A).withValues(alpha: 0.35)),
+          onPressed: () => setState(() => _obscureConf = !_obscureConf),
+        ),
+        validator: (v) => v != _passCtrl.text
+            ? _t('كلمتا المرور غير متطابقتين', 'Passwords do not match') : null,
+      ),
+    ]),
+  );
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -466,13 +421,13 @@ class _BackBtn extends StatelessWidget {
 class _TabSelector extends StatelessWidget {
   final int selected;
   final ValueChanged<int> onChanged;
-  final String label0;
-  final String label1;
+  final String tab0;
+  final String tab1;
   const _TabSelector({
     required this.selected,
     required this.onChanged,
-    this.label0 = 'Phone',
-    this.label1 = 'Email',
+    this.tab0 = 'Phone',
+    this.tab1 = 'Email',
   });
 
   @override
@@ -483,8 +438,8 @@ class _TabSelector extends StatelessWidget {
       borderRadius: BorderRadius.circular(14),
     ),
     child: Row(children: [
-      _item(0, Icons.phone_android_rounded, label0),
-      _item(1, Icons.email_outlined, label1),
+      _item(0, Icons.phone_android_rounded, tab0),
+      _item(1, Icons.email_outlined, tab1),
     ]),
   );
 
@@ -513,11 +468,11 @@ class _TabSelector extends StatelessWidget {
             Flexible(child: Text(label,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-              fontSize: 11, fontWeight: FontWeight.w700,
-              color: sel
-                  ? const Color(0xFF1565C0)
-                  : const Color(0xFF0D1B2A).withValues(alpha: 0.35),
-            ))),
+                  fontSize: 12, fontWeight: FontWeight.w700,
+                  color: sel
+                      ? const Color(0xFF1565C0)
+                      : const Color(0xFF0D1B2A).withValues(alpha: 0.35),
+                ))),
           ]),
         ),
       ),
@@ -598,7 +553,7 @@ class _PrimaryBtn extends StatelessWidget {
             ? const SizedBox(width: 22, height: 22,
                 child: CircularProgressIndicator(
                     color: Colors.white, strokeWidth: 2.5))
-            : Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+            : Row(mainAxisSize: MainAxisSize.min, children: [
                 Text(label, style: const TextStyle(fontSize: 16,
                     fontWeight: FontWeight.w900, color: Colors.white)),
                 const SizedBox(width: 8),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'firebase_options.dart';
@@ -19,20 +20,13 @@ import 'widgets/constants.dart';
 // ── Global App State ─────────────────────────────────
 class AppSettings extends ChangeNotifier {
   bool _darkMode = false;
-  bool _arabic = false;
+  bool _arabic   = false;
 
   bool get darkMode => _darkMode;
-  bool get arabic => _arabic;
+  bool get arabic   => _arabic;
 
-  void toggleDark() {
-    _darkMode = !_darkMode;
-    notifyListeners();
-  }
-
-  void toggleArabic() {
-    _arabic = !_arabic;
-    notifyListeners();
-  }
+  void toggleDark()   { _darkMode = !_darkMode; notifyListeners(); }
+  void toggleArabic() { _arabic   = !_arabic;   notifyListeners(); }
 }
 
 final appSettings = AppSettings();
@@ -58,8 +52,7 @@ void main() async {
 
 class YallaTripApp extends StatefulWidget {
   const YallaTripApp({super.key});
-  @override
-  State<YallaTripApp> createState() => _YallaTripAppState();
+  @override State<YallaTripApp> createState() => _YallaTripAppState();
 }
 
 class _YallaTripAppState extends State<YallaTripApp> {
@@ -71,20 +64,20 @@ class _YallaTripAppState extends State<YallaTripApp> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = appSettings.darkMode;
+    final isDark   = appSettings.darkMode;
     final isArabic = appSettings.arabic;
 
     SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle(
-      statusBarColor: Colors.transparent,
+      statusBarColor:          Colors.transparent,
       statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
-      statusBarBrightness: isDark ? Brightness.dark : Brightness.light,
+      statusBarBrightness:     isDark ? Brightness.dark  : Brightness.light,
     ));
 
     return MaterialApp(
       title: 'Yalla Trip',
       debugShowCheckedModeBanner: false,
       themeMode: isDark ? ThemeMode.dark : ThemeMode.light,
-      theme: _buildTheme(Brightness.light),
+      theme:     _buildTheme(Brightness.light),
       darkTheme: _buildTheme(Brightness.dark),
 
       locale: isArabic ? const Locale('ar') : const Locale('en'),
@@ -92,25 +85,30 @@ class _YallaTripAppState extends State<YallaTripApp> {
       localizationsDelegates: const [
         DefaultMaterialLocalizations.delegate,
         DefaultWidgetsLocalizations.delegate,
+        DefaultCupertinoLocalizations.delegate,
       ],
-      builder: (context, child) => Directionality(
-        textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
-        child: child!,
-      ),
+      builder: (context, child) {
+        return MediaQuery(
+          data: MediaQuery.of(context).copyWith(
+            textScaler: TextScaler.noScaling,
+          ),
+          child: child!,
+        );
+      },
 
       // ── أول شاشة — تحقق من Auth مباشرة بدون Splash ───
       home: const _AuthGate(),
 
       routes: {
-        '/welcome': (_) => const WelcomePage(),
-        '/login': (_) => const LoginPage(),
-        '/register': (_) => const RegisterPage(),
+        '/welcome':    (_) => const WelcomePage(),
+        '/login':      (_) => const LoginPage(),
+        '/register':   (_) => const RegisterPage(),
         '/onboarding': (_) => const OnboardingPage(),
-        '/home': (_) => const HomePage(),
-        '/owner': (_) => const OwnerAddPropertyPage(),
-        '/explore': (_) => const ExplorePage(),
-        '/bookings': (_) => const BookingsPage(),
-        '/profile': (_) => const ProfilePage(),
+        '/home':       (_) => const HomePage(),
+        '/owner':      (_) => const OwnerAddPropertyPage(),
+        '/explore':    (_) => const ExplorePage(),
+        '/bookings':   (_) => const BookingsPage(),
+        '/profile':    (_) => const ProfilePage(),
       },
 
       onGenerateRoute: (settings) {
@@ -119,10 +117,10 @@ class _YallaTripAppState extends State<YallaTripApp> {
             final args = settings.arguments as Map<String, dynamic>? ?? {};
             return MaterialPageRoute(
               builder: (_) => ChatPage(
-                ownerName: args['ownerName'] ?? 'المالك',
-                propertyName: args['propertyName'] ?? 'العقار',
+                ownerName:     args['ownerName']     ?? 'المالك',
+                propertyName:  args['propertyName']  ?? 'العقار',
                 propertyEmoji: args['propertyEmoji'] ?? '🏡',
-                currentPrice: args['currentPrice'] ?? '850',
+                currentPrice:  args['currentPrice']  ?? '850',
               ),
             );
           case '/payment':
@@ -143,11 +141,12 @@ class _YallaTripAppState extends State<YallaTripApp> {
         seedColor: AppColors.primary,
         brightness: brightness,
       ),
-      scaffoldBackgroundColor: isDark ? const Color(0xFF0D1117) : Colors.white,
+      scaffoldBackgroundColor:
+          isDark ? const Color(0xFF0D1117) : Colors.white,
     );
     return base.copyWith(
       textTheme: base.textTheme.apply(
-        bodyColor: isDark ? Colors.white : const Color(0xFF0D1B2A),
+        bodyColor:    isDark ? Colors.white : const Color(0xFF0D1B2A),
         displayColor: isDark ? Colors.white : const Color(0xFF0D1B2A),
       ),
       cardColor: isDark ? const Color(0xFF1C2333) : Colors.white,
@@ -162,10 +161,11 @@ class _YallaTripAppState extends State<YallaTripApp> {
           backgroundColor: AppColors.primary,
           foregroundColor: Colors.white,
           elevation: 0,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14)),
           textStyle: const TextStyle(
-              fontFamily: 'Outfit', fontSize: 15, fontWeight: FontWeight.w800),
+              fontFamily: 'Outfit', fontSize: 15,
+              fontWeight: FontWeight.w800),
         ),
       ),
     );
