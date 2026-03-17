@@ -5,11 +5,7 @@ version: 1.0.0+1
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
-flutter_launcher_icons:
-  android: true
-  ios: true
-  image_path: "assets/icon/app_icon.png" # 1024x1024 PNG بدون شفافية
- 
+
 dependencies:
   flutter:
     sdk: flutter
@@ -51,7 +47,10 @@ dependencies:
   url_launcher: ^6.2.5
   image_picker: ^1.1.2
   flutter_launcher_icons: ^0.14.4
-  flutter_native_splash: ^2.4.7
+  flutter_native_splash: ^2.4.0
+
+  flutter_localizations:
+    sdk: flutter
 
 dev_dependencies:
   flutter_test:
@@ -60,7 +59,6 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
-
   assets:
     - assets/images/hero/
     - assets/images/destinations/
@@ -70,5 +68,20 @@ flutter:
     - assets/images/welcome_bg.jpg
     - assets/images/login_bg.jpg
     - assets/images/register_bg.jpg
-    
+    - assets/images/icon.png
+    - assets/images/splash.png
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/images/icon.png"
+  adaptive_icon_background: "#1B4D5C"
+  adaptive_icon_foreground: "assets/images/icon.png"
+  min_sdk_android: 21
+
+flutter_native_splash:
+  color: "#FFFFFF"
+  image: assets/images/splash.png
+  android: true
+  ios: true
   

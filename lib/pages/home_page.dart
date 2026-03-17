@@ -1002,7 +1002,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         child: ClipRRect(
           borderRadius: BorderRadius.circular(22),
           child: SizedBox(
-            height: 260,
+            height: 210,
             child: Stack(children: [
 
               // ── صورة كاملة بدون أي شريط ─────────────
@@ -1023,11 +1023,10 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                     gradient: LinearGradient(
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
-                      stops: const [0.10, 0.75, 1.0],
+                      stops: const [0.35, 1.0],
                       colors: [
                         Colors.transparent,
-                        Colors.black.withValues(alpha: 0.55),
-                        Colors.black.withValues(alpha: 0.90),
+                        Colors.black.withValues(alpha: 0.72),
                       ],
                     ),
                   ),
@@ -1056,7 +1055,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               Positioned(
                 bottom: 0, left: 0, right: 0,
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
@@ -1086,8 +1085,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                       // الأماكن المتاحة — chips بدون إيموجي
                       Wrap(
                         spacing: 6,
-                        runSpacing: 5,
-                        children: h.categories.take(4).map((cat) =>
+                        runSpacing: 6,
+                        children: h.categories.map((cat) =>
                           GestureDetector(
                             onTap: () => Navigator.push(context,
                               MaterialPageRoute(builder: (_) =>
@@ -1300,8 +1299,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 ),
                 child: Text(
                     (_areaCounts[d.name] ?? 0) > 0
-                        ? '${_areaCounts[d.name]} ${appSettings.arabic ? 'عقار' : 'properties'}'
-                        : S.soon,
+                        ? '${_areaCounts[d.name]} عقار'
+                        : 'قريباً',
                     style: const TextStyle(
                         color: Colors.white, fontSize: 10,
                         fontWeight: FontWeight.w700)),
@@ -1355,15 +1354,13 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 color: Color(0xFF1565C0), size: 32),
           ),
           const SizedBox(height: 16),
-          Text(appSettings.arabic ? 'لا توجد عروض حالياً' : 'No Deals Available',
-              style: const TextStyle(
+          const Text('لا توجد عروض حالياً',
+              style: TextStyle(
                 fontSize: 16, fontWeight: FontWeight.w800,
                 color: Color(0xFF0D1B2A),
               )),
           const SizedBox(height: 6),
-          Text(appSettings.arabic
-              ? 'ستظهر العروض والخصومات هنا فور إضافتها'
-              : 'Deals & discounts will appear here soon',
+          Text('ستظهر العروض والخصومات هنا فور إضافتها',
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 13,
                   color: Colors.grey.shade500)),

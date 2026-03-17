@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
-//  YALLA TRIP — Register Page
+//  YALLA TRIP — Register Page  (Clean Minimal White — matches Welcome)
 // ═══════════════════════════════════════════════════════════════
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -8,7 +8,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'otp_page.dart';
 import 'home_page.dart';
 import '../utils/app_strings.dart';
-import '../main.dart' show appSettings;
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -39,25 +38,13 @@ class _RegisterPageState extends State<RegisterPage>
   late final Animation<double> _fade =
       CurvedAnimation(parent: _fadeCtrl, curve: Curves.easeOut);
 
-  // ── helper ────────────────────────────────────────────────
-  bool get _ar => appSettings.arabic;
-  String _t(String ar, String en) => _ar ? ar : en;
-
   @override
   void initState() {
     super.initState();
-    appSettings.addListener(_onLangChange);
-    SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
-      statusBarColor: Colors.transparent,
-      statusBarIconBrightness: Brightness.dark,
-    ));
   }
-
-  void _onLangChange() { if (mounted) setState(() {}); }
 
   @override
   void dispose() {
-    appSettings.removeListener(_onLangChange);
     _fadeCtrl.dispose();
     _nameCtrl.dispose(); _phoneCtrl.dispose();
     _emailCtrl.dispose(); _passCtrl.dispose(); _confirmCtrl.dispose();
@@ -68,15 +55,8 @@ class _RegisterPageState extends State<RegisterPage>
   Future<void> _registerPhone() async {
     final name  = _nameCtrl.text.trim();
     final phone = _phoneCtrl.text.trim();
-    if (name.length < 3) {
-      _err(_t('أدخل اسمك الكامل (3 أحرف على الأقل)',
-          'Enter your full name (min 3 chars)'));
-      return;
-    }
-    if (phone.length < 9) {
-      _err(_t('أدخل رقم هاتف صحيح', 'Enter a valid phone number'));
-      return;
-    }
+    if (name.length < 3)  { _err('أدخل اسمك الكامل (3 أحرف على الأقل)'); return; }
+    if (phone.length < 9) { _err('أدخل رقم هاتف صحيح'); return; }
 
     setState(() => _loading = true);
     final raw  = phone.startsWith('0') ? phone.substring(1) : phone;
@@ -93,12 +73,10 @@ class _RegisterPageState extends State<RegisterPage>
       verificationFailed: (e) {
         setState(() => _loading = false);
         _err(e.code == 'invalid-phone-number'
-            ? _t('رقم الهاتف غير صحيح', 'Invalid phone number')
-            : _t('حدث خطأ، حاول مرة أخرى', 'An error occurred'));
+            ? 'رقم الهاتف غير صحيح' : 'حدث خطأ، حاول مرة أخرى');
       },
       codeSent: (verId, token) {
         setState(() => _loading = false);
-        if (!mounted) return;
         Navigator.push(context, MaterialPageRoute(
           builder: (_) => OtpPage(
             phoneNumber: full, verificationId: verId,
@@ -120,14 +98,10 @@ class _RegisterPageState extends State<RegisterPage>
       await _saveUser(_nameCtrl.text.trim(), _emailCtrl.text.trim(), '');
       if (mounted) _goHome();
     } on FirebaseAuthException catch (e) {
-      String msg = _t('حدث خطأ، حاول مرة أخرى', 'An error occurred');
-      if (e.code == 'email-already-in-use') {
-        msg = _t('البريد الإلكتروني مسجل مسبقاً', 'Email already in use');
-      } else if (e.code == 'weak-password') {
-        msg = _t('كلمة المرور ضعيفة جداً', 'Password too weak');
-      } else if (e.code == 'invalid-email') {
-        msg = _t('البريد الإلكتروني غير صحيح', 'Invalid email');
-      }
+      String msg = 'حدث خطأ، حاول مرة أخرى';
+      if (e.code == 'email-already-in-use') { msg = 'البريد الإلكتروني مسجل مسبقاً'; }
+      else if (e.code == 'weak-password')       { msg = 'كلمة المرور ضعيفة جداً'; }
+      else if (e.code == 'invalid-email')        { msg = 'البريد الإلكتروني غير صحيح'; }
       _err(msg);
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -166,187 +140,163 @@ class _RegisterPageState extends State<RegisterPage>
   // ── Build ────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
-    return Directionality(
-      textDirection: _ar ? TextDirection.rtl : TextDirection.ltr,
-      child: Scaffold(
+    return Scaffold(
       backgroundColor: Colors.black,
       extendBodyBehindAppBar: true,
       body: Stack(children: [
 
-        // Background image
-        Positioned.fill(
+        // ── صورة الخلفية كاملة ──────────────────────────────
+        SizedBox(
+          width: double.infinity,
+          height: double.infinity,
           child: Image.asset(
             'assets/images/register_bg.jpg',
             fit: BoxFit.cover,
             alignment: Alignment.center,
-            errorBuilder: (_, __, ___) =>
-                Container(color: const Color(0xFF1565C0)),
           ),
         ),
 
+
         FadeTransition(
-          opacity: _fade,
-          child: SafeArea(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
+        opacity: _fade,
+        child: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
 
-                  _BackBtn(onTap: () => Navigator.pop(context)),
-                  const SizedBox(height: 32),
+                // ── Back ────────────────────────────
+                _BackBtn(onTap: () => Navigator.pop(context)),
+                const SizedBox(height: 32),
 
-                  Text(S.registerTitle,
-                      style: const TextStyle(
-                        fontSize: 30, fontWeight: FontWeight.w900,
-                        color: Color(0xFF0D1B2A), letterSpacing: -1,
-                      )),
-                  const SizedBox(height: 6),
-                  Text(S.registerSub,
-                      style: TextStyle(fontSize: 14,
+
+                Text(S.registerTitle,
+                    style: const TextStyle(
+                      fontSize: 30, fontWeight: FontWeight.w900,
+                      color: Color(0xFF0D1B2A), letterSpacing: -1,
+                    )),
+                const SizedBox(height: 6),
+                Text(S.registerSub,
+                    style: TextStyle(fontSize: 14,
+                        color: const Color(0xFF0D1B2A).withValues(alpha: 0.4),
+                        fontWeight: FontWeight.w500)),
+
+                const SizedBox(height: 32),
+
+                // ── Tab ─────────────────────────────
+                _TabSelector(
+                  selected: _tab,
+                  onChanged: (i) => setState(() => _tab = i),
+                ),
+                const SizedBox(height: 24),
+
+                // ── Name (always) ────────────────────
+                _Field(
+                  ctrl: _nameCtrl, hint: S.namePlaceholder,
+                  icon: Icons.person_outline_rounded,
+                  validator: (v) => (v == null || v.trim().length < 3)
+                      ? 'أدخل اسمك الكامل' : null,
+                ),
+                const SizedBox(height: 14),
+
+                // ── Tab fields ───────────────────────
+                AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 260),
+                  child: _tab == 0 ? _phoneFields() : _emailFields(),
+                ),
+                const SizedBox(height: 28),
+
+                // ── Submit ───────────────────────────
+                _PrimaryBtn(
+                  label: _tab == 0 ? 'إرسال رمز التحقق' : 'إنشاء الحساب',
+                  icon: _tab == 0
+                      ? Icons.sms_outlined
+                      : Icons.arrow_forward_rounded,
+                  loading: _loading,
+                  onTap: _tab == 0 ? _registerPhone : _registerEmail,
+                ),
+                const SizedBox(height: 24),
+
+                // ── Login link ───────────────────────
+                Center(
+                  child: GestureDetector(
+                    onTap: () => Navigator.pop(context),
+                    child: RichText(text: TextSpan(
+                      text: 'عندك حساب بالفعل؟  ',
+                      style: TextStyle(
                           color: const Color(0xFF0D1B2A).withValues(alpha: 0.4),
-                          fontWeight: FontWeight.w500)),
-
-                  const SizedBox(height: 32),
-
-                  // Tab selector
-                  _TabSelector(
-                    selected: _tab,
-                    onChanged: (i) => setState(() => _tab = i),
-                    tab0: _t('رقم الهاتف', 'Phone'),
-                    tab1: _t('البريد الإلكتروني', 'Email'),
-                  ),
-                  const SizedBox(height: 24),
-
-                  // Name — always shown
-                  _Field(
-                    ctrl: _nameCtrl,
-                    hint: S.namePlaceholder,
-                    icon: Icons.person_outline_rounded,
-                    validator: (v) => (v == null || v.trim().length < 3)
-                        ? _t('أدخل اسمك الكامل', 'Enter your full name')
-                        : null,
-                  ),
-                  const SizedBox(height: 14),
-
-                  // Tab fields — if/else بدل AnimatedSwitcher
-                  if (_tab == 0) _phoneFields() else _emailFields(),
-                  const SizedBox(height: 28),
-
-                  // Submit button
-                  _PrimaryBtn(
-                    label: _tab == 0
-                        ? _t('إرسال رمز التحقق', 'Send Code')
-                        : S.registerAction,
-                    icon: _tab == 0
-                        ? Icons.sms_outlined
-                        : Icons.arrow_forward_rounded,
-                    loading: _loading,
-                    onTap: _tab == 0 ? _registerPhone : _registerEmail,
-                  ),
-                  const SizedBox(height: 24),
-
-                  // Login link
-                  Center(
-                    child: GestureDetector(
-                      onTap: () => Navigator.pop(context),
-                      child: RichText(text: TextSpan(
-                        text: _ar
-                            ? 'عندك حساب بالفعل؟  '
-                            : 'Already have an account?  ',
+                          fontSize: 13.5),
+                      children: const [TextSpan(
+                        text: 'سجّل دخولك',
                         style: TextStyle(
-                            color: const Color(0xFF0D1B2A).withValues(alpha: 0.4),
-                            fontSize: 13.5),
-                        children: [TextSpan(
-                          text: _t('سجّل دخولك', 'Sign In'),
-                          style: const TextStyle(
-                              color: Color(0xFF1565C0),
-                              fontWeight: FontWeight.w800,
-                              decoration: TextDecoration.underline,
-                              decorationColor: Color(0xFF1565C0)),
-                        )],
-                      )),
-                    ),
+                            color: Color(0xFF1565C0),
+                            fontWeight: FontWeight.w800,
+                            decoration: TextDecoration.underline,
+                            decorationColor: Color(0xFF1565C0)),
+                      )],
+                    )),
                   ),
-                  const SizedBox(height: 32),
-                ],
-              ),
+                ),
+                const SizedBox(height: 32),
+              ],
             ),
           ),
         ),
-      ]),
-    ),
+        ), // FadeTransition
+      ]), // Stack
     );
   }
 
-  // ── Phone fields ─────────────────────────────────────────────
+  // ── Form widgets ─────────────────────────────────────────────
+
   Widget _phoneFields() => Column(
     key: const ValueKey('phone'),
     children: [
-      // Phone row — force LTR so +20 doesn't flip in Arabic
-      Directionality(
-        textDirection: TextDirection.ltr,
-        child: Container(
-          decoration: BoxDecoration(
-            color: const Color(0xFFF5F7FF),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-                color: const Color(0xFF0D1B2A).withValues(alpha: 0.07)),
+      Container(
+        decoration: BoxDecoration(
+          color: const Color(0xFFF5F7FF),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+              color: const Color(0xFF0D1B2A).withValues(alpha: 0.07)),
+        ),
+        child: Row(children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 18),
+            decoration: BoxDecoration(
+                border: Border(right: BorderSide(
+                    color: const Color(0xFF0D1B2A).withValues(alpha: 0.07)))),
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              const Text('🇪🇬', style: TextStyle(fontSize: 22)),
+              const SizedBox(width: 6),
+              Text('+20',
+                  style: TextStyle(fontWeight: FontWeight.w800,
+                      color: const Color(0xFF0D1B2A).withValues(alpha: 0.6),
+                      fontSize: 14)),
+            ]),
           ),
-          child: Row(children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 18),
-              decoration: BoxDecoration(
-                  border: Border(right: BorderSide(
-                      color: const Color(0xFF0D1B2A).withValues(alpha: 0.07)))),
-              child: const Row(mainAxisSize: MainAxisSize.min, children: [
-                Text('🇪🇬', style: TextStyle(fontSize: 22)),
-                SizedBox(width: 6),
-                Text('+20', style: TextStyle(
-                    fontWeight: FontWeight.w800,
-                    color: Color(0xFF0D1B2A),
-                    fontSize: 14)),
-              ]),
+          Expanded(child: TextField(
+            controller: _phoneCtrl,
+            keyboardType: TextInputType.phone,
+            inputFormatters: [FilteringTextInputFormatter.digitsOnly,
+              LengthLimitingTextInputFormatter(11)],
+            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600,
+                color: Color(0xFF0D1B2A)),
+            decoration: InputDecoration(
+              hintText: '01X XXXX XXXX',
+              hintStyle: TextStyle(
+                  color: const Color(0xFF0D1B2A).withValues(alpha: 0.3),
+                  fontSize: 14),
+              border: InputBorder.none,
+              contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16, vertical: 18),
             ),
-            Expanded(
-              child: TextFormField(
-                controller: _phoneCtrl,
-                keyboardType: TextInputType.phone,
-                textDirection: TextDirection.ltr,
-                inputFormatters: [
-                  FilteringTextInputFormatter.digitsOnly,
-                  LengthLimitingTextInputFormatter(11),
-                ],
-                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600,
-                    color: Color(0xFF0D1B2A)),
-                decoration: InputDecoration(
-                  hintText: '01X XXXX XXXX',
-                  hintStyle: TextStyle(
-                      color: const Color(0xFF0D1B2A).withValues(alpha: 0.3),
-                      fontSize: 14),
-                  border: InputBorder.none,
-                  contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 18),
-                ),
-              ),
-            ),
-          ]),
-        ),
-      ),
-      const SizedBox(height: 6),
-      Align(
-        alignment: _ar ? Alignment.centerRight : Alignment.centerLeft,
-        child: Text(
-          _t('سيتم إرسال رمز التحقق على رقمك',
-              'OTP code will be sent to your number'),
-          style: TextStyle(fontSize: 12,
-              color: const Color(0xFF0D1B2A).withValues(alpha: 0.4)),
-        ),
+          )),
+        ]),
       ),
     ],
   );
 
-  // ── Email fields ─────────────────────────────────────────────
   Widget _emailFields() => Form(
     key: _formKey,
     child: Column(key: const ValueKey('email'), children: [
@@ -355,7 +305,7 @@ class _RegisterPageState extends State<RegisterPage>
         icon: Icons.email_outlined,
         keyType: TextInputType.emailAddress,
         validator: (v) => (v == null || !v.contains('@'))
-            ? _t('أدخل بريد إلكتروني صحيح', 'Enter a valid email') : null,
+            ? 'أدخل بريد إلكتروني صحيح' : null,
       ),
       const SizedBox(height: 14),
       _Field(
@@ -371,8 +321,7 @@ class _RegisterPageState extends State<RegisterPage>
           onPressed: () => setState(() => _obscurePass = !_obscurePass),
         ),
         validator: (v) => (v == null || v.length < 6)
-            ? _t('كلمة المرور 6 أحرف على الأقل',
-                'Password must be at least 6 characters') : null,
+            ? 'كلمة المرور 6 أحرف على الأقل' : null,
       ),
       const SizedBox(height: 14),
       _Field(
@@ -388,14 +337,14 @@ class _RegisterPageState extends State<RegisterPage>
           onPressed: () => setState(() => _obscureConf = !_obscureConf),
         ),
         validator: (v) => v != _passCtrl.text
-            ? _t('كلمتا المرور غير متطابقتين', 'Passwords do not match') : null,
+            ? 'كلمتا المرور غير متطابقتين' : null,
       ),
     ]),
   );
 }
 
 // ══════════════════════════════════════════════════════════════
-//  SHARED WIDGETS
+//  SHARED WIDGETS (same as login_page)
 // ══════════════════════════════════════════════════════════════
 
 class _BackBtn extends StatelessWidget {
@@ -418,17 +367,12 @@ class _BackBtn extends StatelessWidget {
   );
 }
 
+
+
 class _TabSelector extends StatelessWidget {
   final int selected;
   final ValueChanged<int> onChanged;
-  final String tab0;
-  final String tab1;
-  const _TabSelector({
-    required this.selected,
-    required this.onChanged,
-    this.tab0 = 'Phone',
-    this.tab1 = 'Email',
-  });
+  const _TabSelector({required this.selected, required this.onChanged});
 
   @override
   Widget build(BuildContext context) => Container(
@@ -438,8 +382,8 @@ class _TabSelector extends StatelessWidget {
       borderRadius: BorderRadius.circular(14),
     ),
     child: Row(children: [
-      _item(0, Icons.phone_android_rounded, tab0),
-      _item(1, Icons.email_outlined, tab1),
+      _item(0, Icons.phone_android_rounded, 'رقم الهاتف'),
+      _item(1, Icons.email_outlined, 'البريد الإلكتروني'),
     ]),
   );
 
@@ -465,14 +409,12 @@ class _TabSelector extends StatelessWidget {
                     ? const Color(0xFF1565C0)
                     : const Color(0xFF0D1B2A).withValues(alpha: 0.35)),
             const SizedBox(width: 5),
-            Flexible(child: Text(label,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 12, fontWeight: FontWeight.w700,
-                  color: sel
-                      ? const Color(0xFF1565C0)
-                      : const Color(0xFF0D1B2A).withValues(alpha: 0.35),
-                ))),
+            Text(label, style: TextStyle(
+              fontSize: 12, fontWeight: FontWeight.w700,
+              color: sel
+                  ? const Color(0xFF1565C0)
+                  : const Color(0xFF0D1B2A).withValues(alpha: 0.35),
+            )),
           ]),
         ),
       ),
@@ -553,7 +495,7 @@ class _PrimaryBtn extends StatelessWidget {
             ? const SizedBox(width: 22, height: 22,
                 child: CircularProgressIndicator(
                     color: Colors.white, strokeWidth: 2.5))
-            : Row(mainAxisSize: MainAxisSize.min, children: [
+            : Row(mainAxisAlignment: MainAxisAlignment.center, children: [
                 Text(label, style: const TextStyle(fontSize: 16,
                     fontWeight: FontWeight.w900, color: Colors.white)),
                 const SizedBox(width: 8),

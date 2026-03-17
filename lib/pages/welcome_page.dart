@@ -2,10 +2,10 @@
 //  YALLA TRIP — Welcome Page  (Clean Minimal White — Airbnb style)
 // ═══════════════════════════════════════════════════════════════
 import 'package:flutter/material.dart';
-import '../main.dart' show appSettings;
-import '../utils/app_strings.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/services.dart';
 import 'login_page.dart';
+import 'home_page.dart';
 import 'register_page.dart';
 
 class WelcomePage extends StatefulWidget {
@@ -25,7 +25,6 @@ class _WelcomePageState extends State<WelcomePage>
   void initState() {
     super.initState();
     // Rebuild page when language changes
-    appSettings.addListener(_onLangChange);
     SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
       statusBarIconBrightness: Brightness.dark,
@@ -37,11 +36,10 @@ class _WelcomePageState extends State<WelcomePage>
         .animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOut));
   }
 
-  void _onLangChange() { if (mounted) setState(() {}); }
 
   @override
   void dispose() {
-    appSettings.removeListener(_onLangChange); _ctrl.dispose(); super.dispose(); }
+    _ctrl.dispose(); super.dispose(); }
 
   @override
   Widget build(BuildContext context) {
@@ -74,10 +72,10 @@ class _WelcomePageState extends State<WelcomePage>
             fit: BoxFit.cover,
           ),
         ),
-        Positioned.fill(
+        const Positioned.fill(
           child: DecoratedBox(
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
                 stops: [0.0, 0.55, 1.0],
@@ -86,44 +84,6 @@ class _WelcomePageState extends State<WelcomePage>
                   Color(0x55000000),
                   Color(0xCC000000),
                 ],
-              ),
-            ),
-          ),
-        ),
-
-        // ── Language toggle ─────────────────────────
-        Positioned(
-          top: 0, right: 0, left: 0,
-          child: SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(0, 12, 16, 0),
-              child: Align(
-                alignment: Alignment.centerRight,
-                child: GestureDetector(
-                    onTap: () {
-                      appSettings.toggleArabic();
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 7),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.18),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.4)),
-                      ),
-                      child: Row(mainAxisSize: MainAxisSize.min, children: [
-                        Text(S.langFlag,
-                            style: const TextStyle(fontSize: 16)),
-                        const SizedBox(width: 6),
-                        Text(S.langLabel,
-                            style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 13,
-                                fontWeight: FontWeight.w700)),
-                      ]),
-                    ),
-                ),
               ),
             ),
           ),
@@ -157,7 +117,7 @@ class _WelcomePageState extends State<WelcomePage>
 
                   // Tagline
                   Text(
-                    S.welcomeTagline,
+                    'اكتشف • احجز • استمتع',
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
@@ -174,7 +134,7 @@ class _WelcomePageState extends State<WelcomePage>
                   //  TAGLINE BLOCK
                   // ══════════════════════════════════════
                   Text(
-                    S.welcomeSubtitle,
+                    'أجمل الشاليهات والفيلات\nعلى الساحل المصري',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 18,
@@ -193,7 +153,7 @@ class _WelcomePageState extends State<WelcomePage>
 
                   // Login
                   _PrimaryBtn(
-                    label: S.loginBtn,
+                    label: 'تسجيل الدخول',
                     onTap: () => Navigator.push(context,
                         MaterialPageRoute(builder: (_) => const LoginPage())),
                   ),
@@ -202,7 +162,7 @@ class _WelcomePageState extends State<WelcomePage>
 
                   // Register
                   _OutlineBtn(
-                    label: S.registerBtn,
+                    label: 'إنشاء حساب جديد',
                     onTap: () => Navigator.push(context,
                         MaterialPageRoute(builder: (_) => const RegisterPage())),
                   ),
@@ -211,10 +171,19 @@ class _WelcomePageState extends State<WelcomePage>
 
                   // Guest
                   GestureDetector(
-                    onTap: () => Navigator.push(context,
-                        MaterialPageRoute(builder: (_) => const LoginPage())),
+                    onTap: () async {
+                      try {
+                        await FirebaseAuth.instance.signInAnonymously();
+                        if (context.mounted) {
+                          Navigator.of(context).pushAndRemoveUntil(
+                            MaterialPageRoute(builder: (_) => const HomePage()),
+                            (_) => false,
+                          );
+                        }
+                      } catch (_) {}
+                    },
                     child: Text(
-                      S.browseGuest,
+                      'تصفح كزائر',
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
