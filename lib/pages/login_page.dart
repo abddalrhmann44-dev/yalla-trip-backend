@@ -131,9 +131,11 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
       if (mounted) _goHome();
     } on FirebaseAuthException catch (e) {
       String msg = 'حدث خطأ، حاول مرة أخرى';
-      if (e.code == 'user-not-found')  msg = 'البريد الإلكتروني غير مسجل';
-      if (e.code == 'wrong-password')  msg = 'كلمة المرور غير صحيحة';
-      if (e.code == 'invalid-email')   msg = 'البريد الإلكتروني غير صحيح';
+      if (e.code == 'user-not-found')      msg = 'البريد الإلكتروني غير مسجل';
+      if (e.code == 'wrong-password')      msg = 'كلمة المرور غير صحيحة';
+      if (e.code == 'invalid-credential')  msg = 'كلمة المرور غير صحيحة';
+      if (e.code == 'invalid-email')       msg = 'البريد الإلكتروني غير صحيح';
+      if (e.code == 'too-many-requests')   msg = 'محاولات كثيرة، انتظر قليلاً';
       _showError(msg);
     } finally {
       if (mounted) setState(() => _isLoading = false);
