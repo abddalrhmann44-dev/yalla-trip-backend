@@ -43,3 +43,8 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+# Android مؤقتة
+android/.kotlin/
+android/kotlin-compiler-sessions/
+**/kotlin-compiler-embeddable-*.jar
+*.log
