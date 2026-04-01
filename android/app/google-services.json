@@ -7,17 +7,17 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:862731638391:android:c39a8d14ec8857f0815872",
+        "mobilesdk_app_id": "1:862731638391:android:1c748f7a7a675de1815872",
         "android_client_info": {
-          "package_name": "com.example.yalla_trip"
+          "package_name": "com.yallatrip.app"
         }
       },
       "oauth_client": [
         {
-          "client_id": "862731638391-pesfichg196dcb5ti70kd5lljtjaem7a.apps.googleusercontent.com",
+          "client_id": "862731638391-3cla4s11nugdb4ac8g3qmd257h0vdrm0.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
-            "package_name": "com.example.yalla_trip",
+            "package_name": "com.yallatrip.app",
             "certificate_hash": "023c4fe0701912a49cc110720fa0a814c994c578"
           }
         },
