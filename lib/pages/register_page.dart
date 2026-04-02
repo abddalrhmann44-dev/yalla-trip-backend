@@ -4,6 +4,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'otp_page.dart';
 import 'home_page.dart';
@@ -130,6 +131,30 @@ class _RegisterPageState extends State<RegisterPage>
     }
   }
 
+  // ✅ Google Sign In
+  Future<void> _googleSignIn() async {
+    setState(() => _loading = true);
+    try {
+      final googleSignIn = GoogleSignIn(scopes: ['email']);
+      final user = await googleSignIn.signIn();
+      if (user == null) { setState(() => _loading = false); return; }
+      final ga   = await user.authentication;
+      final cred = GoogleAuthProvider.credential(
+          accessToken: ga.accessToken, idToken: ga.idToken);
+      final result = await _auth.signInWithCredential(cred);
+      await _saveUser(
+        result.user?.displayName ?? '',
+        result.user?.email ?? '',
+        '',
+      );
+      if (mounted) _goHome();
+    } catch (_) {
+      _err('حدث خطأ في تسجيل الدخول بـ Google');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
   Future<void> _saveUser(String name, String email, String phone) async {
     final uid = _auth.currentUser?.uid;
     if (uid == null) return;
@@ -244,6 +269,32 @@ class _RegisterPageState extends State<RegisterPage>
                     loading: _loading,
                     onTap: _tab == 0 ? _registerPhone : _registerEmail,
                   ),
+                  const SizedBox(height: 20),
+
+                  // ── Divider ─────────────────────────
+                  _Divider(),
+                  const SizedBox(height: 20),
+
+                  // ── Google ───────────────────────────
+                  _SocialBtn(
+                    onTap: _loading ? null : _googleSignIn,
+                    child: Row(mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(width: 22, height: 22,
+                          decoration: const BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: Color(0xFFF1F3F4)),
+                          child: const Center(child: Text('G',
+                              style: TextStyle(fontSize: 13,
+                                  fontWeight: FontWeight.w900,
+                                  color: Color(0xFF4285F4))))),
+                        const SizedBox(width: 10),
+                        const Text('متابعة بـ Google', style: TextStyle(
+                            fontSize: 15, fontWeight: FontWeight.w700,
+                            color: Color(0xFF0D1B2A))),
+                      ]),
+                  ),
+
                   const SizedBox(height: 24),
 
                   // ── Login link ───────────────────────
@@ -582,4 +633,46 @@ class _PrimaryBtn extends StatelessWidget {
           ),
         ),
       );
+}
+
+class _SocialBtn extends StatelessWidget {
+  final VoidCallback? onTap;
+  final Widget child;
+  const _SocialBtn({required this.onTap, required this.child});
+
+  @override
+  Widget build(BuildContext context) => GestureDetector(
+    onTap: onTap,
+    child: Container(
+      height: 52,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+            color: const Color(0xFF0D1B2A).withValues(alpha: 0.1)),
+        boxShadow: [BoxShadow(
+          color: Colors.black.withValues(alpha: 0.04),
+          blurRadius: 8, offset: const Offset(0, 2),
+        )],
+      ),
+      child: child,
+    ),
+  );
+}
+
+class _Divider extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) => Row(children: [
+    Expanded(child: Divider(
+        color: const Color(0xFF0D1B2A).withValues(alpha: 0.1))),
+    Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 14),
+      child: Text('أو تابع بـ',
+          style: TextStyle(fontSize: 12,
+              color: const Color(0xFF0D1B2A).withValues(alpha: 0.35),
+              fontWeight: FontWeight.w500)),
+    ),
+    Expanded(child: Divider(
+        color: const Color(0xFF0D1B2A).withValues(alpha: 0.1))),
+  ]);
 }

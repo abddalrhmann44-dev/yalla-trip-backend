@@ -10,40 +10,22 @@ dependencies:
   flutter:
     sdk: flutter
 
-  # Icons
   cupertino_icons: ^1.0.8
-
-  # Google Fonts (Outfit font)
-  google_fonts: ^6.2.1
-
-  # HTTP requests
+  google_fonts: ^8.0.2
   http: ^1.2.1
-
-  # Local storage
   shared_preferences: ^2.2.3
-
-  # State management
   provider: ^6.1.2
-
-  # Image handling
   cached_network_image: ^3.3.1
-
-  # Smooth page transitions
   page_transition: ^2.1.0
-
-  # Form validation
-  email_validator: ^2.1.17
-
-  # Shimmer loading effect
+  email_validator: ^3.0.0
   shimmer: ^3.0.0
-  google_sign_in: ^6.2.1
-  sign_in_with_apple: ^6.1.0
+  google_sign_in: '>=6.2.1 <7.0.0'   # مقفول على v6 - v7 مش متوافق مع Firebase idToken
 
   # Firebase
-  firebase_core: ^2.32.0
-  firebase_auth: ^4.20.0
-  cloud_firestore: ^4.17.5
-  firebase_storage: ^11.7.7
+  firebase_core: ^4.6.0
+  firebase_auth: ^6.3.0
+  cloud_firestore: ^6.2.0
+  firebase_storage: ^13.2.0
   url_launcher: ^6.2.5
   image_picker: ^1.1.2
   flutter_launcher_icons: ^0.14.4
@@ -55,7 +37,7 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^4.0.0
+  flutter_lints: ^6.0.0
 
 flutter:
   uses-material-design: true
@@ -84,4 +66,3 @@ flutter_native_splash:
   image: assets/images/splash.png
   android: true
   ios: true
-  

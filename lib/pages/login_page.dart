@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'home_page.dart';
 import '../utils/app_strings.dart';
 import 'otp_page.dart';
@@ -54,6 +53,10 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
+    SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.dark,
+    ));
   }
 
   @override
@@ -131,21 +134,21 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
       if (mounted) _goHome();
     } on FirebaseAuthException catch (e) {
       String msg = 'حدث خطأ، حاول مرة أخرى';
-      if (e.code == 'user-not-found')      msg = 'البريد الإلكتروني غير مسجل';
-      if (e.code == 'wrong-password')      msg = 'كلمة المرور غير صحيحة';
-      if (e.code == 'invalid-credential')  msg = 'كلمة المرور غير صحيحة';
-      if (e.code == 'invalid-email')       msg = 'البريد الإلكتروني غير صحيح';
-      if (e.code == 'too-many-requests')   msg = 'محاولات كثيرة، انتظر قليلاً';
+      if (e.code == 'user-not-found')  msg = 'البريد الإلكتروني غير مسجل';
+      if (e.code == 'wrong-password')  msg = 'كلمة المرور غير صحيحة';
+      if (e.code == 'invalid-email')   msg = 'البريد الإلكتروني غير صحيح';
       _showError(msg);
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
+  // ✅ google_sign_in v6 API - متوافق مع Firebase
   Future<void> _googleSignIn() async {
     setState(() => _isLoading = true);
     try {
-      final user = await GoogleSignIn().signIn();
+      final googleSignIn = GoogleSignIn(scopes: ['email']);
+      final user = await googleSignIn.signIn();
       if (user == null) { setState(() => _isLoading = false); return; }
       final ga   = await user.authentication;
       final cred = GoogleAuthProvider.credential(
@@ -159,25 +162,6 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
     }
   }
 
-  Future<void> _appleSignIn() async {
-    setState(() => _isLoading = true);
-    try {
-      final apC = await SignInWithApple.getAppleIDCredential(scopes: [
-        AppleIDAuthorizationScopes.email,
-        AppleIDAuthorizationScopes.fullName,
-      ]);
-      final cred = OAuthProvider('apple.com').credential(
-          idToken: apC.identityToken, accessToken: apC.authorizationCode);
-      await _auth.signInWithCredential(cred);
-      if (mounted) _goHome();
-    } on SignInWithAppleAuthorizationException catch (e) {
-      if (e.code != AuthorizationErrorCode.canceled) {
-        _showError('Apple Sign In فشل');
-      }
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
-    }
-  }
 
   Future<void> _guestLogin() async {
     setState(() => _isLoading = true);
@@ -329,39 +313,24 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                   const SizedBox(height: 20),
 
                   // ── Social ──────────────────────────
-                  Row(children: [
-                    Expanded(child: _SocialBtn(
-                      onTap: _isLoading ? null : _googleSignIn,
-                      child: Row(mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Container(width: 20, height: 20,
-                            decoration: const BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: Color(0xFFF1F3F4)),
-                            child: const Center(child: Text('G',
-                                style: TextStyle(fontSize: 12,
-                                    fontWeight: FontWeight.w900,
-                                    color: Color(0xFF4285F4))))),
-                          const SizedBox(width: 8),
-                          const Text('Google', style: TextStyle(
-                              fontSize: 14, fontWeight: FontWeight.w700,
-                              color: Color(0xFF0D1B2A))),
-                        ]),
-                    )),
-                    const SizedBox(width: 10),
-                    Expanded(child: _SocialBtn(
-                      onTap: _isLoading ? null : _appleSignIn,
-                      child: const Row(mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.apple_rounded,
-                              color: Color(0xFF0D1B2A), size: 20),
-                          SizedBox(width: 8),
-                          Text('Apple', style: TextStyle(
-                              fontSize: 14, fontWeight: FontWeight.w700,
-                              color: Color(0xFF0D1B2A))),
-                        ]),
-                    )),
-                  ]),
+                  _SocialBtn(
+                    onTap: _isLoading ? null : _googleSignIn,
+                    child: Row(mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(width: 22, height: 22,
+                          decoration: const BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: Color(0xFFF1F3F4)),
+                          child: const Center(child: Text('G',
+                              style: TextStyle(fontSize: 13,
+                                  fontWeight: FontWeight.w900,
+                                  color: Color(0xFF4285F4))))),
+                        const SizedBox(width: 10),
+                        const Text('متابعة بـ Google', style: TextStyle(
+                            fontSize: 15, fontWeight: FontWeight.w700,
+                            color: Color(0xFF0D1B2A))),
+                      ]),
+                  ),
 
                   const SizedBox(height: 10),
 
