@@ -6,6 +6,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import '../services/user_role_service.dart';
 import 'owner_add_property_page.dart';
 import 'login_page.dart';
@@ -932,6 +933,11 @@ class _ProfilePageState extends State<ProfilePage> {
           onPressed: () async {
             Navigator.pop(context);
             UserRoleService.instance.clearCache();
+            // ── مسح Google credential عشان متدخلش تلقائي ──
+            try {
+              final googleSignIn = GoogleSignIn();
+              await googleSignIn.signOut();
+            } catch (_) {}
             await FirebaseAuth.instance.signOut();
             if (mounted) {
               Navigator.of(context).pushAndRemoveUntil(
@@ -977,6 +983,11 @@ class _ProfilePageState extends State<ProfilePage> {
                     .collection('users').doc(uid).delete();
               }
               UserRoleService.instance.clearCache();
+              // ── disconnect أقوى من signOut — بيلغي الـ OAuth token كلياً ──
+              try {
+                final googleSignIn = GoogleSignIn();
+                await googleSignIn.disconnect();
+              } catch (_) {}
               await FirebaseAuth.instance.currentUser?.delete();
             } catch (_) {}
             if (mounted) {
