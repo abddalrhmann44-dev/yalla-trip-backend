@@ -37,9 +37,6 @@ class _WelcomePageState extends State<WelcomePage>
     _fade = CurvedAnimation(parent: _ctrl, curve: Curves.easeOut);
     _slide = Tween<Offset>(begin: const Offset(0, 0.05), end: Offset.zero)
         .animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOut));
-    if (widget.forceLanguageSelection) {
-      WidgetsBinding.instance.addPostFrameCallback((_) => _openLanguageSheet());
-    }
   }
 
   @override
@@ -106,7 +103,14 @@ class _WelcomePageState extends State<WelcomePage>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    const SizedBox(height: 48),
+                    Align(
+                      alignment: Alignment.topRight,
+                      child: _TopLangChip(
+                        label: isArabic ? 'AR' : 'EN',
+                        onTap: _toggleLanguage,
+                      ),
+                    ),
+                    const SizedBox(height: 24),
 
                     // App name
                     Text(
@@ -202,12 +206,6 @@ class _WelcomePageState extends State<WelcomePage>
                         ),
                       ),
                     ),
-                    const SizedBox(height: 14),
-                    _LangSwitchButton(
-                      label: isArabic ? 'العربية' : 'English',
-                      onTap: _openLanguageSheet,
-                    ),
-
                     const SizedBox(height: 36),
                   ],
                 ),
@@ -219,85 +217,9 @@ class _WelcomePageState extends State<WelcomePage>
     );
   }
 
-  Future<void> _openLanguageSheet() async {
-    await showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
-      ),
-      builder: (_) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                'اختر اللغة / Choose Language',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
-              ),
-              const SizedBox(height: 14),
-              Row(
-                children: [
-                  Expanded(
-                    child: _langCard(
-                      emoji: '🇸🇦',
-                      title: 'العربية',
-                      onTap: () async {
-                        await appSettings.setLanguage(true);
-                        if (mounted) {
-                          setState(() {});
-                          Navigator.pop(context);
-                        }
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _langCard(
-                      emoji: '🇬🇧',
-                      title: 'English',
-                      onTap: () async {
-                        await appSettings.setLanguage(false);
-                        if (mounted) {
-                          setState(() {});
-                          Navigator.pop(context);
-                        }
-                      },
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _langCard({
-    required String emoji,
-    required String title,
-    required VoidCallback onTap,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(14),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 18),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: const Color(0xFFD7DBE5)),
-        ),
-        child: Column(
-          children: [
-            Text(emoji, style: const TextStyle(fontSize: 26)),
-            const SizedBox(height: 8),
-            Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
-          ],
-        ),
-      ),
-    );
+  Future<void> _toggleLanguage() async {
+    await appSettings.setLanguage(!appSettings.arabic);
+    if (mounted) setState(() {});
   }
 }
 
@@ -363,21 +285,29 @@ class _OutlineBtn extends StatelessWidget {
       );
 }
 
-class _LangSwitchButton extends StatelessWidget {
+class _TopLangChip extends StatelessWidget {
   final String label;
   final VoidCallback onTap;
-  const _LangSwitchButton({required this.label, required this.onTap});
+  const _TopLangChip({required this.label, required this.onTap});
 
   @override
   Widget build(BuildContext context) => GestureDetector(
         onTap: onTap,
-        child: Text(
-          '🌐 $label',
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w700,
-            color: Colors.white.withValues(alpha: 0.88),
-            decoration: TextDecoration.underline,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.16),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.45)),
+          ),
+          child: Text(
+            '🌐 $label',
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+              color: Colors.white,
+              letterSpacing: 0.3,
+            ),
           ),
         ),
       );

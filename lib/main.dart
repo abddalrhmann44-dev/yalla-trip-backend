@@ -358,9 +358,6 @@ class _AuthGateState extends State<_AuthGate>
             ),
           );
         }
-        if (!appSettings.hasSelectedLanguage) {
-          return const WelcomePage(forceLanguageSelection: true);
-        }
         return snapshot.hasData && snapshot.data != null
             ? const HomePage()
             : const WelcomePage();

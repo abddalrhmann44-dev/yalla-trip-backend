@@ -61,59 +61,17 @@ class _ChatPageState extends State<ChatPage> {
     caseSensitive: false,
   );
 
-  final List<ChatMessage> _messages = [
-    ChatMessage(
-      id: '1',
-      text: 'مرحباً! 👋 أنا مهتم بحجز ${''} هل السعر قابل للتفاوض؟',
-      isSent: false,
-      time: '10:30 AM',
-      isRead: true,
-    ),
-    ChatMessage(
-      id: '2',
-      text: 'أهلاً بك! نعم السعر يشمل جميع الخدمات. ما هي الفترة التي تريد الحجز فيها؟',
-      isSent: true,
-      time: '10:32 AM',
-      isRead: true,
-    ),
-    ChatMessage(
-      id: '3',
-      text: 'أريد من 15 إلى 20 يوليو، هل يمكن تخفيض السعر للإقامة الطويلة؟',
-      isSent: false,
-      time: '10:33 AM',
-      isRead: true,
-    ),
-    ChatMessage(
-      id: '4',
-      text: 'بالتأكيد! لمدة 5 ليالي يمكنني تقديم خصم 15%. السعر سيكون EGP ${''} بدلاً من ${''} 💰',
-      isSent: true,
-      time: '10:35 AM',
-      isRead: false,
-    ),
-  ];
+  final List<ChatMessage> _messages = [];
 
   @override
   void initState() {
     super.initState();
     appSettings.addListener(_onLangChange);
-    // Fix initial messages with property name
-    _messages[0] = ChatMessage(
-      id: '1',
-      text: 'مرحباً! 👋 أنا مهتم بحجز ${widget.propertyEmoji} ${widget.propertyName}، هل السعر قابل للتفاوض؟',
-      isSent: false,
-      time: '10:30 AM',
-      isRead: true,
-    );
-    _messages[3] = ChatMessage(
-      id: '4',
-      text: 'بالتأكيد! لمدة 5 ليالي يمكنني تقديم خصم 15%. يمكننا الاتفاق على السعر المناسب 💰',
-      isSent: true,
-      time: '10:35 AM',
-      isRead: false,
-    );
   }
 
-  void _onLangChange() { if (mounted) setState(() {}); }
+  void _onLangChange() {
+    if (mounted) setState(() {});
+  }
 
   @override
   void dispose() {
@@ -135,8 +93,7 @@ class _ChatPageState extends State<ChatPage> {
     if (_containsContactInfo(text) && !_bookingConfirmed) {
       setState(() {
         _showWarning = true;
-        _warningText =
-            '⚠️ تبادل أرقام التواصل غير مسموح قبل الحجز.\n'
+        _warningText = '⚠️ تبادل أرقام التواصل غير مسموح قبل الحجز.\n'
             'أكمل الحجز أولاً ثم يمكنك التواصل المباشر مع المالك.';
       });
       Future.delayed(const Duration(seconds: 5), () {
@@ -187,40 +144,42 @@ class _ChatPageState extends State<ChatPage> {
           _buildPriceBanner(),
 
           // ── Booking Confirmed Banner ──
-          if (_bookingConfirmed)
-            _buildBookingConfirmedBanner(),
+          if (_bookingConfirmed) _buildBookingConfirmedBanner(),
 
           // ── Messages ──
           Expanded(
-            child: ListView.builder(
-              controller: _scrollController,
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 16, vertical: 12),
-              itemCount: _messages.length + 1, // +1 for date divider
-              itemBuilder: (context, i) {
-                if (i == 0) {
-                  return const ChatSystemMessage(message: 'اليوم');
-                }
-                final msg = _messages[i - 1];
-                return ChatBubble(
-                  message: msg.text,
-                  type: msg.isSent
-                      ? BubbleType.sent
-                      : BubbleType.received,
-                  time: msg.time,
-                  showAvatar: !msg.isSent,
-                  isRead: msg.isRead,
-                );
-              },
-            ),
+            child: _messages.isEmpty
+                ? const Center(
+                    child: Text('لا توجد رسائل بعد',
+                        style: TextStyle(color: AppColors.textSecondary)),
+                  )
+                : ListView.builder(
+                    controller: _scrollController,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 12),
+                    itemCount: _messages.length + 1,
+                    itemBuilder: (context, i) {
+                      if (i == 0) {
+                        return const ChatSystemMessage(message: 'اليوم');
+                      }
+                      final msg = _messages[i - 1];
+                      return ChatBubble(
+                        message: msg.text,
+                        type:
+                            msg.isSent ? BubbleType.sent : BubbleType.received,
+                        time: msg.time,
+                        showAvatar: !msg.isSent,
+                        isRead: msg.isRead,
+                      );
+                    },
+                  ),
           ),
 
           // ── Warning Banner ──
           AnimatedSwitcher(
             duration: const Duration(milliseconds: 300),
-            child: _showWarning
-                ? _buildWarningBanner()
-                : const SizedBox.shrink(),
+            child:
+                _showWarning ? _buildWarningBanner() : const SizedBox.shrink(),
           ),
 
           // ── Input Bar ──
@@ -274,8 +233,7 @@ class _ChatPageState extends State<ChatPage> {
                 ),
                 Row(
                   children: [
-                    Icon(Icons.circle,
-                        size: 8, color: AppColors.success),
+                    Icon(Icons.circle, size: 8, color: AppColors.success),
                     SizedBox(width: 4),
                     Text(
                       S.online,
@@ -294,15 +252,14 @@ class _ChatPageState extends State<ChatPage> {
       ),
       actions: [
         IconButton(
-          icon: const Icon(Icons.info_outline_rounded,
-              color: AppColors.textHint),
+          icon:
+              const Icon(Icons.info_outline_rounded, color: AppColors.textHint),
           onPressed: () => _showChatRules(context),
         ),
       ],
       bottom: PreferredSize(
         preferredSize: const Size.fromHeight(1),
-        child: Container(
-            height: 1, color: AppColors.border),
+        child: Container(height: 1, color: AppColors.border),
       ),
     );
   }
@@ -345,28 +302,11 @@ class _ChatPageState extends State<ChatPage> {
                 setState(() {
                   _bookingConfirmed = true;
                   _showWarning = false;
-                  // إضافة رسالة نظام بالحجز
-                  _messages.add(ChatMessage(
-                    id: 'booking_${DateTime.now().millisecondsSinceEpoch}',
-                    text: '✅ تم تأكيد الحجز! يمكنكم الآن تبادل معلومات التواصل.',
-                    isSent: false,
-                    time: _formatTime(DateTime.now()),
-                    isRead: true,
-                  ));
-                });
-                Future.delayed(const Duration(milliseconds: 150), () {
-                  if (_scrollController.hasClients) {
-                    _scrollController.animateTo(
-                      _scrollController.position.maxScrollExtent,
-                      duration: const Duration(milliseconds: 300),
-                      curve: Curves.easeOut,
-                    );
-                  }
                 });
               },
               child: Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 12, vertical: 6),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
                   color: AppColors.primary,
                   borderRadius: BorderRadius.circular(20),
@@ -402,24 +342,26 @@ class _ChatPageState extends State<ChatPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text('تم تأكيد الحجز!',
-                  style: TextStyle(color: Colors.white,
-                      fontSize: 13, fontWeight: FontWeight.w900)),
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w900)),
               Text('يمكنكم الآن تبادل أرقام التواصل مباشرةً',
-                  style: TextStyle(color: Colors.white70,
-                      fontSize: 10)),
+                  style: TextStyle(color: Colors.white70, fontSize: 10)),
             ],
           ),
         ),
         Container(
-          padding: const EdgeInsets.symmetric(
-              horizontal: 8, vertical: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           decoration: BoxDecoration(
             color: Colors.white.withValues(alpha: 0.2),
             borderRadius: BorderRadius.circular(20),
           ),
           child: const Text('🔓 محادثة مفتوحة',
-              style: TextStyle(color: Colors.white,
-                  fontSize: 9, fontWeight: FontWeight.w700)),
+              style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 9,
+                  fontWeight: FontWeight.w700)),
         ),
       ]),
     );
@@ -440,8 +382,7 @@ class _ChatPageState extends State<ChatPage> {
       ),
       child: Row(
         children: [
-          const Icon(Icons.block_rounded,
-              color: AppColors.error, size: 20),
+          const Icon(Icons.block_rounded, color: AppColors.error, size: 20),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
@@ -467,8 +408,7 @@ class _ChatPageState extends State<ChatPage> {
           16, 10, 16, MediaQuery.of(context).padding.bottom + 10),
       decoration: const BoxDecoration(
         color: AppColors.white,
-        border: Border(
-            top: BorderSide(color: AppColors.border, width: 1)),
+        border: Border(top: BorderSide(color: AppColors.border, width: 1)),
       ),
       child: Row(
         children: [
@@ -491,22 +431,22 @@ class _ChatPageState extends State<ChatPage> {
                 ),
                 filled: true,
                 fillColor: AppColors.background,
-                contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16, vertical: 10),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(AppRadius.xxl),
-                  borderSide: const BorderSide(
-                      color: AppColors.border, width: 1.5),
+                  borderSide:
+                      const BorderSide(color: AppColors.border, width: 1.5),
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(AppRadius.xxl),
-                  borderSide: const BorderSide(
-                      color: AppColors.border, width: 1.5),
+                  borderSide:
+                      const BorderSide(color: AppColors.border, width: 1.5),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(AppRadius.xxl),
-                  borderSide: const BorderSide(
-                      color: AppColors.primary, width: 1.5),
+                  borderSide:
+                      const BorderSide(color: AppColors.primary, width: 1.5),
                 ),
               ),
             ),

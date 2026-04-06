@@ -9,6 +9,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import '../services/user_role_service.dart';
 import 'owner_add_property_page.dart';
+import 'owner_payouts_page.dart';
+import 'bookings_page.dart';
+import 'host_dashboard_page.dart';
 import 'login_page.dart';
 import '../main.dart' show appSettings;
 import '../utils/app_strings.dart';
@@ -557,6 +560,25 @@ class _ProfilePageState extends State<ProfilePage> {
                   fontSize: 13, fontWeight: FontWeight.w800, color: _kOcean)),
         ),
         GestureDetector(
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const HostDashboardPage()),
+          ),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(
+              color: _kOcean,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Text('Host Dashboard',
+                style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white)),
+          ),
+        ),
+        const SizedBox(width: 8),
+        GestureDetector(
           onTap: _becomeGuest,
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
@@ -564,7 +586,7 @@ class _ProfilePageState extends State<ProfilePage> {
               color: _kSub.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: const Text('تحويل لعميل',
+            child: const Text('Guest Mode',
                 style: TextStyle(
                     fontSize: 11, fontWeight: FontWeight.w700, color: _kSub)),
           ),
@@ -651,6 +673,37 @@ class _ProfilePageState extends State<ProfilePage> {
 
         const SizedBox(height: 16),
 
+        Row(children: [
+          Expanded(
+            child: _ownerQuickAction(
+              icon: Icons.calendar_month_rounded,
+              label: 'حجوزاتي كمالك',
+              onTap: () => Navigator.push(context,
+                  MaterialPageRoute(builder: (_) => const BookingsPage())),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: _ownerQuickAction(
+              icon: Icons.payments_rounded,
+              label: 'الإيرادات',
+              onTap: () => Navigator.push(context,
+                  MaterialPageRoute(builder: (_) => const OwnerPayoutsPage())),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: _ownerQuickAction(
+              icon: Icons.chat_rounded,
+              label: 'الرسائل',
+              onTap: () => Navigator.push(context,
+                  MaterialPageRoute(builder: (_) => const HostDashboardPage())),
+            ),
+          ),
+        ]),
+
+        const SizedBox(height: 12),
+
         // Add listing CTA
         GestureDetector(
           onTap: () => Navigator.push(context,
@@ -716,6 +769,35 @@ class _ProfilePageState extends State<ProfilePage> {
                 fontSize: 10, color: _kSub, fontWeight: FontWeight.w600)),
       ]),
     ));
+  }
+
+  Widget _ownerQuickAction({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        height: 76,
+        decoration: BoxDecoration(
+          color: _kCard,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: _kBorder),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: _kOcean, size: 20),
+            const SizedBox(height: 6),
+            Text(label,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                    fontSize: 10, fontWeight: FontWeight.w700, color: _kText)),
+          ],
+        ),
+      ),
+    );
   }
 
   // ── Settings ──────────────────────────────────────────────

@@ -111,10 +111,12 @@ class _RegisterPageState extends State<RegisterPage>
     if (!_formKey.currentState!.validate()) return;
     setState(() => _loading = true);
     try {
+      final email = _emailCtrl.text.trim().toLowerCase();
+      final password = _passCtrl.text.trim();
       final cred = await _auth.createUserWithEmailAndPassword(
-          email: _emailCtrl.text.trim(), password: _passCtrl.text.trim());
+          email: email, password: password);
       await cred.user!.updateDisplayName(_nameCtrl.text.trim());
-      await _saveUser(_nameCtrl.text.trim(), _emailCtrl.text.trim(), '');
+      await _saveUser(_nameCtrl.text.trim(), email, '');
       if (mounted) _goHome();
     } on FirebaseAuthException catch (e) {
       String msg = 'حدث خطأ، حاول مرة أخرى';
@@ -137,8 +139,11 @@ class _RegisterPageState extends State<RegisterPage>
     try {
       final googleSignIn = GoogleSignIn(scopes: ['email']);
       final user = await googleSignIn.signIn();
-      if (user == null) { setState(() => _loading = false); return; }
-      final ga   = await user.authentication;
+      if (user == null) {
+        setState(() => _loading = false);
+        return;
+      }
+      final ga = await user.authentication;
       final cred = GoogleAuthProvider.credential(
           accessToken: ga.accessToken, idToken: ga.idToken);
       final result = await _auth.signInWithCredential(cred);
@@ -278,21 +283,28 @@ class _RegisterPageState extends State<RegisterPage>
                   // ── Google ───────────────────────────
                   _SocialBtn(
                     onTap: _loading ? null : _googleSignIn,
-                    child: Row(mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Container(width: 22, height: 22,
-                          decoration: const BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: Color(0xFFF1F3F4)),
-                          child: const Center(child: Text('G',
-                              style: TextStyle(fontSize: 13,
-                                  fontWeight: FontWeight.w900,
-                                  color: Color(0xFF4285F4))))),
-                        const SizedBox(width: 10),
-                        const Text('متابعة بـ Google', style: TextStyle(
-                            fontSize: 15, fontWeight: FontWeight.w700,
-                            color: Color(0xFF0D1B2A))),
-                      ]),
+                    child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(
+                              width: 22,
+                              height: 22,
+                              decoration: const BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: Color(0xFFF1F3F4)),
+                              child: const Center(
+                                  child: Text('G',
+                                      style: TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w900,
+                                          color: Color(0xFF4285F4))))),
+                          const SizedBox(width: 10),
+                          const Text('متابعة بـ Google',
+                              style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xFF0D1B2A))),
+                        ]),
                   ),
 
                   const SizedBox(height: 24),
@@ -642,37 +654,43 @@ class _SocialBtn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => GestureDetector(
-    onTap: onTap,
-    child: Container(
-      height: 52,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-            color: const Color(0xFF0D1B2A).withValues(alpha: 0.1)),
-        boxShadow: [BoxShadow(
-          color: Colors.black.withValues(alpha: 0.04),
-          blurRadius: 8, offset: const Offset(0, 2),
-        )],
-      ),
-      child: child,
-    ),
-  );
+        onTap: onTap,
+        child: Container(
+          height: 52,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+                color: const Color(0xFF0D1B2A).withValues(alpha: 0.1)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.04),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              )
+            ],
+          ),
+          child: child,
+        ),
+      );
 }
 
 class _Divider extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Row(children: [
-    Expanded(child: Divider(
-        color: const Color(0xFF0D1B2A).withValues(alpha: 0.1))),
-    Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 14),
-      child: Text('أو تابع بـ',
-          style: TextStyle(fontSize: 12,
-              color: const Color(0xFF0D1B2A).withValues(alpha: 0.35),
-              fontWeight: FontWeight.w500)),
-    ),
-    Expanded(child: Divider(
-        color: const Color(0xFF0D1B2A).withValues(alpha: 0.1))),
-  ]);
+        Expanded(
+            child:
+                Divider(color: const Color(0xFF0D1B2A).withValues(alpha: 0.1))),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          child: Text('أو تابع بـ',
+              style: TextStyle(
+                  fontSize: 12,
+                  color: const Color(0xFF0D1B2A).withValues(alpha: 0.35),
+                  fontWeight: FontWeight.w500)),
+        ),
+        Expanded(
+            child:
+                Divider(color: const Color(0xFF0D1B2A).withValues(alpha: 0.1))),
+      ]);
 }

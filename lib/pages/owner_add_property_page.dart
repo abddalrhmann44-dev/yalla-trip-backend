@@ -16,15 +16,15 @@ import 'package:firebase_storage/firebase_storage.dart';
 import '../models/property_model.dart';
 import 'home_page.dart';
 
-const _kOcean  = Color(0xFF1565C0);
+const _kOcean = Color(0xFF1565C0);
 const _kOrange = Color(0xFFFF6D00);
-const _kSand   = Color(0xFFF5F3EE);
-const _kCard   = Colors.white;
-const _kText   = Color(0xFF0D1B2A);
-const _kSub    = Color(0xFF6B7280);
+const _kSand = Color(0xFFF5F3EE);
+const _kCard = Colors.white;
+const _kText = Color(0xFF0D1B2A);
+const _kSub = Color(0xFF6B7280);
 const _kBorder = Color(0xFFE5E7EB);
-const _kGreen  = Color(0xFF4CAF50);
-const _kRed    = Color(0xFFEF5350);
+const _kGreen = Color(0xFF4CAF50);
+const _kRed = Color(0xFFEF5350);
 
 class _Step {
   final String number, title, subtitle, icon;
@@ -32,39 +32,45 @@ class _Step {
 }
 
 const _kSteps = [
-  _Step('01', 'نوع العقار',        'إيه نوع عقارك؟',               '🏷️'),
-  _Step('02', 'الصور',             'وريهم أحسن زوايا',              '📸'),
-  _Step('03', 'المعلومات الأساسية','الاسم والموقع والوصف',          '📝'),
-  _Step('04', 'تفاصيل العقار',     'الغرف والأسرة والطاقة الاستيعابية','🛏️'),
-  _Step('05', 'المرافق',           'إيه اللي موجود عندك؟',          '✨'),
-  _Step('06', 'المنشآت',           'مزايا المنتجع والفندق',          '🏊'),
-  _Step('07', 'المناطق القريبة',   'إيه الموجود حواليك؟',           '📍'),
-  _Step('08', 'التسعير',           'حدد أسعارك',                    '💰'),
-  _Step('09', 'إعدادات الحجز',     'إزاي الضيوف يحجزوا',            '⚙️'),
+  _Step('01', 'نوع العقار', 'إيه نوع عقارك؟', '🏷️'),
+  _Step('02', 'الصور', 'وريهم أحسن زوايا', '📸'),
+  _Step('03', 'المعلومات الأساسية', 'الاسم والموقع والوصف', '📝'),
+  _Step('04', 'تفاصيل العقار', 'الغرف والأسرة والطاقة الاستيعابية', '🛏️'),
+  _Step('05', 'المرافق', 'إيه اللي موجود عندك؟', '✨'),
+  _Step('06', 'المنشآت', 'مزايا المنتجع والفندق', '🏊'),
+  _Step('07', 'المناطق القريبة', 'إيه الموجود حواليك؟', '📍'),
+  _Step('08', 'التسعير', 'حدد أسعارك', '💰'),
+  _Step('09', 'إعدادات الحجز', 'إزاي الضيوف يحجزوا', '⚙️'),
 ];
 
 class _PropType {
   final String key, label, emoji, desc;
-  final Color  color;
+  final Color color;
   const _PropType(this.key, this.label, this.emoji, this.desc, this.color);
 }
 
 const _kPropTypes = [
-  _PropType('شاليه',    'شاليه',     '🏖️', 'شاليه بحر أو حمام سباحة', Color(0xFF1565C0)),
-  _PropType('فندق',     'فندق',      '🏨', 'فندق خدمة كاملة',          Color(0xFF6A1B9A)),
-  _PropType('منتجع',    'منتجع',     '🏝️', 'منتجع متكامل',             Color(0xFF00695C)),
-  _PropType('فيلا',     'فيلا',      '🏡', 'فيلا فاخرة خاصة',          Color(0xFFE65100)),
-  _PropType('بيت شاطئ', 'بيت شاطئ', '🌊', 'بيت على الشاطئ مباشرة',   Color(0xFF0097A7)),
+  _PropType(
+      'شاليه', 'شاليه', '🏖️', 'شاليه بحر أو حمام سباحة', Color(0xFF1565C0)),
+  _PropType('فندق', 'فندق', '🏨', 'فندق خدمة كاملة', Color(0xFF6A1B9A)),
+  _PropType('منتجع', 'منتجع', '🏝️', 'منتجع متكامل', Color(0xFF00695C)),
+  _PropType('فيلا', 'فيلا', '🏡', 'فيلا فاخرة خاصة', Color(0xFFE65100)),
+  _PropType(
+      'بيت شاطئ', 'بيت شاطئ', '🌊', 'بيت على الشاطئ مباشرة', Color(0xFF0097A7)),
 ];
 
 const _kLocations = [
-  'عين السخنة', 'الساحل الشمالي', 'رأس سدر',
-  'الجونة', 'الغردقة', 'شرم الشيخ',
+  'عين السخنة',
+  'الساحل الشمالي',
+  'رأس سدر',
+  'الجونة',
+  'الغردقة',
+  'شرم الشيخ',
 ];
 
 class _Toggle {
   final String emoji, label;
-  final bool   recommended; // موصى به — اختياري
+  final bool recommended; // موصى به — اختياري
   bool selected;
   _Toggle(this.emoji, this.label,
       {this.selected = false, this.recommended = false});
@@ -76,13 +82,12 @@ class _Toggle {
 
 class OwnerAddPropertyPage extends StatefulWidget {
   const OwnerAddPropertyPage({super.key});
-  @override State<OwnerAddPropertyPage> createState() =>
-      _OwnerAddPropertyPageState();
+  @override
+  State<OwnerAddPropertyPage> createState() => _OwnerAddPropertyPageState();
 }
 
 class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
     with TickerProviderStateMixin {
-
   int _step = 0;
   final PageController _pageCtrl = PageController(keepPage: true);
   late AnimationController _progressCtrl;
@@ -91,24 +96,27 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
   _PropType? _selType;
 
   // Step 2
-  final List<XFile>  _pickedFiles = [];
-  final ImagePicker  _picker      = ImagePicker();
-  bool _uploadingImages           = false;
+  final List<XFile> _pickedFiles = [];
+  final ImagePicker _picker = ImagePicker();
+  bool _uploadingImages = false;
+  XFile? _idFrontImage;
+  XFile? _idBackImage;
 
   // Step 3
-  final _nameCtrl    = TextEditingController();
+  final _nameCtrl = TextEditingController();
   final _villageCtrl = TextEditingController();
   final _addressCtrl = TextEditingController();
-  final _descCtrl    = TextEditingController();
+  final _descCtrl = TextEditingController();
   String? _selLocation;
-  String _checkin  = '14:00';
+  String _checkin = '14:00';
   String _checkout = '12:00';
 
   // Step 4
-  int _bedrooms  = 1;
-  int _beds      = 1;
+  int _bedrooms = 1;
+  int _beds = 1;
   int _bathrooms = 1;
-  int _guests    = 2;
+  int _guests = 2;
+  int _hotelRooms = 1;
 
   // Step 5 — Amenities (كلها إجبارية من منظور "الحد الأدنى = اختار 1")
   late List<_Toggle> _amenities;
@@ -120,16 +128,16 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
   late List<_Toggle> _nearby;
 
   // Step 8
-  final _priceCtrl    = TextEditingController();
-  final _weekendCtrl  = TextEditingController();
+  final _priceCtrl = TextEditingController();
+  final _weekendCtrl = TextEditingController();
   final _cleaningCtrl = TextEditingController();
 
   // Step 9
   String _bookingMode = 'instant';
-  bool   _autoConfirm = true;
-  bool   _requireId   = false;
-  int    _minNights   = 1;
-  int    _maxNights   = 30;
+  bool _autoConfirm = true;
+  bool _requireId = false;
+  int _minNights = 1;
+  int _maxNights = 30;
 
   bool _isPublishing = false;
 
@@ -158,12 +166,12 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
     _progressCtrl.forward();
 
     _amenities = [
-      _Toggle('📶', 'واي فاي',         selected: true),
+      _Toggle('📶', 'واي فاي', selected: true),
       _Toggle('📺', 'تلفزيون ذكي'),
-      _Toggle('❄️', 'تكييف',           selected: true),
+      _Toggle('❄️', 'تكييف', selected: true),
       _Toggle('🍳', 'مطبخ'),
       _Toggle('🧊', 'ثلاجة'),
-      _Toggle('🚿', 'مياه ساخنة',      selected: true),
+      _Toggle('🚿', 'مياه ساخنة', selected: true),
       _Toggle('🛋️', 'غرفة معيشة'),
       _Toggle('🌅', 'بلكونة'),
       _Toggle('🧺', 'غسالة'),
@@ -177,11 +185,11 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
 
     _facilities = [
       // موصى بيهم (recommended)
-      _Toggle('🏖️', 'شاطئ خاص',       recommended: true),
-      _Toggle('🏊', 'حمام سباحة',      recommended: true,  selected: true),
-      _Toggle('🎢', 'أكوا بارك',        recommended: true),
-      _Toggle('🏋️', 'جيم',             recommended: true),
-      _Toggle('🧘', 'سبا',              recommended: true),
+      _Toggle('🏖️', 'شاطئ خاص', recommended: true),
+      _Toggle('🏊', 'حمام سباحة', recommended: true, selected: true),
+      _Toggle('🎢', 'أكوا بارك', recommended: true),
+      _Toggle('🏋️', 'جيم', recommended: true),
+      _Toggle('🧘', 'سبا', recommended: true),
       // عادي
       _Toggle('🍽️', 'مطعم'),
       _Toggle('☕', 'كافيه'),
@@ -239,6 +247,9 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
       case 1: // الصور
         if (_pickedFiles.isEmpty) {
           return 'أضف صورة واحدة على الأقل للعقار';
+        }
+        if (_idFrontImage == null || _idBackImage == null) {
+          return 'لازم تصوير البطاقة (وش + ظهر) بالكاميرا';
         }
         return null;
 
@@ -298,12 +309,12 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
     HapticFeedback.heavyImpact();
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Row(children: [
-        const Icon(Icons.warning_amber_rounded,
-            color: Colors.white, size: 18),
+        const Icon(Icons.warning_amber_rounded, color: Colors.white, size: 18),
         const SizedBox(width: 8),
-        Expanded(child: Text(msg,
-            style: const TextStyle(
-                fontWeight: FontWeight.w700, fontSize: 13))),
+        Expanded(
+            child: Text(msg,
+                style: const TextStyle(
+                    fontWeight: FontWeight.w700, fontSize: 13))),
       ]),
       backgroundColor: _kRed,
       behavior: SnackBarBehavior.floating,
@@ -319,7 +330,9 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
     _pageCtrl.animateToPage(_step,
         duration: const Duration(milliseconds: 400),
         curve: Curves.easeInOutCubic);
-    _progressCtrl..reset()..forward();
+    _progressCtrl
+      ..reset()
+      ..forward();
   }
 
   void _next() {
@@ -353,26 +366,54 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
   }
 
   Future<void> _pickFromCamera() async {
-    final file = await _picker.pickImage(
-        source: ImageSource.camera, imageQuality: 80);
+    final file =
+        await _picker.pickImage(source: ImageSource.camera, imageQuality: 80);
     if (file == null) return;
     setState(() => _pickedFiles.add(file));
   }
 
-  void _removeImage(int idx) =>
-      setState(() => _pickedFiles.removeAt(idx));
+  Future<void> _pickIdentityImage({required bool isFront}) async {
+    final file = await _picker.pickImage(
+      source: ImageSource.camera,
+      imageQuality: 85,
+    );
+    if (file == null) return;
+    setState(() {
+      if (isFront) {
+        _idFrontImage = file;
+      } else {
+        _idBackImage = file;
+      }
+    });
+  }
+
+  void _removeImage(int idx) => setState(() => _pickedFiles.removeAt(idx));
 
   Future<List<String>> _uploadImages(String docId) async {
-    final urls    = <String>[];
+    final urls = <String>[];
     final storage = FirebaseStorage.instance;
     for (int i = 0; i < _pickedFiles.length; i++) {
       final file = File(_pickedFiles[i].path);
-      final ref  = storage.ref('properties/$docId/img_$i.jpg');
+      final ref = storage.ref('properties/$docId/img_$i.jpg');
       await ref.putFile(file);
       final url = await ref.getDownloadURL();
       urls.add(url);
     }
     return urls;
+  }
+
+  Future<Map<String, String>> _uploadIdentityImages(String ownerId) async {
+    if (_idFrontImage == null || _idBackImage == null) {
+      throw Exception('identity_images_required');
+    }
+    final storage = FirebaseStorage.instance;
+    final frontRef = storage.ref('owner_identity/$ownerId/id_front.jpg');
+    final backRef = storage.ref('owner_identity/$ownerId/id_back.jpg');
+    await frontRef.putFile(File(_idFrontImage!.path));
+    await backRef.putFile(File(_idBackImage!.path));
+    final frontUrl = await frontRef.getDownloadURL();
+    final backUrl = await backRef.getDownloadURL();
+    return {'front': frontUrl, 'back': backUrl};
   }
 
   // ── Publish ─────────────────────────────────────────────────
@@ -382,65 +423,75 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
 
     setState(() => _isPublishing = true);
     try {
-      final db     = FirebaseFirestore.instance;
+      final db = FirebaseFirestore.instance;
       final docRef = db.collection('properties').doc();
 
       setState(() => _uploadingImages = true);
       final imageUrls = await _uploadImages(docRef.id);
+      final identityUrls = await _uploadIdentityImages(user.uid);
       setState(() => _uploadingImages = false);
 
       final data = PropertyModel(
-        id:           docRef.id,
-        name:         _nameCtrl.text.trim(),
-        area:         _selLocation ?? '',
-        location:     _villageCtrl.text.trim(),
-        address:      _addressCtrl.text.trim(),
-        description:  _descCtrl.text.trim(),
-        category:     _selType?.key ?? '',
-        ownerId:      user.uid,
-        ownerName:    user.displayName ?? 'مالك',
-        price:        int.tryParse(_priceCtrl.text) ?? 0,
+        id: docRef.id,
+        name: _nameCtrl.text.trim(),
+        area: _selLocation ?? '',
+        location: _villageCtrl.text.trim(),
+        address: _addressCtrl.text.trim(),
+        description: _descCtrl.text.trim(),
+        category: _selType?.key ?? '',
+        ownerId: user.uid,
+        ownerName: user.displayName ?? 'مالك',
+        price: int.tryParse(_priceCtrl.text) ?? 0,
         weekendPrice: int.tryParse(_weekendCtrl.text) ?? 0,
-        cleaningFee:  int.tryParse(_cleaningCtrl.text) ?? 0,
-        rating:       0.0,
-        reviewCount:  0,
-        bedrooms:     _bedrooms,
-        beds:         _beds,
-        bathrooms:    _bathrooms,
-        maxGuests:    _guests,
-        images:       imageUrls,
-        amenities:    _amenities.where((a) => a.selected).map((a) => a.label).toList(),
-        facilities:   _facilities.where((f) => f.selected).map((f) => f.label).toList(),
-        nearby:       _nearby.where((n) => n.selected).map((n) => n.label).toList(),
-        instant:      _bookingMode == 'instant',
-        online:       true,
-        featured:     false,
-        available:    true,
-        autoConfirm:  _autoConfirm,
-        requireId:    _requireId,
-        minNights:    _minNights,
-        maxNights:    _maxNights,
-        bookingMode:  _bookingMode,
-        currency:     'EGP',
-        checkinTime:  _checkin,
+        cleaningFee: int.tryParse(_cleaningCtrl.text) ?? 0,
+        rating: 0.0,
+        reviewCount: 0,
+        bedrooms: _bedrooms,
+        beds: _beds,
+        bathrooms: _bathrooms,
+        maxGuests: _guests,
+        images: imageUrls,
+        amenities:
+            _amenities.where((a) => a.selected).map((a) => a.label).toList(),
+        facilities:
+            _facilities.where((f) => f.selected).map((f) => f.label).toList(),
+        nearby: _nearby.where((n) => n.selected).map((n) => n.label).toList(),
+        instant: _bookingMode == 'instant',
+        online: true,
+        featured: false,
+        available: true,
+        autoConfirm: _autoConfirm,
+        requireId: _requireId,
+        minNights: _minNights,
+        maxNights: _maxNights,
+        totalRooms: _selType?.key == 'فندق' ? _hotelRooms : 0,
+        availableRooms: _selType?.key == 'فندق' ? _hotelRooms : 0,
+        blockedDates: const [],
+        bookingMode: _bookingMode,
+        currency: 'EGP',
+        checkinTime: _checkin,
         checkoutTime: _checkout,
-        createdAt:    DateTime.now(),
+        createdAt: DateTime.now(),
       );
 
       await docRef.set(data.toFirestore());
+      await db.collection('users').doc(user.uid).set({
+        'identityVerified': true,
+        'idFrontUrl': identityUrls['front'] ?? '',
+        'idBackUrl': identityUrls['back'] ?? '',
+      }, SetOptions(merge: true));
 
       if (!mounted) return;
       setState(() => _isPublishing = false);
       _showSuccessDialog(docRef.id);
     } catch (e) {
       setState(() {
-        _isPublishing    = false;
+        _isPublishing = false;
         _uploadingImages = false;
       });
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('حصل خطأ: $e'),
-            backgroundColor: Colors.red),
+        SnackBar(content: Text('حصل خطأ: $e'), backgroundColor: Colors.red),
       );
     }
   }
@@ -455,21 +506,22 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
           padding: const EdgeInsets.all(28),
           child: Column(mainAxisSize: MainAxisSize.min, children: [
             Container(
-              width: 80, height: 80,
-              decoration: BoxDecoration(
-                  color: _kGreen.withValues(alpha: 0.1),
-                  shape: BoxShape.circle),
-              child: const Icon(Icons.check_circle_rounded,
-                  color: _kGreen, size: 48)),
+                width: 80,
+                height: 80,
+                decoration: BoxDecoration(
+                    color: _kGreen.withValues(alpha: 0.1),
+                    shape: BoxShape.circle),
+                child: const Icon(Icons.check_circle_rounded,
+                    color: _kGreen, size: 48)),
             const SizedBox(height: 20),
             const Text('تم نشر العقار!',
-                style: TextStyle(fontSize: 22,
-                    fontWeight: FontWeight.w900, color: _kText)),
+                style: TextStyle(
+                    fontSize: 22, fontWeight: FontWeight.w900, color: _kText)),
             const SizedBox(height: 8),
             Text(
-              'عقارك دلوقتي ظاهر على Yalla Trip\nكود العقار: ${docId.substring(0, 8).toUpperCase()}',
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 13, color: _kSub)),
+                'عقارك دلوقتي ظاهر على Yalla Trip\nكود العقار: ${docId.substring(0, 8).toUpperCase()}',
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 13, color: _kSub)),
             const SizedBox(height: 24),
             SizedBox(
               width: double.infinity,
@@ -490,8 +542,8 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16))),
                 child: const Text('روح الرئيسية',
-                    style: TextStyle(
-                        fontSize: 16, fontWeight: FontWeight.w800)),
+                    style:
+                        TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
               ),
             ),
           ]),
@@ -553,25 +605,30 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
                     backgroundColor: _kSand, foregroundColor: _kText),
               ),
               const SizedBox(width: 12),
-              Expanded(child: Column(
+              Expanded(
+                  child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text('${_kSteps[_step].icon}  ${_kSteps[_step].title}',
-                      style: const TextStyle(fontSize: 17,
-                          fontWeight: FontWeight.w800, color: _kText)),
+                      style: const TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w800,
+                          color: _kText)),
                   Text(_kSteps[_step].subtitle,
                       style: const TextStyle(fontSize: 12, color: _kSub)),
                 ],
               )),
               Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 12, vertical: 6),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
                     color: _kOcean.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(20)),
                 child: Text('${_step + 1} / ${_kSteps.length}',
-                    style: const TextStyle(fontSize: 13,
-                        fontWeight: FontWeight.w800, color: _kOcean)),
+                    style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                        color: _kOcean)),
               ),
             ]),
           ),
@@ -605,8 +662,8 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
             backgroundColor: isLast ? _kGreen : _kOcean,
             foregroundColor: Colors.white,
             elevation: 0,
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(18)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
           ),
           child: Text(
             isLast ? '🚀  نشر العقار' : 'التالي  ←',
@@ -631,8 +688,8 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
             const SizedBox(height: 20),
             Text(
               _uploadingImages ? 'جاري رفع الصور...' : 'جاري نشر العقار...',
-              style: const TextStyle(fontSize: 16,
-                  fontWeight: FontWeight.w700, color: _kText),
+              style: const TextStyle(
+                  fontSize: 16, fontWeight: FontWeight.w700, color: _kText),
             ),
           ]),
         ),
@@ -646,8 +703,8 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
   Widget _buildStep1() {
     return ListView(padding: const EdgeInsets.all(20), children: [
       const Text('اختار نوع عقارك',
-          style: TextStyle(fontSize: 22,
-              fontWeight: FontWeight.w900, color: _kText)),
+          style: TextStyle(
+              fontSize: 22, fontWeight: FontWeight.w900, color: _kText)),
       const SizedBox(height: 6),
       _requiredLabel('مطلوب'),
       const SizedBox(height: 16),
@@ -663,37 +720,45 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
               color: sel ? t.color.withValues(alpha: 0.08) : _kCard,
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
-                  color: sel ? t.color : _kBorder,
-                  width: sel ? 2.5 : 1.5),
-              boxShadow: sel ? [
-                BoxShadow(color: t.color.withValues(alpha: 0.2),
-                    blurRadius: 16, offset: const Offset(0, 6))
-              ] : [],
+                  color: sel ? t.color : _kBorder, width: sel ? 2.5 : 1.5),
+              boxShadow: sel
+                  ? [
+                      BoxShadow(
+                          color: t.color.withValues(alpha: 0.2),
+                          blurRadius: 16,
+                          offset: const Offset(0, 6))
+                    ]
+                  : [],
             ),
             child: Row(children: [
               Text(t.emoji, style: const TextStyle(fontSize: 32)),
               const SizedBox(width: 16),
-              Expanded(child: Column(
+              Expanded(
+                  child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(t.label, style: TextStyle(fontSize: 17,
-                      fontWeight: FontWeight.w800,
-                      color: sel ? t.color : _kText)),
-                  Text(t.desc, style: const TextStyle(
-                      fontSize: 13, color: _kSub)),
+                  Text(t.label,
+                      style: TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w800,
+                          color: sel ? t.color : _kText)),
+                  Text(t.desc,
+                      style: const TextStyle(fontSize: 13, color: _kSub)),
                 ],
               )),
               AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
-                width: 26, height: 26,
+                width: 26,
+                height: 26,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: sel ? t.color : Colors.transparent,
-                  border: Border.all(
-                      color: sel ? t.color : _kBorder, width: 2),
+                  border: Border.all(color: sel ? t.color : _kBorder, width: 2),
                 ),
-                child: sel ? const Icon(Icons.check_rounded,
-                    size: 15, color: Colors.white) : null,
+                child: sel
+                    ? const Icon(Icons.check_rounded,
+                        size: 15, color: Colors.white)
+                    : null,
               ),
             ]),
           ),
@@ -708,12 +773,11 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
   Widget _buildStep2() {
     return ListView(padding: const EdgeInsets.all(20), children: [
       const Text('صور العقار',
-          style: TextStyle(fontSize: 22,
-              fontWeight: FontWeight.w900, color: _kText)),
+          style: TextStyle(
+              fontSize: 22, fontWeight: FontWeight.w900, color: _kText)),
       const SizedBox(height: 6),
       _requiredLabel('صورة واحدة على الأقل'),
       const SizedBox(height: 16),
-
       Row(children: [
         Expanded(
           child: GestureDetector(
@@ -723,16 +787,18 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
               decoration: BoxDecoration(
                 color: _kOcean.withValues(alpha: 0.05),
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                    color: _kOcean.withValues(alpha: 0.3), width: 2),
+                border:
+                    Border.all(color: _kOcean.withValues(alpha: 0.3), width: 2),
               ),
               child: Column(children: [
                 Icon(Icons.photo_library_rounded,
                     size: 36, color: _kOcean.withValues(alpha: 0.7)),
                 const SizedBox(height: 8),
                 const Text('من الألبوم',
-                    style: TextStyle(fontSize: 13,
-                        fontWeight: FontWeight.w700, color: _kOcean)),
+                    style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: _kOcean)),
               ]),
             ),
           ),
@@ -754,20 +820,87 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
                     size: 36, color: _kOrange.withValues(alpha: 0.7)),
                 const SizedBox(height: 8),
                 const Text('الكاميرا',
-                    style: TextStyle(fontSize: 13,
-                        fontWeight: FontWeight.w700, color: _kOrange)),
+                    style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: _kOrange)),
               ]),
             ),
           ),
         ),
       ]),
-
+      const SizedBox(height: 18),
+      const Text('توثيق الهوية (إجباري)',
+          style: TextStyle(
+              fontSize: 15, fontWeight: FontWeight.w800, color: _kText)),
+      const SizedBox(height: 6),
+      const Text('لازم تصور البطاقة بالكاميرا فقط (وش + ظهر)',
+          style: TextStyle(fontSize: 12, color: _kSub)),
+      const SizedBox(height: 10),
+      Row(children: [
+        Expanded(
+          child: GestureDetector(
+            onTap: () => _pickIdentityImage(isFront: true),
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              decoration: BoxDecoration(
+                color: _idFrontImage == null
+                    ? _kCard
+                    : _kGreen.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: _idFrontImage == null ? _kBorder : _kGreen,
+                  width: _idFrontImage == null ? 1.5 : 2,
+                ),
+              ),
+              child: Column(children: [
+                const Icon(Icons.badge_rounded, color: _kText, size: 22),
+                const SizedBox(height: 6),
+                Text(_idFrontImage == null ? 'البطاقة - الوش' : 'تم تصوير الوش',
+                    style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: _idFrontImage == null ? _kText : _kGreen)),
+              ]),
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: GestureDetector(
+            onTap: () => _pickIdentityImage(isFront: false),
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              decoration: BoxDecoration(
+                color: _idBackImage == null
+                    ? _kCard
+                    : _kGreen.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: _idBackImage == null ? _kBorder : _kGreen,
+                  width: _idBackImage == null ? 1.5 : 2,
+                ),
+              ),
+              child: Column(children: [
+                const Icon(Icons.badge_outlined, color: _kText, size: 22),
+                const SizedBox(height: 6),
+                Text(
+                    _idBackImage == null ? 'البطاقة - الظهر' : 'تم تصوير الظهر',
+                    style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: _idBackImage == null ? _kText : _kGreen)),
+              ]),
+            ),
+          ),
+        ),
+      ]),
       if (_pickedFiles.isNotEmpty) ...[
         const SizedBox(height: 16),
         Row(children: [
           Text('${_pickedFiles.length} صورة تم اختيارها',
-              style: const TextStyle(fontSize: 13,
-                  fontWeight: FontWeight.w600, color: _kOcean)),
+              style: const TextStyle(
+                  fontSize: 13, fontWeight: FontWeight.w600, color: _kOcean)),
           const Spacer(),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -775,8 +908,8 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
                 color: _kGreen.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8)),
             child: const Text('✅ تمام',
-                style: TextStyle(fontSize: 11,
-                    fontWeight: FontWeight.w700, color: _kGreen)),
+                style: TextStyle(
+                    fontSize: 11, fontWeight: FontWeight.w700, color: _kGreen)),
           ),
         ]),
         const SizedBox(height: 12),
@@ -798,28 +931,31 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
             ),
             if (i == 0)
               Positioned(
-                bottom: 4, left: 4,
+                bottom: 4,
+                left: 4,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 6, vertical: 2),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                   decoration: BoxDecoration(
-                      color: _kOcean,
-                      borderRadius: BorderRadius.circular(6)),
+                      color: _kOcean, borderRadius: BorderRadius.circular(6)),
                   child: const Text('غلاف',
-                      style: TextStyle(color: Colors.white,
-                          fontSize: 10, fontWeight: FontWeight.w700)),
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700)),
                 ),
               ),
             Positioned(
-              top: 4, right: 4,
+              top: 4,
+              right: 4,
               child: GestureDetector(
                 onTap: () => _removeImage(i),
                 child: Container(
-                  width: 24, height: 24,
+                  width: 24,
+                  height: 24,
                   decoration: const BoxDecoration(
                       color: Colors.red, shape: BoxShape.circle),
-                  child: const Icon(Icons.close,
-                      size: 14, color: Colors.white),
+                  child: const Icon(Icons.close, size: 14, color: Colors.white),
                 ),
               ),
             ),
@@ -839,8 +975,8 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
             SizedBox(height: 10),
             Text('لازم تضيف صورة واحدة على الأقل',
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 14,
-                    fontWeight: FontWeight.w700, color: _kText)),
+                style: TextStyle(
+                    fontSize: 14, fontWeight: FontWeight.w700, color: _kText)),
             SizedBox(height: 4),
             Text('الصور بتزيد فرص الحجز كتير',
                 textAlign: TextAlign.center,
@@ -857,31 +993,26 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
   Widget _buildStep3() {
     return ListView(padding: const EdgeInsets.all(20), children: [
       const Text('المعلومات الأساسية',
-          style: TextStyle(fontSize: 22,
-              fontWeight: FontWeight.w900, color: _kText)),
+          style: TextStyle(
+              fontSize: 22, fontWeight: FontWeight.w900, color: _kText)),
       const SizedBox(height: 6),
       _requiredLabel('كل الحقول مطلوبة'),
       const SizedBox(height: 16),
-
       _field(_nameCtrl, 'اسم العقار *', 'مثال: شاليه فاخر بإطلالة بحر'),
       const SizedBox(height: 14),
-
       DropdownButtonFormField<String>(
         value: _selLocation,
         decoration: _inputDec('المنطقة *'),
-        items: _kLocations.map((l) =>
-            DropdownMenuItem(value: l, child: Text(l))).toList(),
+        items: _kLocations
+            .map((l) => DropdownMenuItem(value: l, child: Text(l)))
+            .toList(),
         onChanged: (v) => setState(() => _selLocation = v),
       ),
       const SizedBox(height: 14),
-
       _field(_villageCtrl, 'اسم القرية / المجمع *', 'مثال: بورتو السخنة'),
       const SizedBox(height: 14),
-
-      _field(_addressCtrl, 'العنوان التفصيلي *',
-          'مثال: كيلو 108، طريق السخنة'),
+      _field(_addressCtrl, 'العنوان التفصيلي *', 'مثال: كيلو 108، طريق السخنة'),
       const SizedBox(height: 14),
-
       _field(_descCtrl, 'وصف العقار *',
           'اكتب وصف شامل للعقار، المميزات، والتجربة...',
           maxLines: 5),
@@ -890,21 +1021,20 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
         '${_descCtrl.text.trim().length} / 20 حرف كحد أدنى',
         style: TextStyle(
             fontSize: 11,
-            color: _descCtrl.text.trim().length >= 20
-                ? _kGreen
-                : _kSub),
+            color: _descCtrl.text.trim().length >= 20 ? _kGreen : _kSub),
       ),
-
       const SizedBox(height: 20),
       const Text('أوقات الدخول والخروج',
-          style: TextStyle(fontSize: 15,
-              fontWeight: FontWeight.w800, color: _kText)),
+          style: TextStyle(
+              fontSize: 15, fontWeight: FontWeight.w800, color: _kText)),
       const SizedBox(height: 10),
       Row(children: [
-        Expanded(child: _timeField('وقت الوصول', _checkin,
-                (v) => setState(() => _checkin = v))),
+        Expanded(
+            child: _timeField(
+                'وقت الوصول', _checkin, (v) => setState(() => _checkin = v))),
         const SizedBox(width: 12),
-        Expanded(child: _timeField('وقت المغادرة', _checkout,
+        Expanded(
+            child: _timeField('وقت المغادرة', _checkout,
                 (v) => setState(() => _checkout = v))),
       ]),
     ]);
@@ -916,13 +1046,19 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
   Widget _buildStep4() {
     return ListView(padding: const EdgeInsets.all(20), children: [
       const Text('تفاصيل العقار',
-          style: TextStyle(fontSize: 22,
-              fontWeight: FontWeight.w900, color: _kText)),
+          style: TextStyle(
+              fontSize: 22, fontWeight: FontWeight.w900, color: _kText)),
       const SizedBox(height: 16),
-      _counter('🛏️  غرف النوم',   _bedrooms,  (v) => setState(() => _bedrooms  = v), 1, 20),
-      _counter('🛌  الأسرة',       _beds,      (v) => setState(() => _beds      = v), 1, 30),
-      _counter('🚿  الحمامات',     _bathrooms, (v) => setState(() => _bathrooms = v), 1, 10),
-      _counter('👥  أقصى ضيوف',   _guests,    (v) => setState(() => _guests    = v), 1, 30),
+      _counter('🛏️  غرف النوم', _bedrooms,
+          (v) => setState(() => _bedrooms = v), 1, 20),
+      _counter('🛌  الأسرة', _beds, (v) => setState(() => _beds = v), 1, 30),
+      _counter('🚿  الحمامات', _bathrooms,
+          (v) => setState(() => _bathrooms = v), 1, 10),
+      _counter(
+          '👥  أقصى ضيوف', _guests, (v) => setState(() => _guests = v), 1, 30),
+      if (_selType?.key == 'فندق')
+        _counter('🚪  عدد الغرف المتاحة', _hotelRooms,
+            (v) => setState(() => _hotelRooms = v), 1, 300),
     ]);
   }
 
@@ -932,35 +1068,41 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
   Widget _buildStep5() {
     return ListView(padding: const EdgeInsets.all(20), children: [
       const Text('المرافق الداخلية',
-          style: TextStyle(fontSize: 22,
-              fontWeight: FontWeight.w900, color: _kText)),
+          style: TextStyle(
+              fontSize: 22, fontWeight: FontWeight.w900, color: _kText)),
       const SizedBox(height: 6),
       _requiredLabel('اختار واحد على الأقل'),
       const SizedBox(height: 16),
       Wrap(
         spacing: 10,
         runSpacing: 10,
-        children: _amenities.map((t) => GestureDetector(
-          onTap: () => setState(() => t.selected = !t.selected),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 180),
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            decoration: BoxDecoration(
-              color: t.selected ? _kOcean.withValues(alpha: 0.1) : _kCard,
-              borderRadius: BorderRadius.circular(30),
-              border: Border.all(
-                  color: t.selected ? _kOcean : _kBorder,
-                  width: t.selected ? 2 : 1.5),
-            ),
-            child: Row(mainAxisSize: MainAxisSize.min, children: [
-              Text(t.emoji, style: const TextStyle(fontSize: 18)),
-              const SizedBox(width: 6),
-              Text(t.label, style: TextStyle(
-                  fontSize: 13, fontWeight: FontWeight.w600,
-                  color: t.selected ? _kOcean : _kText)),
-            ]),
-          ),
-        )).toList(),
+        children: _amenities
+            .map((t) => GestureDetector(
+                  onTap: () => setState(() => t.selected = !t.selected),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 180),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 10),
+                    decoration: BoxDecoration(
+                      color:
+                          t.selected ? _kOcean.withValues(alpha: 0.1) : _kCard,
+                      borderRadius: BorderRadius.circular(30),
+                      border: Border.all(
+                          color: t.selected ? _kOcean : _kBorder,
+                          width: t.selected ? 2 : 1.5),
+                    ),
+                    child: Row(mainAxisSize: MainAxisSize.min, children: [
+                      Text(t.emoji, style: const TextStyle(fontSize: 18)),
+                      const SizedBox(width: 6),
+                      Text(t.label,
+                          style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: t.selected ? _kOcean : _kText)),
+                    ]),
+                  ),
+                ))
+            .toList(),
       ),
     ]);
   }
@@ -970,12 +1112,12 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
   // ══════════════════════════════════════════════════════════
   Widget _buildStep6() {
     final recommended = _facilities.where((f) => f.recommended).toList();
-    final regular     = _facilities.where((f) => !f.recommended).toList();
+    final regular = _facilities.where((f) => !f.recommended).toList();
 
     return ListView(padding: const EdgeInsets.all(20), children: [
       const Text('منشآت المجمع',
-          style: TextStyle(fontSize: 22,
-              fontWeight: FontWeight.w900, color: _kText)),
+          style: TextStyle(
+              fontSize: 22, fontWeight: FontWeight.w900, color: _kText)),
       const SizedBox(height: 6),
       _optionalLabel('اختياري — اختار اللي موجود عندك'),
       const SizedBox(height: 16),
@@ -993,41 +1135,48 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
             const Text('⭐', style: TextStyle(fontSize: 16)),
             const SizedBox(width: 6),
             const Text('موصى به — بيزيد الحجوزات كتير',
-                style: TextStyle(fontSize: 12,
-                    fontWeight: FontWeight.w800, color: _kOrange)),
+                style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    color: _kOrange)),
           ]),
           const SizedBox(height: 12),
           Wrap(
-            spacing: 8, runSpacing: 8,
-            children: recommended.map((t) => GestureDetector(
-              onTap: () => setState(() => t.selected = !t.selected),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 180),
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 12, vertical: 8),
-                decoration: BoxDecoration(
-                  color: t.selected
-                      ? _kOrange.withValues(alpha: 0.12)
-                      : Colors.white,
-                  borderRadius: BorderRadius.circular(30),
-                  border: Border.all(
-                      color: t.selected ? _kOrange : _kBorder,
-                      width: t.selected ? 2 : 1.5),
-                ),
-                child: Row(mainAxisSize: MainAxisSize.min, children: [
-                  Text(t.emoji, style: const TextStyle(fontSize: 16)),
-                  const SizedBox(width: 5),
-                  Text(t.label, style: TextStyle(
-                      fontSize: 12, fontWeight: FontWeight.w700,
-                      color: t.selected ? _kOrange : _kText)),
-                  if (t.selected) ...[
-                    const SizedBox(width: 4),
-                    const Icon(Icons.check_circle_rounded,
-                        size: 13, color: _kOrange),
-                  ],
-                ]),
-              ),
-            )).toList(),
+            spacing: 8,
+            runSpacing: 8,
+            children: recommended
+                .map((t) => GestureDetector(
+                      onTap: () => setState(() => t.selected = !t.selected),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 180),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: t.selected
+                              ? _kOrange.withValues(alpha: 0.12)
+                              : Colors.white,
+                          borderRadius: BorderRadius.circular(30),
+                          border: Border.all(
+                              color: t.selected ? _kOrange : _kBorder,
+                              width: t.selected ? 2 : 1.5),
+                        ),
+                        child: Row(mainAxisSize: MainAxisSize.min, children: [
+                          Text(t.emoji, style: const TextStyle(fontSize: 16)),
+                          const SizedBox(width: 5),
+                          Text(t.label,
+                              style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  color: t.selected ? _kOrange : _kText)),
+                          if (t.selected) ...[
+                            const SizedBox(width: 4),
+                            const Icon(Icons.check_circle_rounded,
+                                size: 13, color: _kOrange),
+                          ],
+                        ]),
+                      ),
+                    ))
+                .toList(),
           ),
         ]),
       ),
@@ -1036,28 +1185,35 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
 
       // Regular
       Wrap(
-        spacing: 10, runSpacing: 10,
-        children: regular.map((t) => GestureDetector(
-          onTap: () => setState(() => t.selected = !t.selected),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 180),
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            decoration: BoxDecoration(
-              color: t.selected ? _kOcean.withValues(alpha: 0.1) : _kCard,
-              borderRadius: BorderRadius.circular(30),
-              border: Border.all(
-                  color: t.selected ? _kOcean : _kBorder,
-                  width: t.selected ? 2 : 1.5),
-            ),
-            child: Row(mainAxisSize: MainAxisSize.min, children: [
-              Text(t.emoji, style: const TextStyle(fontSize: 18)),
-              const SizedBox(width: 6),
-              Text(t.label, style: TextStyle(
-                  fontSize: 13, fontWeight: FontWeight.w600,
-                  color: t.selected ? _kOcean : _kText)),
-            ]),
-          ),
-        )).toList(),
+        spacing: 10,
+        runSpacing: 10,
+        children: regular
+            .map((t) => GestureDetector(
+                  onTap: () => setState(() => t.selected = !t.selected),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 180),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 10),
+                    decoration: BoxDecoration(
+                      color:
+                          t.selected ? _kOcean.withValues(alpha: 0.1) : _kCard,
+                      borderRadius: BorderRadius.circular(30),
+                      border: Border.all(
+                          color: t.selected ? _kOcean : _kBorder,
+                          width: t.selected ? 2 : 1.5),
+                    ),
+                    child: Row(mainAxisSize: MainAxisSize.min, children: [
+                      Text(t.emoji, style: const TextStyle(fontSize: 18)),
+                      const SizedBox(width: 6),
+                      Text(t.label,
+                          style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: t.selected ? _kOcean : _kText)),
+                    ]),
+                  ),
+                ))
+            .toList(),
       ),
     ]);
   }
@@ -1068,35 +1224,41 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
   Widget _buildStep7() {
     return ListView(padding: const EdgeInsets.all(20), children: [
       const Text('المناطق القريبة',
-          style: TextStyle(fontSize: 22,
-              fontWeight: FontWeight.w900, color: _kText)),
+          style: TextStyle(
+              fontSize: 22, fontWeight: FontWeight.w900, color: _kText)),
       const SizedBox(height: 6),
       _optionalLabel('اختياري'),
       const SizedBox(height: 16),
       Wrap(
-        spacing: 10, runSpacing: 10,
-        children: _nearby.map((t) => GestureDetector(
-          onTap: () => setState(() => t.selected = !t.selected),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 180),
-            padding: const EdgeInsets.symmetric(
-                horizontal: 14, vertical: 10),
-            decoration: BoxDecoration(
-              color: t.selected ? _kOcean.withValues(alpha: 0.1) : _kCard,
-              borderRadius: BorderRadius.circular(30),
-              border: Border.all(
-                  color: t.selected ? _kOcean : _kBorder,
-                  width: t.selected ? 2 : 1.5),
-            ),
-            child: Row(mainAxisSize: MainAxisSize.min, children: [
-              Text(t.emoji, style: const TextStyle(fontSize: 18)),
-              const SizedBox(width: 6),
-              Text(t.label, style: TextStyle(
-                  fontSize: 13, fontWeight: FontWeight.w600,
-                  color: t.selected ? _kOcean : _kText)),
-            ]),
-          ),
-        )).toList(),
+        spacing: 10,
+        runSpacing: 10,
+        children: _nearby
+            .map((t) => GestureDetector(
+                  onTap: () => setState(() => t.selected = !t.selected),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 180),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 10),
+                    decoration: BoxDecoration(
+                      color:
+                          t.selected ? _kOcean.withValues(alpha: 0.1) : _kCard,
+                      borderRadius: BorderRadius.circular(30),
+                      border: Border.all(
+                          color: t.selected ? _kOcean : _kBorder,
+                          width: t.selected ? 2 : 1.5),
+                    ),
+                    child: Row(mainAxisSize: MainAxisSize.min, children: [
+                      Text(t.emoji, style: const TextStyle(fontSize: 18)),
+                      const SizedBox(width: 6),
+                      Text(t.label,
+                          style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: t.selected ? _kOcean : _kText)),
+                    ]),
+                  ),
+                ))
+            .toList(),
       ),
     ]);
   }
@@ -1107,19 +1269,18 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
   Widget _buildStep8() {
     return ListView(padding: const EdgeInsets.all(20), children: [
       const Text('التسعير',
-          style: TextStyle(fontSize: 22,
-              fontWeight: FontWeight.w900, color: _kText)),
+          style: TextStyle(
+              fontSize: 22, fontWeight: FontWeight.w900, color: _kText)),
       const SizedBox(height: 6),
       _requiredLabel('السعر العادي وسعر الويك إند مطلوبين'),
       const SizedBox(height: 16),
-
-      _priceField(_priceCtrl,    'السعر العادي *',   'في الليلة',  required: true),
+      _priceField(_priceCtrl, 'السعر العادي *', 'في الليلة', required: true),
       const SizedBox(height: 14),
-      _priceField(_weekendCtrl,  'سعر الويك إند *',  'جمعة وسبت',  required: true),
+      _priceField(_weekendCtrl, 'سعر الويك إند *', 'جمعة وسبت', required: true),
       const SizedBox(height: 14),
       Row(children: [
-        Expanded(child: _priceField(
-            _cleaningCtrl, 'رسوم التنظيف', 'لكل إقامة')),
+        Expanded(
+            child: _priceField(_cleaningCtrl, 'رسوم التنظيف', 'لكل إقامة')),
         const SizedBox(width: 8),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
@@ -1128,8 +1289,8 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
             borderRadius: BorderRadius.circular(10),
           ),
           child: const Text('اختياري',
-              style: TextStyle(fontSize: 11,
-                  fontWeight: FontWeight.w700, color: _kSub)),
+              style: TextStyle(
+                  fontSize: 11, fontWeight: FontWeight.w700, color: _kSub)),
         ),
       ]),
     ]);
@@ -1141,13 +1302,12 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
   Widget _buildStep9() {
     return ListView(padding: const EdgeInsets.all(20), children: [
       const Text('إعدادات الحجز',
-          style: TextStyle(fontSize: 22,
-              fontWeight: FontWeight.w900, color: _kText)),
+          style: TextStyle(
+              fontSize: 22, fontWeight: FontWeight.w900, color: _kText)),
       const SizedBox(height: 16),
-
       ...[
-        ('instant', '⚡', 'حجز فوري',     'الحجز يتأكد تلقائياً'),
-        ('chat',    '💬', 'طلب وتأكيد',   'الضيف يبعت طلب وأنت تقبله'),
+        ('instant', '⚡', 'حجز فوري', 'الحجز يتأكد تلقائياً'),
+        ('chat', '💬', 'طلب وتأكيد', 'الضيف يبعت طلب وأنت تقبله'),
         ('contact', '📞', 'تواصل أولاً', 'الضيف يتواصل معك قبل الحجز'),
       ].map((item) {
         final (key, emoji, title, sub) = item;
@@ -1162,40 +1322,40 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
               color: sel ? _kOcean.withValues(alpha: 0.06) : _kCard,
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                  color: sel ? _kOcean : _kBorder,
-                  width: sel ? 2 : 1.5),
+                  color: sel ? _kOcean : _kBorder, width: sel ? 2 : 1.5),
             ),
             child: Row(children: [
               Text(emoji, style: const TextStyle(fontSize: 24)),
               const SizedBox(width: 14),
-              Expanded(child: Column(
+              Expanded(
+                  child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: TextStyle(
-                      fontSize: 15, fontWeight: FontWeight.w700,
-                      color: sel ? _kOcean : _kText)),
-                  Text(sub, style: const TextStyle(
-                      fontSize: 12, color: _kSub)),
+                  Text(title,
+                      style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: sel ? _kOcean : _kText)),
+                  Text(sub, style: const TextStyle(fontSize: 12, color: _kSub)),
                 ],
               )),
-              if (sel) const Icon(Icons.check_circle_rounded,
-                  color: _kOcean, size: 22),
+              if (sel)
+                const Icon(Icons.check_circle_rounded,
+                    color: _kOcean, size: 22),
             ]),
           ),
         );
       }),
-
       const SizedBox(height: 16),
-      _switchRow('تأكيد تلقائي',   _autoConfirm,
-              (v) => setState(() => _autoConfirm = v)),
-      _switchRow('طلب إثبات هوية', _requireId,
-              (v) => setState(() => _requireId  = v)),
-
+      _switchRow('تأكيد تلقائي', _autoConfirm,
+          (v) => setState(() => _autoConfirm = v)),
+      _switchRow(
+          'طلب إثبات هوية', _requireId, (v) => setState(() => _requireId = v)),
       const SizedBox(height: 16),
-      _counter('🌙  أقل ليالي',   _minNights,
-              (v) => setState(() => _minNights = v), 1, 30),
-      _counter('🌙  أقصى ليالي',  _maxNights,
-              (v) => setState(() => _maxNights = v), 1, 90),
+      _counter('🌙  أقل ليالي', _minNights,
+          (v) => setState(() => _minNights = v), 1, 30),
+      _counter('🌙  أقصى ليالي', _maxNights,
+          (v) => setState(() => _maxNights = v), 1, 90),
     ]);
   }
 
@@ -1214,8 +1374,9 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
       child: Row(mainAxisSize: MainAxisSize.min, children: [
         const Icon(Icons.error_outline_rounded, size: 13, color: _kRed),
         const SizedBox(width: 4),
-        Text(text, style: const TextStyle(
-            fontSize: 11, fontWeight: FontWeight.w700, color: _kRed)),
+        Text(text,
+            style: const TextStyle(
+                fontSize: 11, fontWeight: FontWeight.w700, color: _kRed)),
       ]),
     );
   }
@@ -1229,70 +1390,82 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(mainAxisSize: MainAxisSize.min, children: [
-        const Icon(Icons.check_circle_outline_rounded,
-            size: 13, color: _kSub),
+        const Icon(Icons.check_circle_outline_rounded, size: 13, color: _kSub),
         const SizedBox(width: 4),
-        Text(text, style: const TextStyle(
-            fontSize: 11, fontWeight: FontWeight.w700, color: _kSub)),
+        Text(text,
+            style: const TextStyle(
+                fontSize: 11, fontWeight: FontWeight.w700, color: _kSub)),
       ]),
     );
   }
 
   InputDecoration _inputDec(String label) => InputDecoration(
-    labelText: label,
-    labelStyle: const TextStyle(color: _kSub),
-    filled: true,
-    fillColor: _kCard,
-    border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(color: _kBorder)),
-    enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(color: _kBorder)),
-    focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(color: _kOcean, width: 2)),
-  );
+        labelText: label,
+        labelStyle: const TextStyle(color: _kSub),
+        filled: true,
+        fillColor: _kCard,
+        border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: const BorderSide(color: _kBorder)),
+        enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: const BorderSide(color: _kBorder)),
+        focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: const BorderSide(color: _kOcean, width: 2)),
+      );
 
   Widget _field(TextEditingController c, String label, String hint,
-      {int maxLines = 1}) =>
-    TextField(
-      controller: c,
-      maxLines: maxLines,
-      onChanged: (_) => setState(() {}), // لتحديث عداد الحروف
-      decoration: _inputDec(label)
-          .copyWith(hintText: hint,
-          hintStyle: const TextStyle(color: _kBorder)),
-    );
+          {int maxLines = 1}) =>
+      TextField(
+        controller: c,
+        maxLines: maxLines,
+        onChanged: (_) => setState(() {}), // لتحديث عداد الحروف
+        decoration: _inputDec(label).copyWith(
+            hintText: hint, hintStyle: const TextStyle(color: _kBorder)),
+      );
 
   Widget _priceField(TextEditingController c, String label, String suffix,
-      {bool required = false}) =>
-    TextField(
-      controller: c,
-      keyboardType: TextInputType.number,
-      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-      decoration: _inputDec(label).copyWith(
-        prefixText: 'EGP  ',
-        suffixText: suffix,
-        suffixStyle: const TextStyle(color: _kSub, fontSize: 12),
-      ),
-    );
+          {bool required = false}) =>
+      TextField(
+        controller: c,
+        keyboardType: TextInputType.number,
+        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+        decoration: _inputDec(label).copyWith(
+          prefixText: 'EGP  ',
+          suffixText: suffix,
+          suffixStyle: const TextStyle(color: _kSub, fontSize: 12),
+        ),
+      );
 
-  Widget _timeField(String label, String value,
-      void Function(String) onChanged) {
-    final times = ['10:00','11:00','12:00','13:00','14:00',
-                   '15:00','16:00','17:00','18:00'];
+  Widget _timeField(
+      String label, String value, void Function(String) onChanged) {
+    final times = [
+      '10:00',
+      '11:00',
+      '12:00',
+      '13:00',
+      '14:00',
+      '15:00',
+      '16:00',
+      '17:00',
+      '18:00'
+    ];
     return DropdownButtonFormField<String>(
       value: value,
       decoration: _inputDec(label),
-      items: times.map((t) =>
-          DropdownMenuItem(value: t, child: Text(t))).toList(),
-      onChanged: (v) { if (v != null) { onChanged(v); } },
+      items:
+          times.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
+      onChanged: (v) {
+        if (v != null) {
+          onChanged(v);
+        }
+      },
     );
   }
 
-  Widget _counter(String label, int value,
-      void Function(int) onChanged, int min, int max) {
+  Widget _counter(
+      String label, int value, void Function(int) onChanged, int min, int max) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
@@ -1302,8 +1475,9 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
         border: Border.all(color: _kBorder),
       ),
       child: Row(children: [
-        Text(label, style: const TextStyle(
-            fontSize: 15, fontWeight: FontWeight.w600, color: _kText)),
+        Text(label,
+            style: const TextStyle(
+                fontSize: 15, fontWeight: FontWeight.w600, color: _kText)),
         const Spacer(),
         IconButton(
           onPressed: value > min ? () => onChanged(value - 1) : null,
@@ -1314,8 +1488,8 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
           width: 32,
           child: Text('$value',
               textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 18,
-                  fontWeight: FontWeight.w800, color: _kText)),
+              style: const TextStyle(
+                  fontSize: 18, fontWeight: FontWeight.w800, color: _kText)),
         ),
         IconButton(
           onPressed: value < max ? () => onChanged(value + 1) : null,
@@ -1326,8 +1500,7 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
     );
   }
 
-  Widget _switchRow(String label, bool value,
-      void Function(bool) onChanged) {
+  Widget _switchRow(String label, bool value, void Function(bool) onChanged) {
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
@@ -1337,8 +1510,9 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
         border: Border.all(color: _kBorder),
       ),
       child: Row(children: [
-        Text(label, style: const TextStyle(
-            fontSize: 15, fontWeight: FontWeight.w600, color: _kText)),
+        Text(label,
+            style: const TextStyle(
+                fontSize: 15, fontWeight: FontWeight.w600, color: _kText)),
         const Spacer(),
         Switch.adaptive(
           value: value,
