@@ -14,11 +14,11 @@
       },
       "oauth_client": [
         {
-          "client_id": "862731638391-3cla4s11nugdb4ac8g3qmd257h0vdrm0.apps.googleusercontent.com",
+          "client_id": "862731638391-ra21jsiugnrbsigl25r95hgc0o3gu2il.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
             "package_name": "com.yallatrip.app",
-            "certificate_hash": "023c4fe0701912a49cc110720fa0a814c994c578"
+            "certificate_hash": "830dce18960f2c5acac362f58282348d7e11085e"
           }
         },
         {

@@ -1,5 +1,5 @@
-name: yalla_trip
-description: Yalla Trip - Your ultimate travel companion app.
+name: talaa
+description: Talaa - Your ultimate travel companion app.
 publish_to: 'none'
 version: 1.0.0+1
 
@@ -33,6 +33,8 @@ dependencies:
 
   flutter_localizations:
     sdk: flutter
+  connectivity_plus: ^7.1.0
+  package_info_plus: ^9.0.1
 
 dev_dependencies:
   flutter_test:

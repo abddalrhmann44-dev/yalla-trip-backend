@@ -20,44 +20,53 @@ import 'profile_page.dart';
 //  MODELS
 // ────────────────────────────────────────────────────────────────
 
-
 // ────────────────────────────────────────────────────────────────
 //  SHIMMER WIDGET
 // ────────────────────────────────────────────────────────────────
 
 class _ShimmerBox extends StatefulWidget {
   final double width, height, radius;
-  const _ShimmerBox({required this.width, required this.height,
-      this.radius = 12});
-  @override State<_ShimmerBox> createState() => _ShimmerBoxState();
+  const _ShimmerBox(
+      {required this.width, required this.height, this.radius = 12});
+  @override
+  State<_ShimmerBox> createState() => _ShimmerBoxState();
 }
 
 class _ShimmerBoxState extends State<_ShimmerBox>
     with SingleTickerProviderStateMixin {
   late AnimationController _ctrl;
   late Animation<double> _anim;
-  @override void initState() {
+  @override
+  void initState() {
     super.initState();
     _ctrl = AnimationController(
         vsync: this, duration: const Duration(milliseconds: 1400))
       ..repeat();
-    _anim = Tween<double>(begin: -2, end: 2).animate(
-        CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
+    _anim = Tween<double>(begin: -2, end: 2)
+        .animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
   }
-  @override void dispose() { _ctrl.dispose(); super.dispose(); }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
       animation: _anim,
       builder: (_, __) => Container(
-        width: widget.width, height: widget.height,
+        width: widget.width,
+        height: widget.height,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(widget.radius),
           gradient: LinearGradient(
             begin: Alignment(_anim.value - 1, 0),
             end: Alignment(_anim.value + 1, 0),
             colors: const [
-              Color(0xFFEEEEEE), Color(0xFFF8F8F8),
+              Color(0xFFEEEEEE),
+              Color(0xFFF8F8F8),
               Color(0xFFEEEEEE),
             ],
           ),
@@ -71,40 +80,51 @@ class _ShimmerBoxState extends State<_ShimmerBox>
 //  PAINTERS
 // ────────────────────────────────────────────────────────────────
 
-
-
-
 // ────────────────────────────────────────────────────────────────
 //  STATIC DATA
 // ────────────────────────────────────────────────────────────────
 
 const _kHeroes = [
-  _Hero('عين السخنة', 'ainSokhna',  '40% OFF',  'assets/images/hero/hero_1.jpg', 'عين السخنة'),
-  _Hero('الغردقة',    'hurghada',   'TRENDING',  'assets/images/hero/hero_2.jpg', 'الغردقة'),
-  _Hero('الساحل الشمالي', 'northCoast', 'HOT DEAL', 'assets/images/hero/hero_3.jpg', 'الساحل الشمالي'),
-  _Hero('شرم الشيخ',  'sharm',      'NEW',       'assets/images/hero/hero_4.jpg', 'شرم الشيخ'),
+  _Hero('عين السخنة', 'ainSokhna', '40% OFF', 'assets/images/hero/hero_1.jpg',
+      'عين السخنة'),
+  _Hero('الغردقة', 'hurghada', 'TRENDING', 'assets/images/hero/hero_2.jpg',
+      'الغردقة'),
+  _Hero('الساحل الشمالي', 'northCoast', 'HOT DEAL',
+      'assets/images/hero/hero_3.jpg', 'الساحل الشمالي'),
+  _Hero('شرم الشيخ', 'sharm', 'NEW', 'assets/images/hero/hero_4.jpg',
+      'شرم الشيخ'),
 ];
 
 const _kCategories = [
-  _Cat('Chalets',    '🏡', Color(0xFF1565C0), Icons.cottage_rounded,    'assets/images/categories/cat_chalets.jpg'),
-  _Cat('Hotels',     '🏨', Color(0xFF7B1FA2), Icons.hotel_rounded,      'assets/images/categories/cat_hotels.jpg'),
-  _Cat('Beach',      '🌊', Color(0xFF0097A7), Icons.beach_access_rounded,'assets/images/categories/cat_beach.jpg'),
-  _Cat('Aqua Park',  '🎢', Color(0xFFE65100), Icons.pool_rounded,        'assets/images/categories/cat_aquapark.jpg'),
-  _Cat('Sea Sports', '⛵', Color(0xFF2E7D32), Icons.sailing_rounded,     'assets/images/categories/cat_seasports.jpg'),
-  _Cat('Resorts',    '🌴', Color(0xFF6D4C41), Icons.villa_rounded,       'assets/images/categories/cat_resorts.jpg'),
+  _Cat('Chalets', '🏡', Color(0xFF1565C0), Icons.cottage_rounded,
+      'assets/images/categories/cat_chalets.jpg'),
+  _Cat('Hotels', '🏨', Color(0xFF7B1FA2), Icons.hotel_rounded,
+      'assets/images/categories/cat_hotels.jpg'),
+  _Cat('Beach', '🌊', Color(0xFF0097A7), Icons.beach_access_rounded,
+      'assets/images/categories/cat_beach.jpg'),
+  _Cat('Aqua Park', '🎢', Color(0xFFE65100), Icons.pool_rounded,
+      'assets/images/categories/cat_aquapark.jpg'),
+  _Cat('Sea Sports', '⛵', Color(0xFF2E7D32), Icons.sailing_rounded,
+      'assets/images/categories/cat_seasports.jpg'),
+  _Cat('Resorts', '🌴', Color(0xFF6D4C41), Icons.villa_rounded,
+      'assets/images/categories/cat_resorts.jpg'),
 ];
 
 // Destinations — count loaded dynamically from Firestore
 const _kDestinations = [
-  _Dest('عين السخنة',      '🏖️', [Color(0xFF0288D1), Color(0xFF015F86)], 'assets/images/destinations/ain_sokhna.jpg'),
-  _Dest('الساحل الشمالي',  '🌴', [Color(0xFF1976D2), Color(0xFF0D47A1)], 'assets/images/destinations/north_coast.jpg'),
-  _Dest('الجونة',           '⛵', [Color(0xFFE65100), Color(0xFFBF360C)], 'assets/images/destinations/gouna.jpg'),
-  _Dest('الغردقة',          '🐠', [Color(0xFF00695C), Color(0xFF004D40)], 'assets/images/destinations/hurghada.jpg'),
-  _Dest('شرم الشيخ',        '🦈', [Color(0xFF6A1B9A), Color(0xFF4A148C)], 'assets/images/destinations/sharm.jpg'),
-  _Dest('رأس سدر',          '🌬️', [Color(0xFF00897B), Color(0xFF00574B)], 'assets/images/destinations/ras_sedr.jpg'),
+  _Dest('عين السخنة', '🏖️', [Color(0xFF0288D1), Color(0xFF015F86)],
+      'assets/images/destinations/ain_sokhna.jpg'),
+  _Dest('الساحل الشمالي', '🌴', [Color(0xFF1976D2), Color(0xFF0D47A1)],
+      'assets/images/destinations/north_coast.jpg'),
+  _Dest('الجونة', '⛵', [Color(0xFFE65100), Color(0xFFBF360C)],
+      'assets/images/destinations/gouna.jpg'),
+  _Dest('الغردقة', '🐠', [Color(0xFF00695C), Color(0xFF004D40)],
+      'assets/images/destinations/hurghada.jpg'),
+  _Dest('شرم الشيخ', '🦈', [Color(0xFF6A1B9A), Color(0xFF4A148C)],
+      'assets/images/destinations/sharm.jpg'),
+  _Dest('رأس سدر', '🌬️', [Color(0xFF00897B), Color(0xFF00574B)],
+      'assets/images/destinations/ras_sedr.jpg'),
 ];
-
-
 
 // immutable helper models
 class _Hero {
@@ -113,29 +133,45 @@ class _Hero {
   String get displayTitle => S.areaName(title);
   String get displaySubtitle {
     switch (areaKey) {
-      case 'ainSokhna':   return S.ainSokhnaSub;
-      case 'hurghada':    return S.hurghadaSub;
-      case 'northCoast':  return S.northCoastSub;
-      case 'sharm':       return S.sharmSub;
-      default:            return '';
+      case 'ainSokhna':
+        return S.ainSokhnaSub;
+      case 'hurghada':
+        return S.hurghadaSub;
+      case 'northCoast':
+        return S.northCoastSub;
+      case 'sharm':
+        return S.sharmSub;
+      default:
+        return '';
     }
   }
+
   List<String> get categories {
     switch (areaKey) {
-      case 'ainSokhna':   return S.ainSokhnaCategories;
-      case 'hurghada':    return S.hurghadaCategories;
-      case 'northCoast':  return S.northCoastCategories;
-      case 'sharm':       return S.sharmCategories;
-      default:            return [];
+      case 'ainSokhna':
+        return S.ainSokhnaCategories;
+      case 'hurghada':
+        return S.hurghadaCategories;
+      case 'northCoast':
+        return S.northCoastCategories;
+      case 'sharm':
+        return S.sharmCategories;
+      default:
+        return [];
     }
   }
 }
+
 class _Cat {
-  final String label, emoji, imagePath; final Color color; final IconData icon;
+  final String label, emoji, imagePath;
+  final Color color;
+  final IconData icon;
   const _Cat(this.label, this.emoji, this.color, this.icon, this.imagePath);
 }
+
 class _Dest {
-  final String name, emoji, imagePath; final List<Color> grad;
+  final String name, emoji, imagePath;
+  final List<Color> grad;
   const _Dest(this.name, this.emoji, this.grad, this.imagePath);
 }
 
@@ -145,37 +181,53 @@ class _Dest {
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
-  @override State<HomePage> createState() => _HomePageState();
+  @override
+  State<HomePage> createState() => _HomePageState();
 }
 
 class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
-
   // controllers
-  final PageController  _heroCtrl   = PageController(viewportFraction: 0.92);
-  final ScrollController _scroll    = ScrollController();
-  int    _heroIdx  = 0;
-  int    _navIdx   = 0;
-  int    _catIdx   = -1;
-  bool   _isLoading = true;
+  final PageController _heroCtrl = PageController(viewportFraction: 0.92);
+  final ScrollController _scroll = ScrollController();
+  int _heroIdx = 0;
+  int _navIdx = 0;
+  int _catIdx = -1;
+  bool _isLoading = true;
   Map<String, int> _areaCounts = {}; // counts from Firestore
 
   // ── Filter State ───────────────────────────────────
-  String _filterArea      = 'الكل';
+  String _filterArea = 'الكل';
   RangeValues _filterPrice = const RangeValues(0, 10000);
-  int    _filterGuests    = 1;
-  int    _filterRooms     = 1;
-  String _filterType      = 'الكل';
-  bool   _filterPool      = false;
-  bool   _filterBeach     = false;
-  bool   _filterInstant   = false;
-  bool   _filterOnline    = false;
-  bool   _filterWifi      = false;
-  bool   _filterParking   = false;
+  int _filterGuests = 1;
+  int _filterRooms = 1;
+  String _filterType = 'الكل';
+  bool _filterPool = false;
+  bool _filterBeach = false;
+  bool _filterInstant = false;
+  bool _filterOnline = false;
+  bool _filterWifi = false;
+  bool _filterParking = false;
   double _filterMinRating = 0;
-  bool   _filterActive    = false; // هل في filter مفعّل
+  bool _filterActive = false; // هل في filter مفعّل
 
-  static const _kAreas = ['الكل','عين السخنة','الساحل الشمالي','الجونة','الغردقة','شرم الشيخ','رأس سدر'];
-  static const _kTypes = ['الكل','شاليه','فيلا','فندق','منتجع','بيت شاطئ','أكوا بارك'];
+  static const _kAreas = [
+    'الكل',
+    'عين السخنة',
+    'الساحل الشمالي',
+    'الجونة',
+    'الغردقة',
+    'شرم الشيخ',
+    'رأس سدر'
+  ];
+  static const _kTypes = [
+    'الكل',
+    'شاليه',
+    'فيلا',
+    'فندق',
+    'منتجع',
+    'بيت شاطئ',
+    'أكوا بارك'
+  ];
 
   // recent searches
   final List<String> _recentSearches = [];
@@ -184,14 +236,13 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
   // fade animation
   late AnimationController _fadeCtrl;
-  late Animation<double>   _fadeAnim;
+  late Animation<double> _fadeAnim;
 
   // ── Init ───────────────────────────────────────────
   @override
   void initState() {
     super.initState();
     appSettings.addListener(_onLangChange);
-
 
     _fadeCtrl = AnimationController(
         vsync: this, duration: const Duration(milliseconds: 800));
@@ -214,7 +265,9 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     });
   }
 
-  void _onLangChange() { if (mounted) setState(() {}); }
+  void _onLangChange() {
+    if (mounted) setState(() {});
+  }
 
   @override
   void dispose() {
@@ -227,7 +280,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   }
 
   // ── Helpers ────────────────────────────────────────
-
 
   // ── Load area property counts ───────────────────
   Future<void> _loadAreaCounts() async {
@@ -272,8 +324,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         physics: const NeverScrollableScrollPhysics(),
         child: Padding(
           padding: const EdgeInsets.all(20),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+          child:
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             // Header shimmer
             const Row(children: [
               _ShimmerBox(width: 80, height: 36, radius: 20),
@@ -287,9 +339,12 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             const SizedBox(height: 20),
             const _ShimmerBox(width: double.infinity, height: 190, radius: 22),
             const SizedBox(height: 20),
-            Row(mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: List.generate(6, (_) =>
-                  const _ShimmerBox(width: 50, height: 68, radius: 16))),
+            Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: List.generate(
+                    6,
+                    (_) =>
+                        const _ShimmerBox(width: 50, height: 68, radius: 16))),
             const SizedBox(height: 24),
             const _ShimmerBox(width: 180, height: 22, radius: 8),
             const SizedBox(height: 12),
@@ -351,7 +406,9 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           begin: Alignment.topLeft,
           end: Alignment.bottomCenter,
           colors: [
-            Color(0xFF0A2463), Color(0xFF1565C0), Color(0xFF1E88E5),
+            Color(0xFF0A2463),
+            Color(0xFF1565C0),
+            Color(0xFF1E88E5),
           ],
           stops: [0.0, 0.55, 1.0],
         ),
@@ -364,46 +421,21 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           child: Padding(
             padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
             child: Column(children: [
-
-              // ── Row 1: flag + greeting + icons ──────
+              // ── Row 1: greeting + icons ──────
               Row(children: [
-                // Egypt flag dropdown
-                GestureDetector(
-                  onTap: () {},
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 10, vertical: 7),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.14),
-                      borderRadius: BorderRadius.circular(22),
-                      border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.22)),
-                    ),
-                    child: const Row(children: [
-                      Text('🇪🇬', style: TextStyle(fontSize: 17)),
-                      SizedBox(width: 6),
-                      Text('Egypt',
-                          style: TextStyle(color: Colors.white,
-                              fontSize: 13, fontWeight: FontWeight.w700)),
-                      SizedBox(width: 4),
-                      Icon(Icons.expand_more_rounded,
-                          color: Colors.white70, size: 17),
-                    ]),
-                  ),
-                ),
-
                 const Spacer(),
 
                 // Greeting
-                Column(crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
+                Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
                   Text(_getGreeting(),
                       style: TextStyle(
                           color: Colors.white.withValues(alpha: 0.75),
                           fontSize: 11)),
                   Text('${_getUserName()} 👋',
-                      style: const TextStyle(color: Colors.white,
-                          fontSize: 15, fontWeight: FontWeight.w800)),
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w800)),
                 ]),
 
                 const SizedBox(width: 14),
@@ -430,7 +462,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black.withValues(alpha: 0.18),
-                        blurRadius: 24, offset: const Offset(0, 8),
+                        blurRadius: 24,
+                        offset: const Offset(0, 8),
                       ),
                     ],
                   ),
@@ -466,18 +499,22 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                             SizedBox(width: 4),
                             Text('Filter',
                                 style: TextStyle(
-                                    color: Colors.white, fontSize: 11,
+                                    color: Colors.white,
+                                    fontSize: 11,
                                     fontWeight: FontWeight.w700)),
                           ]),
                         ),
                         if (_filterActive)
-                          Positioned(top: 4, right: 4,
-                            child: Container(
-                              width: 8, height: 8,
-                              decoration: const BoxDecoration(
-                                color: Colors.white,
-                                shape: BoxShape.circle),
-                            )),
+                          Positioned(
+                              top: 4,
+                              right: 4,
+                              child: Container(
+                                width: 8,
+                                height: 8,
+                                decoration: const BoxDecoration(
+                                    color: Colors.white,
+                                    shape: BoxShape.circle),
+                              )),
                       ]),
                     ),
                   ]),
@@ -495,18 +532,18 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   // ══════════════════════════════════════════════════
   void _openFilter() {
     // نسخة مؤقتة للـ filter
-    String      tmpArea     = _filterArea;
-    RangeValues tmpPrice    = _filterPrice;
-    int         tmpGuests   = _filterGuests;
-    int         tmpRooms    = _filterRooms;
-    String      tmpType     = _filterType;
-    bool        tmpPool     = _filterPool;
-    bool        tmpBeach    = _filterBeach;
-    bool        tmpInstant  = _filterInstant;
-    bool        tmpOnline   = _filterOnline;
-    bool        tmpWifi     = _filterWifi;
-    bool        tmpParking  = _filterParking;
-    double      tmpRating   = _filterMinRating;
+    String tmpArea = _filterArea;
+    RangeValues tmpPrice = _filterPrice;
+    int tmpGuests = _filterGuests;
+    int tmpRooms = _filterRooms;
+    String tmpType = _filterType;
+    bool tmpPool = _filterPool;
+    bool tmpBeach = _filterBeach;
+    bool tmpInstant = _filterInstant;
+    bool tmpOnline = _filterOnline;
+    bool tmpWifi = _filterWifi;
+    bool tmpParking = _filterParking;
+    double tmpRating = _filterMinRating;
 
     showModalBottomSheet(
       context: context,
@@ -523,39 +560,42 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             // ── Handle ─────────────────────────────
             Container(
               margin: const EdgeInsets.only(top: 12),
-              width: 40, height: 4,
+              width: 40,
+              height: 4,
               decoration: BoxDecoration(
-                color: Colors.grey[300],
-                borderRadius: BorderRadius.circular(2)),
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2)),
             ),
             // ── Header ─────────────────────────────
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
               child: Row(children: [
                 Text(S.filterTitle,
-                    style: const TextStyle(fontSize: 20,
+                    style: const TextStyle(
+                        fontSize: 20,
                         fontWeight: FontWeight.w900,
                         color: Color(0xFF0D1B2A))),
                 const Spacer(),
                 TextButton(
                   onPressed: () {
                     setSheet(() {
-                      tmpArea    = S.all;
-                      tmpPrice   = const RangeValues(0, 10000);
-                      tmpGuests  = 1;
-                      tmpRooms   = 1;
-                      tmpType    = S.all;
-                      tmpPool    = false;
-                      tmpBeach   = false;
+                      tmpArea = S.all;
+                      tmpPrice = const RangeValues(0, 10000);
+                      tmpGuests = 1;
+                      tmpRooms = 1;
+                      tmpType = S.all;
+                      tmpPool = false;
+                      tmpBeach = false;
                       tmpInstant = false;
-                      tmpOnline  = false;
-                      tmpWifi    = false;
+                      tmpOnline = false;
+                      tmpWifi = false;
                       tmpParking = false;
-                      tmpRating  = 0;
+                      tmpRating = 0;
                     });
                   },
                   child: Text(S.clearAll,
-                      style: const TextStyle(color: Color(0xFF1565C0),
+                      style: const TextStyle(
+                          color: Color(0xFF1565C0),
                           fontWeight: FontWeight.w700)),
                 ),
               ]),
@@ -567,166 +607,184 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               child: SingleChildScrollView(
                 padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-
-                  // ① المنطقة
-                  _fSection('📍 المنطقة'),
-                  const SizedBox(height: 10),
-                  Wrap(spacing: 8, runSpacing: 8,
-                    children: _kAreas.map((a) => GestureDetector(
-                      onTap: () => setSheet(() => tmpArea = a),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 180),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 14, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: tmpArea == a
-                              ? const Color(0xFF1565C0)
-                              : const Color(0xFFF5F5F5),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                            color: tmpArea == a
-                                ? const Color(0xFF1565C0)
-                                : Colors.transparent),
-                        ),
-                        child: Text(a,
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: tmpArea == a
-                                ? Colors.white
-                                : const Color(0xFF555555))),
-                      ),
-                    )).toList(),
-                  ),
-                  const SizedBox(height: 20),
-
-                  // ② نوع الوحدة
-                  _fSection('🏠 نوع الوحدة'),
-                  const SizedBox(height: 10),
-                  Wrap(spacing: 8, runSpacing: 8,
-                    children: _kTypes.map((t) => GestureDetector(
-                      onTap: () => setSheet(() => tmpType = t),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 180),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 14, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: tmpType == t
-                              ? const Color(0xFFFF6D00)
-                              : const Color(0xFFF5F5F5),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                            color: tmpType == t
-                                ? const Color(0xFFFF6D00)
-                                : Colors.transparent),
-                        ),
-                        child: Text(t,
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: tmpType == t
-                                ? Colors.white
-                                : const Color(0xFF555555))),
-                      ),
-                    )).toList(),
-                  ),
-                  const SizedBox(height: 20),
-
-                  // ③ نطاق السعر
-                  _fSection('💰 السعر في الليلة (EGP)'),
-                  const SizedBox(height: 4),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _priceChip('${tmpPrice.start.round()} ج'),
-                      const Icon(Icons.arrow_forward_rounded,
-                          size: 16, color: Colors.grey),
-                      _priceChip('${tmpPrice.end.round()} ج'),
-                    ],
-                  ),
-                  RangeSlider(
-                    values: tmpPrice,
-                    min: 0, max: 10000,
-                    divisions: 100,
-                    activeColor: const Color(0xFF1565C0),
-                    inactiveColor: const Color(0xFFDDE3F0),
-                    onChanged: (v) => setSheet(() => tmpPrice = v),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // ④ عدد الأشخاص
-                  _fSection('👥 عدد الأشخاص'),
-                  const SizedBox(height: 10),
-                  _counterRow(
-                    label: 'ضيوف',
-                    value: tmpGuests,
-                    onDec: () { if (tmpGuests > 1) setSheet(() => tmpGuests--); },
-                    onInc: () { if (tmpGuests < 20) setSheet(() => tmpGuests++); },
-                  ),
-                  const SizedBox(height: 10),
-                  _counterRow(
-                    label: 'غرف',
-                    value: tmpRooms,
-                    onDec: () { if (tmpRooms > 1) setSheet(() => tmpRooms--); },
-                    onInc: () { if (tmpRooms < 10) setSheet(() => tmpRooms++); },
-                  ),
-                  const SizedBox(height: 20),
-
-                  // ⑤ الحد الأدنى للتقييم
-                  _fSection('⭐ الحد الأدنى للتقييم'),
-                  const SizedBox(height: 8),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [0.0, 3.0, 3.5, 4.0, 4.5, 5.0].map((r) =>
-                      GestureDetector(
-                        onTap: () => setSheet(() => tmpRating = r),
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 180),
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 10, vertical: 7),
-                          decoration: BoxDecoration(
-                            color: tmpRating == r
-                                ? const Color(0xFFFFC107)
-                                : const Color(0xFFF5F5F5),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            r == 0 ? S.all : '$r+',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                              color: tmpRating == r
-                                  ? Colors.white
-                                  : const Color(0xFF555555)),
-                          ),
-                        ),
+                      // ① المنطقة
+                      _fSection('📍 المنطقة'),
+                      const SizedBox(height: 10),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: _kAreas
+                            .map((a) => GestureDetector(
+                                  onTap: () => setSheet(() => tmpArea = a),
+                                  child: AnimatedContainer(
+                                    duration: const Duration(milliseconds: 180),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 14, vertical: 8),
+                                    decoration: BoxDecoration(
+                                      color: tmpArea == a
+                                          ? const Color(0xFF1565C0)
+                                          : const Color(0xFFF5F5F5),
+                                      borderRadius: BorderRadius.circular(20),
+                                      border: Border.all(
+                                          color: tmpArea == a
+                                              ? const Color(0xFF1565C0)
+                                              : Colors.transparent),
+                                    ),
+                                    child: Text(a,
+                                        style: TextStyle(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w600,
+                                            color: tmpArea == a
+                                                ? Colors.white
+                                                : const Color(0xFF555555))),
+                                  ),
+                                ))
+                            .toList(),
                       ),
-                    ).toList(),
-                  ),
-                  const SizedBox(height: 20),
+                      const SizedBox(height: 20),
 
-                  // ⑥ مميزات
-                  _fSection('✨ مميزات'),
-                  const SizedBox(height: 10),
-                  Wrap(spacing: 10, runSpacing: 10, children: [
-                    _featureChip('🏊 مسبح', tmpPool,
-                        () => setSheet(() => tmpPool = !tmpPool)),
-                    _featureChip('🏖️ شاطئ خاص', tmpBeach,
-                        () => setSheet(() => tmpBeach = !tmpBeach)),
-                    _featureChip('⚡ حجز فوري', tmpInstant,
-                        () => setSheet(() => tmpInstant = !tmpInstant)),
-                    _featureChip('🟢 أونلاين الآن', tmpOnline,
-                        () => setSheet(() => tmpOnline = !tmpOnline)),
-                    _featureChip('📶 واي فاي', tmpWifi,
-                        () => setSheet(() => tmpWifi = !tmpWifi)),
-                    _featureChip('🚗 موقف سيارات', tmpParking,
-                        () => setSheet(() => tmpParking = !tmpParking)),
-                  ]),
+                      // ② نوع الوحدة
+                      _fSection('🏠 نوع الوحدة'),
+                      const SizedBox(height: 10),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: _kTypes
+                            .map((t) => GestureDetector(
+                                  onTap: () => setSheet(() => tmpType = t),
+                                  child: AnimatedContainer(
+                                    duration: const Duration(milliseconds: 180),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 14, vertical: 8),
+                                    decoration: BoxDecoration(
+                                      color: tmpType == t
+                                          ? const Color(0xFFFF6D00)
+                                          : const Color(0xFFF5F5F5),
+                                      borderRadius: BorderRadius.circular(20),
+                                      border: Border.all(
+                                          color: tmpType == t
+                                              ? const Color(0xFFFF6D00)
+                                              : Colors.transparent),
+                                    ),
+                                    child: Text(t,
+                                        style: TextStyle(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w600,
+                                            color: tmpType == t
+                                                ? Colors.white
+                                                : const Color(0xFF555555))),
+                                  ),
+                                ))
+                            .toList(),
+                      ),
+                      const SizedBox(height: 20),
 
-                  const SizedBox(height: 30),
-                ]),
+                      // ③ نطاق السعر
+                      _fSection('💰 السعر في الليلة (EGP)'),
+                      const SizedBox(height: 4),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          _priceChip('${tmpPrice.start.round()} ج'),
+                          const Icon(Icons.arrow_forward_rounded,
+                              size: 16, color: Colors.grey),
+                          _priceChip('${tmpPrice.end.round()} ج'),
+                        ],
+                      ),
+                      RangeSlider(
+                        values: tmpPrice,
+                        min: 0,
+                        max: 10000,
+                        divisions: 100,
+                        activeColor: const Color(0xFF1565C0),
+                        inactiveColor: const Color(0xFFDDE3F0),
+                        onChanged: (v) => setSheet(() => tmpPrice = v),
+                      ),
+                      const SizedBox(height: 16),
+
+                      // ④ عدد الأشخاص
+                      _fSection('👥 عدد الأشخاص'),
+                      const SizedBox(height: 10),
+                      _counterRow(
+                        label: 'ضيوف',
+                        value: tmpGuests,
+                        onDec: () {
+                          if (tmpGuests > 1) setSheet(() => tmpGuests--);
+                        },
+                        onInc: () {
+                          if (tmpGuests < 20) setSheet(() => tmpGuests++);
+                        },
+                      ),
+                      const SizedBox(height: 10),
+                      _counterRow(
+                        label: 'غرف',
+                        value: tmpRooms,
+                        onDec: () {
+                          if (tmpRooms > 1) setSheet(() => tmpRooms--);
+                        },
+                        onInc: () {
+                          if (tmpRooms < 10) setSheet(() => tmpRooms++);
+                        },
+                      ),
+                      const SizedBox(height: 20),
+
+                      // ⑤ الحد الأدنى للتقييم
+                      _fSection('⭐ الحد الأدنى للتقييم'),
+                      const SizedBox(height: 8),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [0.0, 3.0, 3.5, 4.0, 4.5, 5.0]
+                            .map(
+                              (r) => GestureDetector(
+                                onTap: () => setSheet(() => tmpRating = r),
+                                child: AnimatedContainer(
+                                  duration: const Duration(milliseconds: 180),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 10, vertical: 7),
+                                  decoration: BoxDecoration(
+                                    color: tmpRating == r
+                                        ? const Color(0xFFFFC107)
+                                        : const Color(0xFFF5F5F5),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Text(
+                                    r == 0 ? S.all : '$r+',
+                                    style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w700,
+                                        color: tmpRating == r
+                                            ? Colors.white
+                                            : const Color(0xFF555555)),
+                                  ),
+                                ),
+                              ),
+                            )
+                            .toList(),
+                      ),
+                      const SizedBox(height: 20),
+
+                      // ⑥ مميزات
+                      _fSection('✨ مميزات'),
+                      const SizedBox(height: 10),
+                      Wrap(spacing: 10, runSpacing: 10, children: [
+                        _featureChip('🏊 مسبح', tmpPool,
+                            () => setSheet(() => tmpPool = !tmpPool)),
+                        _featureChip('🏖️ شاطئ خاص', tmpBeach,
+                            () => setSheet(() => tmpBeach = !tmpBeach)),
+                        _featureChip('⚡ حجز فوري', tmpInstant,
+                            () => setSheet(() => tmpInstant = !tmpInstant)),
+                        _featureChip('🟢 أونلاين الآن', tmpOnline,
+                            () => setSheet(() => tmpOnline = !tmpOnline)),
+                        _featureChip('📶 واي فاي', tmpWifi,
+                            () => setSheet(() => tmpWifi = !tmpWifi)),
+                        _featureChip('🚗 موقف سيارات', tmpParking,
+                            () => setSheet(() => tmpParking = !tmpParking)),
+                      ]),
+
+                      const SizedBox(height: 30),
+                    ]),
               ),
             ),
 
@@ -737,8 +795,9 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 color: Colors.white,
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.08),
-                    blurRadius: 16, offset: const Offset(0, -4)),
+                      color: Colors.black.withValues(alpha: 0.08),
+                      blurRadius: 16,
+                      offset: const Offset(0, -4)),
                 ],
               ),
               child: SizedBox(
@@ -754,30 +813,36 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   ),
                   onPressed: () {
                     setState(() {
-                      _filterArea     = tmpArea;
-                      _filterPrice    = tmpPrice;
-                      _filterGuests   = tmpGuests;
-                      _filterRooms    = tmpRooms;
-                      _filterType     = tmpType;
-                      _filterPool     = tmpPool;
-                      _filterBeach    = tmpBeach;
-                      _filterInstant  = tmpInstant;
-                      _filterOnline   = tmpOnline;
-                      _filterWifi     = tmpWifi;
-                      _filterParking  = tmpParking;
+                      _filterArea = tmpArea;
+                      _filterPrice = tmpPrice;
+                      _filterGuests = tmpGuests;
+                      _filterRooms = tmpRooms;
+                      _filterType = tmpType;
+                      _filterPool = tmpPool;
+                      _filterBeach = tmpBeach;
+                      _filterInstant = tmpInstant;
+                      _filterOnline = tmpOnline;
+                      _filterWifi = tmpWifi;
+                      _filterParking = tmpParking;
                       _filterMinRating = tmpRating;
-                      _filterActive   = tmpArea != S.all ||
+                      _filterActive = tmpArea != S.all ||
                           tmpPrice != const RangeValues(0, 10000) ||
-                          tmpGuests > 1 || tmpRooms > 1 ||
-                          tmpType != S.all || tmpPool || tmpBeach ||
-                          tmpInstant || tmpOnline || tmpWifi ||
-                          tmpParking || tmpRating > 0;
+                          tmpGuests > 1 ||
+                          tmpRooms > 1 ||
+                          tmpType != S.all ||
+                          tmpPool ||
+                          tmpBeach ||
+                          tmpInstant ||
+                          tmpOnline ||
+                          tmpWifi ||
+                          tmpParking ||
+                          tmpRating > 0;
                     });
                     Navigator.pop(context);
                   },
                   child: Text(S.showResults,
-                      style: const TextStyle(fontSize: 16,
-                          fontWeight: FontWeight.w800)),
+                      style: const TextStyle(
+                          fontSize: 16, fontWeight: FontWeight.w800)),
                 ),
               ),
             ),
@@ -789,87 +854,93 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
   // Filter helper widgets
   Widget _fSection(String title) => Text(title,
-      style: const TextStyle(fontSize: 15,
-          fontWeight: FontWeight.w800, color: Color(0xFF0D1B2A)));
+      style: const TextStyle(
+          fontSize: 15, fontWeight: FontWeight.w800, color: Color(0xFF0D1B2A)));
 
   Widget _priceChip(String label) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-    decoration: BoxDecoration(
-      color: const Color(0xFFEEF2FF),
-      borderRadius: BorderRadius.circular(10),
-      border: Border.all(color: const Color(0xFF1565C0).withValues(alpha: 0.3)),
-    ),
-    child: Text(label, style: const TextStyle(
-        fontSize: 13, fontWeight: FontWeight.w700,
-        color: Color(0xFF1565C0))),
-  );
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: const Color(0xFFEEF2FF),
+          borderRadius: BorderRadius.circular(10),
+          border:
+              Border.all(color: const Color(0xFF1565C0).withValues(alpha: 0.3)),
+        ),
+        child: Text(label,
+            style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF1565C0))),
+      );
 
   Widget _counterRow({
     required String label,
     required int value,
     required VoidCallback onDec,
     required VoidCallback onInc,
-  }) => Row(children: [
-    Text(label, style: const TextStyle(
-        fontSize: 14, fontWeight: FontWeight.w600,
-        color: Color(0xFF555555))),
-    const Spacer(),
-    GestureDetector(
-      onTap: onDec,
-      child: Container(
-        width: 34, height: 34,
-        decoration: BoxDecoration(
-          color: const Color(0xFFF0F4FF),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: const Color(0xFF1565C0).withValues(alpha: 0.3)),
+  }) =>
+      Row(children: [
+        Text(label,
+            style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF555555))),
+        const Spacer(),
+        GestureDetector(
+          onTap: onDec,
+          child: Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: const Color(0xFFF0F4FF),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                  color: const Color(0xFF1565C0).withValues(alpha: 0.3)),
+            ),
+            child: const Icon(Icons.remove_rounded,
+                size: 18, color: Color(0xFF1565C0)),
+          ),
         ),
-        child: const Icon(Icons.remove_rounded,
-            size: 18, color: Color(0xFF1565C0)),
-      ),
-    ),
-    Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Text('$value',
-          style: const TextStyle(fontSize: 16,
-              fontWeight: FontWeight.w800, color: Color(0xFF0D1B2A))),
-    ),
-    GestureDetector(
-      onTap: onInc,
-      child: Container(
-        width: 34, height: 34,
-        decoration: BoxDecoration(
-          color: const Color(0xFF1565C0),
-          borderRadius: BorderRadius.circular(10),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Text('$value',
+              style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF0D1B2A))),
         ),
-        child: const Icon(Icons.add_rounded,
-            size: 18, color: Colors.white),
-      ),
-    ),
-  ]);
+        GestureDetector(
+          onTap: onInc,
+          child: Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: const Color(0xFF1565C0),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(Icons.add_rounded, size: 18, color: Colors.white),
+          ),
+        ),
+      ]);
 
   Widget _featureChip(String label, bool selected, VoidCallback onTap) =>
-    GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          color: selected
-              ? const Color(0xFF1565C0)
-              : const Color(0xFFF5F5F5),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: selected
-                ? const Color(0xFF1565C0)
-                : Colors.transparent),
+      GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: selected ? const Color(0xFF1565C0) : const Color(0xFFF5F5F5),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+                color: selected ? const Color(0xFF1565C0) : Colors.transparent),
+          ),
+          child: Text(label,
+              style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: selected ? Colors.white : const Color(0xFF555555))),
         ),
-        child: Text(label,
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            color: selected ? Colors.white : const Color(0xFF555555))),
-      ),
-    );
+      );
 
   String _getGreeting() {
     final h = DateTime.now().hour;
@@ -889,7 +960,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   Widget _hdrIcon(IconData icon, {bool notif = false}) {
     return Stack(children: [
       Container(
-        width: 40, height: 40,
+        width: 40,
+        height: 40,
         decoration: BoxDecoration(
           color: Colors.white.withValues(alpha: 0.14),
           borderRadius: BorderRadius.circular(13),
@@ -898,16 +970,18 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         child: Icon(icon, color: Colors.white, size: 19),
       ),
       if (notif)
-        Positioned(top: 7, right: 7,
-          child: Container(
-            width: 9, height: 9,
-            decoration: BoxDecoration(
-              color: const Color(0xFFFF6D00),
-              shape: BoxShape.circle,
-              border: Border.all(
-                  color: const Color(0xFF1565C0), width: 1.5),
-            ),
-          )),
+        Positioned(
+            top: 7,
+            right: 7,
+            child: Container(
+              width: 9,
+              height: 9,
+              decoration: BoxDecoration(
+                color: const Color(0xFFFF6D00),
+                shape: BoxShape.circle,
+                border: Border.all(color: const Color(0xFF1565C0), width: 1.5),
+              ),
+            )),
     ]);
   }
 
@@ -930,7 +1004,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       // Dot indicators
       Padding(
         padding: const EdgeInsets.only(top: 12),
-        child: Row(mainAxisAlignment: MainAxisAlignment.center,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: List.generate(_kHeroes.length, (i) {
             final sel = _heroIdx == i;
             return AnimatedContainer(
@@ -940,9 +1015,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               width: sel ? 22 : 6,
               height: 6,
               decoration: BoxDecoration(
-                color: sel
-                    ? const Color(0xFF1565C0)
-                    : const Color(0xFFCCCCCC),
+                color: sel ? const Color(0xFF1565C0) : const Color(0xFFCCCCCC),
                 borderRadius: BorderRadius.circular(3),
               ),
             );
@@ -969,19 +1042,23 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           });
           Navigator.pop(context);
           if (area != null && area.isNotEmpty) {
-            Navigator.push(context, MaterialPageRoute(
-              builder: (_) => AreaResultsPage(
-                area: area,
-                initialType: type,
-              ),
-            ));
+            Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => AreaResultsPage(
+                    area: area,
+                    initialType: type,
+                  ),
+                ));
           } else {
-            Navigator.push(context, MaterialPageRoute(
-              builder: (_) => ExplorePage(
-                initialSearch: query,
-                initialType: type,
-              ),
-            ));
+            Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => ExplorePage(
+                    initialSearch: query,
+                    initialType: type,
+                  ),
+                ));
           }
         },
       ),
@@ -989,9 +1066,11 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   }
 
   void _openAreaResults(String area) {
-    Navigator.push(context, MaterialPageRoute(
-      builder: (_) => AreaResultsPage(area: area),
-    ));
+    Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => AreaResultsPage(area: area),
+        ));
   }
 
   Widget _heroCard(_Hero h) {
@@ -1004,7 +1083,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           child: SizedBox(
             height: 210,
             child: Stack(children: [
-
               // ── صورة كاملة بدون أي شريط ─────────────
               Positioned.fill(
                 child: Image.asset(
@@ -1035,17 +1113,19 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
               // ── Badge فوق يسار ───────────────────────
               Positioned(
-                top: 14, left: 14,
+                top: 14,
+                left: 14,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 10, vertical: 5),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                   decoration: BoxDecoration(
                     color: const Color(0xFFFF6D00),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(h.badge,
                       style: const TextStyle(
-                          color: Colors.white, fontSize: 10,
+                          color: Colors.white,
+                          fontSize: 10,
                           fontWeight: FontWeight.w900,
                           letterSpacing: 0.5)),
                 ),
@@ -1053,14 +1133,15 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
               // ── المحتوى تحت ─────────────────────────
               Positioned(
-                bottom: 0, left: 0, right: 0,
+                bottom: 0,
+                left: 0,
+                right: 0,
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: [
-
                       // اسم المنطقة كبير فوق
                       Text(h.displayTitle,
                           style: const TextStyle(
@@ -1086,28 +1167,33 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                       Wrap(
                         spacing: 6,
                         runSpacing: 6,
-                        children: h.categories.map((cat) =>
-                          GestureDetector(
-                            onTap: () => Navigator.push(context,
-                              MaterialPageRoute(builder: (_) =>
-                                AreaResultsPage(area: h.area, initialType: cat))),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 10, vertical: 5),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: 0.18),
-                                borderRadius: BorderRadius.circular(20),
-                                border: Border.all(
-                                    color: Colors.white.withValues(alpha: 0.35)),
+                        children: h.categories
+                            .map(
+                              (cat) => GestureDetector(
+                                onTap: () => Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                        builder: (_) => AreaResultsPage(
+                                            area: h.area, initialType: cat))),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 10, vertical: 5),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withValues(alpha: 0.18),
+                                    borderRadius: BorderRadius.circular(20),
+                                    border: Border.all(
+                                        color: Colors.white
+                                            .withValues(alpha: 0.35)),
+                                  ),
+                                  child: Text(cat,
+                                      style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600)),
+                                ),
                               ),
-                              child: Text(cat,
-                                  style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w600)),
-                            ),
-                          ),
-                        ).toList(),
+                            )
+                            .toList(),
                       ),
                     ],
                   ),
@@ -1127,14 +1213,13 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   Widget _buildCategories() {
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 26, 20, 0),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         _secTitle(S.exploreType, action: ''),
         const SizedBox(height: 14),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: List.generate(_kCategories.length, (i) {
-            final c   = _kCategories[i];
+            final c = _kCategories[i];
             final sel = _catIdx == i;
             return GestureDetector(
               onTap: () => setState(() => _catIdx = sel ? -1 : i),
@@ -1157,41 +1242,41 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   ],
                 ),
                 child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                  // ── صورة Category ──────────────────
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: SizedBox(
-                      width: 36, height: 36,
-                      child: Image.asset(
-                        c.imagePath,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => Container(
-                          decoration: BoxDecoration(
-                            color: sel
-                                ? Colors.white.withValues(alpha: 0.25)
-                                : c.color.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(12),
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      // ── صورة Category ──────────────────
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: SizedBox(
+                          width: 36,
+                          height: 36,
+                          child: Image.asset(
+                            c.imagePath,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => Container(
+                              decoration: BoxDecoration(
+                                color: sel
+                                    ? Colors.white.withValues(alpha: 0.25)
+                                    : c.color.withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Icon(c.icon,
+                                  size: 18,
+                                  color: sel ? Colors.white : c.color),
+                            ),
                           ),
-                          child: Icon(c.icon, size: 18,
-                              color: sel ? Colors.white : c.color),
                         ),
                       ),
-                    ),
-                  ),
-                  const SizedBox(height: 5),
-                  Text(S.catName(c.label),
-                      textAlign: TextAlign.center,
-                      maxLines: 1,
-                      style: TextStyle(
-                        fontSize: 8.5,
-                        fontWeight: FontWeight.w700,
-                        color: sel
-                            ? Colors.white
-                            : const Color(0xFF555555),
-                      )),
-                ]),
+                      const SizedBox(height: 5),
+                      Text(S.catName(c.label),
+                          textAlign: TextAlign.center,
+                          maxLines: 1,
+                          style: TextStyle(
+                            fontSize: 8.5,
+                            fontWeight: FontWeight.w700,
+                            color: sel ? Colors.white : const Color(0xFF555555),
+                          )),
+                    ]),
               ),
             );
           }),
@@ -1205,118 +1290,123 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   // ════════════════════════════════════════════════
 
   Widget _buildDestinations() {
-    return Column(crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Padding(
         padding: const EdgeInsets.fromLTRB(20, 26, 20, 14),
-        child: _secTitle(S.destinations,
-            action: S.seeAll),
+        child: _secTitle(S.destinations, action: S.seeAll),
       ),
-
-      SizedBox(height: 145,
-        child: ListView.builder(
-          scrollDirection: Axis.horizontal,
-          physics: const BouncingScrollPhysics(),
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          itemCount: _kDestinations.length,
-          itemBuilder: (_, i) => _destCard(_kDestinations[i]),
-        )),
+      SizedBox(
+          height: 145,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            itemCount: _kDestinations.length,
+            itemBuilder: (_, i) => _destCard(_kDestinations[i]),
+          )),
     ]);
   }
 
   Widget _destCard(_Dest d) {
     return GestureDetector(
-      onTap: () => Navigator.push(context, MaterialPageRoute(
-        builder: (_) => AreaResultsPage(area: d.name),
-      )),
+      onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => AreaResultsPage(area: d.name),
+          )),
       child: Container(
-      width: 155,
-      margin: const EdgeInsets.only(right: 12),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(22),
-        boxShadow: [
-          BoxShadow(
-              color: Colors.black.withValues(alpha: 0.12),
-              blurRadius: 14, offset: const Offset(0, 5)),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(22),
-        child: Stack(children: [
-          // ── صورة حقيقية ─────────────────────────────
-          Positioned.fill(
-            child: Image.asset(
-              d.imagePath,
-              fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: d.grad,
+        width: 155,
+        margin: const EdgeInsets.only(right: 12),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(22),
+          boxShadow: [
+            BoxShadow(
+                color: Colors.black.withValues(alpha: 0.12),
+                blurRadius: 14,
+                offset: const Offset(0, 5)),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(22),
+          child: Stack(children: [
+            // ── صورة حقيقية ─────────────────────────────
+            Positioned.fill(
+              child: Image.asset(
+                d.imagePath,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: d.grad,
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
-          // ── Gradient overlay للنص ─────────────────
-          Positioned.fill(
-            child: Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Colors.transparent,
-                    Colors.black.withValues(alpha: 0.72),
-                  ],
+            // ── Gradient overlay للنص ─────────────────
+            Positioned.fill(
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.transparent,
+                      Colors.black.withValues(alpha: 0.72),
+                    ],
+                  ),
                 ),
               ),
             ),
-          ),
-          // ── Content ──────────────────────────────────
-          Padding(
-            padding: const EdgeInsets.all(15),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-              const Spacer(),
-              Text(S.areaName(d.name),
-                  style: const TextStyle(
-                    color: Colors.white, fontSize: 15,
-                    fontWeight: FontWeight.w900, height: 1.2,
-                    shadows: [Shadow(color: Colors.black54, blurRadius: 6)],
-                  )),
-              const SizedBox(height: 5),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 9, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.22),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.3)),
-                ),
-                child: Text(
-                    (_areaCounts[d.name] ?? 0) > 0
-                        ? '${_areaCounts[d.name]} عقار'
-                        : 'قريباً',
-                    style: const TextStyle(
-                        color: Colors.white, fontSize: 10,
-                        fontWeight: FontWeight.w700)),
-              ),
-            ]),
-          ),
-        ]),
+            // ── Content ──────────────────────────────────
+            Padding(
+              padding: const EdgeInsets.all(15),
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Spacer(),
+                    Text(S.areaName(d.name),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w900,
+                          height: 1.2,
+                          shadows: [
+                            Shadow(color: Colors.black54, blurRadius: 6)
+                          ],
+                        )),
+                    const SizedBox(height: 5),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 9, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.22),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.3)),
+                      ),
+                      child: Text(
+                          (_areaCounts[d.name] ?? 0) > 0
+                              ? '${_areaCounts[d.name]} عقار'
+                              : 'قريباً',
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700)),
+                    ),
+                  ]),
+            ),
+          ]),
+        ),
       ),
-    ),
     );
   }
 
   // ════════════════════════════════════════════════
   //  5. FLASH DEALS ⚡
   // ════════════════════════════════════════════════
-
 
   // ════════════════════════════════════════════════
   //  OFFERS — سيُضاف لاحقاً من Firebase
@@ -1339,13 +1429,15 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 16, offset: const Offset(0, 4),
+              blurRadius: 16,
+              offset: const Offset(0, 4),
             ),
           ],
         ),
         child: Column(children: [
           Container(
-            width: 64, height: 64,
+            width: 64,
+            height: 64,
             decoration: BoxDecoration(
               color: const Color(0xFF1565C0).withValues(alpha: 0.08),
               shape: BoxShape.circle,
@@ -1356,14 +1448,14 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           const SizedBox(height: 16),
           const Text('لا توجد عروض حالياً',
               style: TextStyle(
-                fontSize: 16, fontWeight: FontWeight.w800,
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
                 color: Color(0xFF0D1B2A),
               )),
           const SizedBox(height: 6),
           Text('ستظهر العروض والخصومات هنا فور إضافتها',
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 13,
-                  color: Colors.grey.shade500)),
+              style: TextStyle(fontSize: 13, color: Colors.grey.shade500)),
         ]),
       ),
     );
@@ -1375,11 +1467,23 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
   Widget _buildNavBar() {
     final items = [
-      {'i': Icons.home_rounded,               'l': appSettings.arabic ? 'الرئيسية' : 'Home'},
-      {'i': Icons.explore_rounded,            'l': appSettings.arabic ? 'استكشف' : 'Explore'},
-      {'i': Icons.calendar_today_rounded,     'l': appSettings.arabic ? 'حجوزاتي' : 'Bookings'},
-      {'i': Icons.chat_bubble_outline_rounded,'l': appSettings.arabic ? 'رسائل' : 'Messages'},
-      {'i': Icons.person_outline_rounded,     'l': appSettings.arabic ? 'حسابي' : 'Profile'},
+      {'i': Icons.home_rounded, 'l': appSettings.arabic ? 'الرئيسية' : 'Home'},
+      {
+        'i': Icons.explore_rounded,
+        'l': appSettings.arabic ? 'استكشف' : 'Explore'
+      },
+      {
+        'i': Icons.calendar_today_rounded,
+        'l': appSettings.arabic ? 'حجوزاتي' : 'Bookings'
+      },
+      {
+        'i': Icons.chat_bubble_outline_rounded,
+        'l': appSettings.arabic ? 'رسائل' : 'Messages'
+      },
+      {
+        'i': Icons.person_outline_rounded,
+        'l': appSettings.arabic ? 'حسابي' : 'Profile'
+      },
     ];
 
     return Container(
@@ -1388,14 +1492,14 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         boxShadow: [
           BoxShadow(
               color: Colors.black.withValues(alpha: 0.09),
-              blurRadius: 28, offset: const Offset(0, -8)),
+              blurRadius: 28,
+              offset: const Offset(0, -8)),
         ],
       ),
       child: SafeArea(
         top: false,
         child: Padding(
-          padding: const EdgeInsets.symmetric(
-              horizontal: 8, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: List.generate(items.length, (i) {
@@ -1404,14 +1508,19 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 onTap: () {
                   setState(() => _navIdx = i);
                   switch (i) {
-                    case 0: break; // Home — already here
+                    case 0:
+                      break; // Home — already here
                     case 1:
-                      Navigator.push(context, MaterialPageRoute(
-                          builder: (_) => const ExplorePage()));
+                      Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) => const ExplorePage()));
                       break;
                     case 2:
-                      Navigator.push(context, MaterialPageRoute(
-                          builder: (_) => const BookingsPage()));
+                      Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) => const BookingsPage()));
                       break;
                     case 3:
                       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -1431,38 +1540,40 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                       ));
                       break;
                     case 4:
-                      Navigator.push(context, MaterialPageRoute(
-                          builder: (_) => const ProfilePage()));
+                      Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) => const ProfilePage()));
                       break;
                   }
                 },
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 220),
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 8),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   decoration: BoxDecoration(
                     color: sel
                         ? const Color(0xFF1565C0).withValues(alpha: 0.1)
                         : Colors.transparent,
                     borderRadius: BorderRadius.circular(14),
                   ),
-                  child: Column(mainAxisSize: MainAxisSize.min,
-                    children: [
+                  child: Column(mainAxisSize: MainAxisSize.min, children: [
                     Icon(items[i]['i'] as IconData,
                         size: 24,
                         color: sel
                             ? const Color(0xFF1565C0)
                             : const Color(0xFFAAAAAA),
-                        shadows: sel ? const [
-                          Shadow(color: Color(0x661565C0), blurRadius: 10),
-                        ] : null),
+                        shadows: sel
+                            ? const [
+                                Shadow(
+                                    color: Color(0x661565C0), blurRadius: 10),
+                              ]
+                            : null),
                     const SizedBox(height: 3),
                     Text(items[i]['l'] as String,
                         style: TextStyle(
                           fontSize: 10,
-                          fontWeight: sel
-                              ? FontWeight.w800
-                              : FontWeight.w500,
+                          fontWeight: sel ? FontWeight.w800 : FontWeight.w500,
                           color: sel
                               ? const Color(0xFF1565C0)
                               : const Color(0xFFAAAAAA),
@@ -1483,10 +1594,13 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
   Widget _secTitle(String title, {required String action}) {
     return Row(children: [
-      Expanded(child: Text(title,
-          style: const TextStyle(
-              fontSize: 19, fontWeight: FontWeight.w900,
-              color: Color(0xFF0D1B2A), letterSpacing: -0.4))),
+      Expanded(
+          child: Text(title,
+              style: const TextStyle(
+                  fontSize: 19,
+                  fontWeight: FontWeight.w900,
+                  color: Color(0xFF0D1B2A),
+                  letterSpacing: -0.4))),
       if (action.isNotEmpty) _seeAll(action),
     ]);
   }
@@ -1495,22 +1609,20 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     return GestureDetector(
       onTap: () {},
       child: Container(
-        padding: const EdgeInsets.symmetric(
-            horizontal: 12, vertical: 5),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
         decoration: BoxDecoration(
           color: const Color(0xFF1565C0).withValues(alpha: 0.08),
           borderRadius: BorderRadius.circular(20),
         ),
         child: Text(label,
             style: const TextStyle(
-                fontSize: 12, fontWeight: FontWeight.w700,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
                 color: Color(0xFF1565C0))),
       ),
     );
   }
-
 }
-
 
 // ══════════════════════════════════════════════════════════════
 //  SEARCH SHEET — اقتراحات ذكية
@@ -1519,7 +1631,8 @@ class _SearchSheet extends StatefulWidget {
   final List<String> recentSearches;
   final void Function(String query, {String? area, String? type}) onSearch;
   const _SearchSheet({required this.recentSearches, required this.onSearch});
-  @override State<_SearchSheet> createState() => _SearchSheetState();
+  @override
+  State<_SearchSheet> createState() => _SearchSheetState();
 }
 
 class _SearchSheetState extends State<_SearchSheet> {
@@ -1528,37 +1641,55 @@ class _SearchSheetState extends State<_SearchSheet> {
   String _query = '';
 
   static const _suggestions = [
-    {'label': 'شاليهات عين السخنة',  'icon': '🌊', 'area': 'عين السخنة',      'type': ''},
-    {'label': 'فيلات الساحل الشمالي','icon': '🏖️', 'area': 'الساحل الشمالي',  'type': ''},
-    {'label': 'منتجعات الغردقة',     'icon': '🐠', 'area': 'الغردقة',          'type': ''},
-    {'label': 'فنادق شرم الشيخ',     'icon': '🦈', 'area': 'شرم الشيخ',        'type': ''},
-    {'label': 'شاليهات الجونة',      'icon': '⛵', 'area': 'الجونة',            'type': ''},
-    {'label': 'عروض رأس سدر',        'icon': '🌬️', 'area': 'رأس سدر',          'type': ''},
-    {'label': 'أكوا بارك',           'icon': '🎢', 'area': '',                  'type': 'أكوا بارك'},
-    {'label': 'شاليهات بحمام سباحة', 'icon': '🏊', 'area': '',                  'type': 'شاليه'},
+    {
+      'label': 'شاليهات عين السخنة',
+      'icon': '🌊',
+      'area': 'عين السخنة',
+      'type': ''
+    },
+    {
+      'label': 'فيلات الساحل الشمالي',
+      'icon': '🏖️',
+      'area': 'الساحل الشمالي',
+      'type': ''
+    },
+    {'label': 'منتجعات الغردقة', 'icon': '🐠', 'area': 'الغردقة', 'type': ''},
+    {'label': 'فنادق شرم الشيخ', 'icon': '🦈', 'area': 'شرم الشيخ', 'type': ''},
+    {'label': 'شاليهات الجونة', 'icon': '⛵', 'area': 'الجونة', 'type': ''},
+    {'label': 'عروض رأس سدر', 'icon': '🌬️', 'area': 'رأس سدر', 'type': ''},
+    {'label': 'أكوا بارك', 'icon': '🎢', 'area': '', 'type': 'أكوا بارك'},
+    {'label': 'شاليهات بحمام سباحة', 'icon': '🏊', 'area': '', 'type': 'شاليه'},
   ];
 
-  List<Map<String,String>> get _filtered {
-    if (_query.isEmpty) return List<Map<String,String>>.from(_suggestions);
-    return _suggestions.where((s) =>
-      s['label']!.contains(_query) ||
-      (s['area'] ?? '').contains(_query) ||
-      (s['type'] ?? '').contains(_query)
-    ).toList();
+  List<Map<String, String>> get _filtered {
+    if (_query.isEmpty) return List<Map<String, String>>.from(_suggestions);
+    return _suggestions
+        .where((s) =>
+            s['label']!.contains(_query) ||
+            (s['area'] ?? '').contains(_query) ||
+            (s['type'] ?? '').contains(_query))
+        .toList();
   }
 
   @override
   void initState() {
     super.initState();
     appSettings.addListener(_onLangChange);
-    Future.delayed(const Duration(milliseconds: 200), () => _focus.requestFocus());
+    Future.delayed(
+        const Duration(milliseconds: 200), () => _focus.requestFocus());
   }
 
-  void _onLangChange() { if (mounted) setState(() {}); }
+  void _onLangChange() {
+    if (mounted) setState(() {});
+  }
 
   @override
   void dispose() {
-    appSettings.removeListener(_onLangChange); _ctrl.dispose(); _focus.dispose(); super.dispose(); }
+    appSettings.removeListener(_onLangChange);
+    _ctrl.dispose();
+    _focus.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1572,7 +1703,8 @@ class _SearchSheetState extends State<_SearchSheet> {
         // Handle
         Container(
           margin: const EdgeInsets.only(top: 12),
-          width: 40, height: 4,
+          width: 40,
+          height: 4,
           decoration: BoxDecoration(
               color: Colors.grey[300], borderRadius: BorderRadius.circular(2)),
         ),
@@ -1585,13 +1717,16 @@ class _SearchSheetState extends State<_SearchSheet> {
             decoration: BoxDecoration(
               color: const Color(0xFFF5F7FF),
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFF1565C0).withValues(alpha: 0.25)),
+              border: Border.all(
+                  color: const Color(0xFF1565C0).withValues(alpha: 0.25)),
             ),
             child: Row(children: [
               const SizedBox(width: 14),
-              const Icon(Icons.search_rounded, color: Color(0xFF1565C0), size: 22),
+              const Icon(Icons.search_rounded,
+                  color: Color(0xFF1565C0), size: 22),
               const SizedBox(width: 10),
-              Expanded(child: TextField(
+              Expanded(
+                  child: TextField(
                 controller: _ctrl,
                 focusNode: _focus,
                 onChanged: (v) => setState(() => _query = v),
@@ -1608,10 +1743,14 @@ class _SearchSheetState extends State<_SearchSheet> {
               )),
               if (_query.isNotEmpty)
                 GestureDetector(
-                  onTap: () { _ctrl.clear(); setState(() => _query = ''); },
+                  onTap: () {
+                    _ctrl.clear();
+                    setState(() => _query = '');
+                  },
                   child: const Padding(
                     padding: EdgeInsets.symmetric(horizontal: 12),
-                    child: Icon(Icons.close_rounded, color: Color(0xFFAAAAAA), size: 20),
+                    child: Icon(Icons.close_rounded,
+                        color: Color(0xFFAAAAAA), size: 20),
                   ),
                 ),
             ]),
@@ -1625,21 +1764,25 @@ class _SearchSheetState extends State<_SearchSheet> {
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
             child: Row(children: [
-              const Icon(Icons.history_rounded, size: 16, color: Color(0xFFAAAAAA)),
+              const Icon(Icons.history_rounded,
+                  size: 16, color: Color(0xFFAAAAAA)),
               const SizedBox(width: 6),
               Text(S.recentSearch,
-                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700,
+                  style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
                       color: Color(0xFFAAAAAA))),
             ]),
           ),
           ...widget.recentSearches.take(3).map((r) => ListTile(
-            dense: true,
-            leading: const Icon(Icons.history_rounded,
-                color: Color(0xFFCCCCCC), size: 18),
-            title: Text(r, style: const TextStyle(
-                fontSize: 14, color: Color(0xFF0D1B2A))),
-            onTap: () => widget.onSearch(r),
-          )),
+                dense: true,
+                leading: const Icon(Icons.history_rounded,
+                    color: Color(0xFFCCCCCC), size: 18),
+                title: Text(r,
+                    style: const TextStyle(
+                        fontSize: 14, color: Color(0xFF0D1B2A))),
+                onTap: () => widget.onSearch(r),
+              )),
           const Divider(height: 24, indent: 20, endIndent: 20),
         ],
 
@@ -1647,14 +1790,14 @@ class _SearchSheetState extends State<_SearchSheet> {
         Padding(
           padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
           child: Row(children: [
-            Icon(
-              _query.isEmpty ? Icons.bolt_rounded : Icons.search_rounded,
-              size: 16, color: const Color(0xFF1565C0)),
+            Icon(_query.isEmpty ? Icons.bolt_rounded : Icons.search_rounded,
+                size: 16, color: const Color(0xFF1565C0)),
             const SizedBox(width: 6),
-            Text(
-              _query.isEmpty ? S.suggestions : S.searchHint,
-              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700,
-                  color: Color(0xFF1565C0))),
+            Text(_query.isEmpty ? S.suggestions : S.searchHint,
+                style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF1565C0))),
           ]),
         ),
 
@@ -1667,21 +1810,25 @@ class _SearchSheetState extends State<_SearchSheet> {
               final s = _filtered[i];
               return ListTile(
                 leading: Container(
-                  width: 42, height: 42,
+                  width: 42,
+                  height: 42,
                   decoration: BoxDecoration(
                     color: const Color(0xFF1565C0).withValues(alpha: 0.07),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Center(child: Text(s['icon']!,
-                      style: const TextStyle(fontSize: 20))),
+                  child: Center(
+                      child: Text(s['icon']!,
+                          style: const TextStyle(fontSize: 20))),
                 ),
                 title: Text(s['label']!,
                     style: const TextStyle(
-                        fontSize: 15, fontWeight: FontWeight.w700,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
                         color: Color(0xFF0D1B2A))),
                 subtitle: Text(
                   s['area']!.isNotEmpty ? s['area']! : s['type']!,
-                  style: const TextStyle(fontSize: 12, color: Color(0xFFAAAAAA)),
+                  style:
+                      const TextStyle(fontSize: 12, color: Color(0xFFAAAAAA)),
                 ),
                 trailing: const Icon(Icons.arrow_forward_ios_rounded,
                     size: 13, color: Color(0xFFCCCCCC)),

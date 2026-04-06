@@ -4,6 +4,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'firebase_options.dart';
 
 import 'pages/welcome_page.dart';
@@ -17,16 +18,48 @@ import 'pages/explore_page.dart';
 import 'pages/bookings_page.dart';
 import 'pages/profile_page.dart';
 import 'widgets/constants.dart';
+import 'utils/app_strings.dart';
+import 'services/connectivity_guard.dart';
+import 'services/version_check_service.dart';
 
 class AppSettings extends ChangeNotifier {
   bool _darkMode = false;
-  bool _arabic   = true;
+  bool _arabic = true;
+  bool _hasSelectedLanguage = false;
 
   bool get darkMode => _darkMode;
-  bool get arabic   => _arabic;
+  bool get arabic => _arabic;
+  bool get hasSelectedLanguage => _hasSelectedLanguage;
 
-  void toggleDark()   { _darkMode = !_darkMode; notifyListeners(); }
-  void toggleArabic() { _arabic   = !_arabic;   notifyListeners(); }
+  Future<void> load() async {
+    final prefs = await SharedPreferences.getInstance();
+    _darkMode = prefs.getBool('dark_mode') ?? false;
+    _arabic = prefs.getBool('lang_ar') ?? true;
+    _hasSelectedLanguage = prefs.getBool('lang_selected') ?? false;
+  }
+
+  Future<void> toggleDark() async {
+    _darkMode = !_darkMode;
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('dark_mode', _darkMode);
+  }
+
+  Future<void> toggleArabic() async {
+    _arabic = !_arabic;
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('lang_ar', _arabic);
+  }
+
+  Future<void> setLanguage(bool isArabic) async {
+    _arabic = isArabic;
+    _hasSelectedLanguage = true;
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('lang_ar', _arabic);
+    await prefs.setBool('lang_selected', true);
+  }
 }
 
 final appSettings = AppSettings();
@@ -51,15 +84,17 @@ void main() async {
     DeviceOrientation.portraitDown,
   ]);
 
-  runApp(const YallaTripApp());
+  await appSettings.load();
+  runApp(const TalaaApp());
 }
 
-class YallaTripApp extends StatefulWidget {
-  const YallaTripApp({super.key});
-  @override State<YallaTripApp> createState() => _YallaTripAppState();
+class TalaaApp extends StatefulWidget {
+  const TalaaApp({super.key});
+  @override
+  State<TalaaApp> createState() => _TalaaAppState();
 }
 
-class _YallaTripAppState extends State<YallaTripApp> {
+class _TalaaAppState extends State<TalaaApp> {
   @override
   void initState() {
     super.initState();
@@ -68,22 +103,22 @@ class _YallaTripAppState extends State<YallaTripApp> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark   = appSettings.darkMode;
+    final isDark = appSettings.darkMode;
     final isArabic = appSettings.arabic;
 
     SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle(
-      statusBarColor:          Colors.transparent,
+      statusBarColor: Colors.transparent,
       statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
-      statusBarBrightness:     isDark ? Brightness.dark  : Brightness.light,
+      statusBarBrightness: isDark ? Brightness.dark : Brightness.light,
     ));
 
     return MaterialApp(
-      title: 'Yalla Trip',
+      title: S.appName,
       debugShowCheckedModeBanner: false,
       themeMode: isDark ? ThemeMode.dark : ThemeMode.light,
-      theme:     _buildTheme(Brightness.light),
+      theme: _buildTheme(Brightness.light),
       darkTheme: _buildTheme(Brightness.dark),
-      locale: const Locale('ar'),
+      locale: Locale(isArabic ? 'ar' : 'en'),
       supportedLocales: const [Locale('ar'), Locale('en')],
       localizationsDelegates: const [
         GlobalMaterialLocalizations.delegate,
@@ -91,27 +126,29 @@ class _YallaTripAppState extends State<YallaTripApp> {
         GlobalCupertinoLocalizations.delegate,
       ],
       builder: (context, child) {
-        return MediaQuery(
-          data: MediaQuery.of(context).copyWith(
-            textScaler: TextScaler.noScaling,
-          ),
-          child: Directionality(
-            textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
-            child: child!,
+        return ConnectivityGuard(
+          child: MediaQuery(
+            data: MediaQuery.of(context).copyWith(
+              textScaler: TextScaler.noScaling,
+            ),
+            child: Directionality(
+              textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
+              child: child!,
+            ),
           ),
         );
       },
       home: const _AuthGate(),
       routes: {
-        '/welcome':    (_) => const WelcomePage(),
-        '/login':      (_) => const LoginPage(),
-        '/register':   (_) => const RegisterPage(),
+        '/welcome': (_) => const WelcomePage(),
+        '/login': (_) => const LoginPage(),
+        '/register': (_) => const RegisterPage(),
         '/onboarding': (_) => const OnboardingPage(),
-        '/home':       (_) => const HomePage(),
-        '/owner':      (_) => const OwnerAddPropertyPage(),
-        '/explore':    (_) => const ExplorePage(),
-        '/bookings':   (_) => const BookingsPage(),
-        '/profile':    (_) => const ProfilePage(),
+        '/home': (_) => const HomePage(),
+        '/owner': (_) => const OwnerAddPropertyPage(),
+        '/explore': (_) => const ExplorePage(),
+        '/bookings': (_) => const BookingsPage(),
+        '/profile': (_) => const ProfilePage(),
       },
       onGenerateRoute: (settings) {
         switch (settings.name) {
@@ -119,10 +156,10 @@ class _YallaTripAppState extends State<YallaTripApp> {
             final args = settings.arguments as Map<String, dynamic>? ?? {};
             return MaterialPageRoute(
               builder: (_) => ChatPage(
-                ownerName:     args['ownerName']     ?? 'المالك',
-                propertyName:  args['propertyName']  ?? 'العقار',
+                ownerName: args['ownerName'] ?? 'المالك',
+                propertyName: args['propertyName'] ?? 'العقار',
                 propertyEmoji: args['propertyEmoji'] ?? '🏡',
-                currentPrice:  args['currentPrice']  ?? '850',
+                currentPrice: args['currentPrice'] ?? '850',
               ),
             );
           case '/payment':
@@ -143,12 +180,11 @@ class _YallaTripAppState extends State<YallaTripApp> {
         seedColor: AppColors.primary,
         brightness: brightness,
       ),
-      scaffoldBackgroundColor:
-          isDark ? const Color(0xFF0D1117) : Colors.white,
+      scaffoldBackgroundColor: isDark ? const Color(0xFF0D1117) : Colors.white,
     );
     return base.copyWith(
       textTheme: base.textTheme.apply(
-        bodyColor:    isDark ? Colors.white : const Color(0xFF0D1B2A),
+        bodyColor: isDark ? Colors.white : const Color(0xFF0D1B2A),
         displayColor: isDark ? Colors.white : const Color(0xFF0D1B2A),
       ),
       cardColor: isDark ? const Color(0xFF1C2333) : Colors.white,
@@ -163,11 +199,10 @@ class _YallaTripAppState extends State<YallaTripApp> {
           backgroundColor: AppColors.primary,
           foregroundColor: Colors.white,
           elevation: 0,
-          shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(14)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
           textStyle: const TextStyle(
-              fontFamily: 'Outfit', fontSize: 15,
-              fontWeight: FontWeight.w800),
+              fontFamily: 'Outfit', fontSize: 15, fontWeight: FontWeight.w800),
         ),
       ),
     );
@@ -176,12 +211,14 @@ class _YallaTripAppState extends State<YallaTripApp> {
 
 class _AuthGate extends StatefulWidget {
   const _AuthGate();
-  @override State<_AuthGate> createState() => _AuthGateState();
+  @override
+  State<_AuthGate> createState() => _AuthGateState();
 }
 
 class _AuthGateState extends State<_AuthGate>
     with SingleTickerProviderStateMixin {
   bool _showSplash = true;
+  bool _checkedVersion = false;
 
   late AnimationController _controller;
   late Animation<double> _logoScale;
@@ -199,25 +236,25 @@ class _AuthGateState extends State<_AuthGate>
       duration: const Duration(milliseconds: 2800),
     );
 
-    _logoScale = Tween<double>(begin: 0.4, end: 1.0).animate(
-      CurvedAnimation(parent: _controller,
-          curve: const Interval(0.0, 0.35, curve: Curves.elasticOut)));
+    _logoScale = Tween<double>(begin: 0.4, end: 1.0).animate(CurvedAnimation(
+        parent: _controller,
+        curve: const Interval(0.0, 0.35, curve: Curves.elasticOut)));
 
-    _logoOpacity = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _controller,
-          curve: const Interval(0.0, 0.20, curve: Curves.easeIn)));
+    _logoOpacity = Tween<double>(begin: 0.0, end: 1.0).animate(CurvedAnimation(
+        parent: _controller,
+        curve: const Interval(0.0, 0.20, curve: Curves.easeIn)));
 
-    _textSlide = Tween<double>(begin: 30.0, end: 0.0).animate(
-      CurvedAnimation(parent: _controller,
-          curve: const Interval(0.25, 0.55, curve: Curves.easeOut)));
+    _textSlide = Tween<double>(begin: 30.0, end: 0.0).animate(CurvedAnimation(
+        parent: _controller,
+        curve: const Interval(0.25, 0.55, curve: Curves.easeOut)));
 
-    _textOpacity = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _controller,
-          curve: const Interval(0.25, 0.50, curve: Curves.easeIn)));
+    _textOpacity = Tween<double>(begin: 0.0, end: 1.0).animate(CurvedAnimation(
+        parent: _controller,
+        curve: const Interval(0.25, 0.50, curve: Curves.easeIn)));
 
-    _exitFade = Tween<double>(begin: 1.0, end: 0.0).animate(
-      CurvedAnimation(parent: _controller,
-          curve: const Interval(0.78, 1.0, curve: Curves.easeInOut)));
+    _exitFade = Tween<double>(begin: 1.0, end: 0.0).animate(CurvedAnimation(
+        parent: _controller,
+        curve: const Interval(0.78, 1.0, curve: Curves.easeInOut)));
 
     _controller.forward().then((_) {
       if (mounted) setState(() => _showSplash = false);
@@ -225,7 +262,26 @@ class _AuthGateState extends State<_AuthGate>
   }
 
   @override
-  void dispose() { _controller.dispose(); super.dispose(); }
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_checkedVersion) return;
+    _checkedVersion = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      final update = await VersionCheckService.checkForUpdate();
+      if (!mounted || !update.requiresUpdate) return;
+      await VersionCheckService.showForceUpdateDialog(
+        context: context,
+        storeUrl: update.storeUrl,
+      );
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -246,7 +302,9 @@ class _AuthGateState extends State<_AuthGate>
                       scale: _logoScale,
                       child: Image.asset(
                         'assets/images/splash.png',
-                        width: 180, height: 180, fit: BoxFit.contain,
+                        width: 180,
+                        height: 180,
+                        fit: BoxFit.contain,
                       ),
                     ),
                   ),
@@ -255,11 +313,13 @@ class _AuthGateState extends State<_AuthGate>
                     opacity: _textOpacity,
                     child: Transform.translate(
                       offset: Offset(0, _textSlide.value),
-                      child: const Text('YALLA TRIP',
-                          style: TextStyle(fontSize: 28,
+                      child: Text(S.appName.toUpperCase(),
+                          style: TextStyle(
+                              fontSize: 28,
                               fontWeight: FontWeight.w800,
                               color: Color(0xFF1B4D5C),
-                              letterSpacing: 4, fontFamily: 'Outfit')),
+                              letterSpacing: 4,
+                              fontFamily: 'Outfit')),
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -268,10 +328,12 @@ class _AuthGateState extends State<_AuthGate>
                     child: Transform.translate(
                       offset: Offset(0, _textSlide.value),
                       child: const Text('اكتشف أجمل الشاليهات',
-                          style: TextStyle(fontSize: 14,
+                          style: TextStyle(
+                              fontSize: 14,
                               fontWeight: FontWeight.w400,
                               color: Color(0xFFB8A05A),
-                              letterSpacing: 1, fontFamily: 'Outfit')),
+                              letterSpacing: 1,
+                              fontFamily: 'Outfit')),
                     ),
                   ),
                 ],
@@ -287,7 +349,17 @@ class _AuthGateState extends State<_AuthGate>
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(
-              backgroundColor: Colors.white, body: SizedBox.shrink());
+            backgroundColor: Colors.white,
+            body: Center(
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: AppColors.primary,
+              ),
+            ),
+          );
+        }
+        if (!appSettings.hasSelectedLanguage) {
+          return const WelcomePage(forceLanguageSelection: true);
         }
         return snapshot.hasData && snapshot.data != null
             ? const HomePage()
