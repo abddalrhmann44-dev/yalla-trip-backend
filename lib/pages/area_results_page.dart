@@ -5,15 +5,11 @@
 import 'package:flutter/material.dart';
 import '../main.dart' show appSettings;
 import '../utils/app_strings.dart';
+import '../widgets/constants.dart';
 import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'property_details_page.dart';
 import '../models/property_model.dart';
-
-const _kBg   = Color(0xFFF5F7FA);
-const _kText = Color(0xFF0D1B2A);
-const _kSub  = Color(0xFF6B7280);
-const _kCard = Colors.white;
 
 Color _areaColor(String area) {
   switch (area) {
@@ -52,8 +48,6 @@ IconData _catIcon(String key) {
   }
 }
 
-String _areaImagePath(String area) =>
-    'assets/images/destinations/${area.replaceAll(' ', '_').toLowerCase()}.jpg';
 
 const _kCatKeys = ['الكل', 'شاليه', 'فندق', 'فيلا', 'منتجع', 'أكوا بارك', 'بيت شاطئ'];
 const _kCatColors = {
@@ -154,7 +148,7 @@ class _AreaResultsPageState extends State<AreaResultsPage> {
 
   Map<String, List<_Prop>> get _grouped {
     final map = <String, List<_Prop>>{};
-    for (final p in _all) map.putIfAbsent(p.category, () => []).add(p);
+    for (final p in _all) { map.putIfAbsent(p.category, () => []).add(p); }
     return map;
   }
 
@@ -162,153 +156,128 @@ class _AreaResultsPageState extends State<AreaResultsPage> {
 
   @override
   Widget build(BuildContext context) {
-    SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+    final brightness = context.isDark ? Brightness.light : Brightness.dark;
+    SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
-      statusBarIconBrightness: Brightness.light,
+      statusBarIconBrightness: brightness,
     ));
     return Scaffold(
-      backgroundColor: _kBg,
-      body: NestedScrollView(
-        headerSliverBuilder: (_, __) => [_buildAppBar()],
-        body: _loading ? _buildShimmer()
-            : _all.isEmpty ? _buildEmpty()
-            : _buildBody(),
+      backgroundColor: context.kCard,
+      body: SafeArea(
+        bottom: false,
+        child: Column(children: [
+          _buildHeader(),
+          _buildCategoryBar(),
+          Expanded(
+            child: _loading ? _buildShimmer()
+                : _all.isEmpty ? _buildEmpty()
+                : _buildBody(),
+          ),
+        ]),
       ),
     );
   }
 
-  Widget _buildAppBar() {
-    return SliverAppBar(
-      expandedHeight: 230,
-      pinned: true,
-      backgroundColor: _color,
-      automaticallyImplyLeading: false,
-      titleSpacing: 12,
-      // ✅ زرار الرجوع فقط — مفيش اسم هنا
-      title: GestureDetector(
-        onTap: () => Navigator.of(context).pop(),
-        child: Container(
-          width: 38, height: 38,
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.25),
-            borderRadius: BorderRadius.circular(11),
-          ),
-          child: const Icon(Icons.arrow_back_ios_new_rounded,
-              color: Colors.white, size: 17),
-        ),
-      ),
-      flexibleSpace: FlexibleSpaceBar(
-        collapseMode: CollapseMode.parallax,
-        // ✅ مفيش title هنا — الاسم في الصورة فقط فمفيش تكرار
-        background: Stack(children: [
-          Positioned.fill(
-            child: Image.asset(
-              _areaImagePath(widget.area),
-              fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => Container(color: _color),
+  // ── Flat header: back arrow + area icon + name + count ──
+  Widget _buildHeader() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+      child: Row(children: [
+        // Back arrow
+        GestureDetector(
+          onTap: () => Navigator.of(context).pop(),
+          child: Container(
+            width: 40, height: 40,
+            decoration: BoxDecoration(
+              color: _color.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: _color.withValues(alpha: 0.18)),
             ),
+            child: Icon(Icons.arrow_back_ios_new_rounded,
+                color: _color, size: 16),
           ),
-          Positioned.fill(
-            child: DecoratedBox(
+        ),
+        const SizedBox(width: 14),
+        // Area icon
+        Container(
+          width: 42, height: 42,
+          decoration: BoxDecoration(
+            color: _color.withValues(alpha: 0.10),
+            borderRadius: BorderRadius.circular(13),
+          ),
+          child: Icon(_areaIcon(widget.area), color: _color, size: 20),
+        ),
+        const SizedBox(width: 12),
+        // Area name + count
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(S.areaName(widget.area),
+                  style: TextStyle(
+                      color: context.kText, fontSize: 20,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: -0.3, height: 1.1)),
+              const SizedBox(height: 2),
+              Text(
+                _loading ? S.loading
+                    : '${_all.length} ${appSettings.arabic ? 'عقار متاح' : 'properties'}',
+                style: TextStyle(
+                    color: context.kSub,
+                    fontSize: 12, fontWeight: FontWeight.w500),
+              ),
+            ],
+          ),
+        ),
+      ]),
+    );
+  }
+
+  // ── Scrollable category chip bar ────────────────────────
+  Widget _buildCategoryBar() {
+    return Container(
+      height: 50,
+      decoration: BoxDecoration(
+        color: context.kCard,
+        border: Border(bottom: BorderSide(color: context.kBorder, width: 0.5)),
+      ),
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsetsDirectional.fromSTEB(16, 7, 16, 7),
+        itemCount: _kCatKeys.length,
+        itemBuilder: (_, i) {
+          final key   = _kCatKeys[i];
+          final sel   = _selKey == key;
+          final col   = _kCatColors[key] ?? _color;
+          final icon  = _catIcon(key);
+          final label = key == 'الكل' ? S.all : S.catName(key);
+          return GestureDetector(
+            onTap: () => setState(() => _selKey = key),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              margin: const EdgeInsetsDirectional.only(end: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 12),
               decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  stops: const [0.0, 0.4, 1.0],
-                  colors: [
-                    Colors.black.withValues(alpha: 0.10),
-                    Colors.transparent,
-                    Colors.black.withValues(alpha: 0.72),
-                  ],
-                ),
+                color: sel ? col : context.kChipBg,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                    color: sel ? col : context.kBorder, width: 1.5),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(icon, size: 13, color: sel ? Colors.white : context.kSub),
+                  const SizedBox(width: 5),
+                  Text(label,
+                      style: TextStyle(
+                          fontSize: 12, fontWeight: FontWeight.w700,
+                          color: sel ? Colors.white : context.kSub)),
+                ],
               ),
             ),
-          ),
-          // ✅ الاسم هنا بس — مرة واحدة
-          Positioned(
-            bottom: 18, left: 20, right: 20,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Container(
-                  width: 46, height: 46,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.18),
-                    borderRadius: BorderRadius.circular(13),
-                    border: Border.all(color: Colors.white.withValues(alpha: 0.35)),
-                  ),
-                  child: Icon(_areaIcon(widget.area), color: Colors.white, size: 22),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(S.areaName(widget.area),
-                          style: const TextStyle(
-                              color: Colors.white, fontSize: 26,
-                              fontWeight: FontWeight.w900,
-                              letterSpacing: -0.5, height: 1.1)),
-                      const SizedBox(height: 3),
-                      Text(
-                        _loading ? S.loading
-                            : '${_all.length} ${appSettings.arabic ? 'عقار متاح' : 'properties'}',
-                        style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.82),
-                            fontSize: 12, fontWeight: FontWeight.w500),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ]),
-      ),
-      bottom: PreferredSize(
-        preferredSize: const Size.fromHeight(54),
-        child: Container(
-          height: 54,
-          color: Colors.white,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-            itemCount: _kCatKeys.length,
-            itemBuilder: (_, i) {
-              final key   = _kCatKeys[i];
-              final sel   = _selKey == key;
-              final col   = _kCatColors[key] ?? _color;
-              final icon  = _catIcon(key);
-              final label = key == 'الكل' ? S.all : S.catName(key);
-              return GestureDetector(
-                onTap: () => setState(() => _selKey = key),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  margin: const EdgeInsets.only(right: 8),
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  decoration: BoxDecoration(
-                    color: sel ? col : const Color(0xFFF0F4FF),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                        color: sel ? col : const Color(0xFFE0E7FF), width: 1.5),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(icon, size: 13, color: sel ? Colors.white : _kSub),
-                      const SizedBox(width: 5),
-                      Text(label,
-                          style: TextStyle(
-                              fontSize: 12, fontWeight: FontWeight.w700,
-                              color: sel ? Colors.white : _kSub)),
-                    ],
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
+          );
+        },
       ),
     );
   }
@@ -357,9 +326,9 @@ class _AreaResultsPageState extends State<AreaResultsPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(displayName,
-                      style: const TextStyle(
+                      style: TextStyle(
                           fontSize: 17, fontWeight: FontWeight.w900,
-                          color: _kText, letterSpacing: -0.3)),
+                          color: context.kText, letterSpacing: -0.3)),
                   Text(countLabel,
                       style: TextStyle(fontSize: 12, color: col,
                           fontWeight: FontWeight.w600)),
@@ -404,9 +373,9 @@ class _AreaResultsPageState extends State<AreaResultsPage> {
       onTap: () => _open(p),
       child: Container(
         width: 180,
-        margin: const EdgeInsets.only(right: 12, bottom: 4),
+        margin: const EdgeInsetsDirectional.only(end: 12, bottom: 4),
         decoration: BoxDecoration(
-          color: _kCard,
+          color: context.kCard,
           borderRadius: BorderRadius.circular(20),
           boxShadow: const [BoxShadow(
               color: Color(0x14000000), blurRadius: 14, offset: Offset(0, 5))],
@@ -426,7 +395,7 @@ class _AreaResultsPageState extends State<AreaResultsPage> {
                         : _imgFallback(col),
                   ),
                   if (p.instant)
-                    Positioned(top: 8, left: 8,
+                    PositionedDirectional(top: 8, start: 8,
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
@@ -447,16 +416,16 @@ class _AreaResultsPageState extends State<AreaResultsPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(p.name, maxLines: 2, overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800,
-                            color: _kText, height: 1.3)),
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800,
+                            color: context.kText, height: 1.3)),
                     const Spacer(),
                     Row(children: [
                       Icon(Icons.star_rounded, size: 12,
-                          color: p.rating > 0 ? const Color(0xFFFFC107) : _kSub),
+                          color: p.rating > 0 ? Color(0xFFFFC107) : context.kSub),
                       const SizedBox(width: 2),
                       Text(p.rating > 0 ? p.rating.toStringAsFixed(1) : newLabel,
                           style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700,
-                              color: p.rating > 0 ? _kText : _kSub)),
+                              color: p.rating > 0 ? context.kText : context.kSub)),
                     ]),
                     const SizedBox(height: 5),
                     RichText(text: TextSpan(children: [
@@ -464,8 +433,8 @@ class _AreaResultsPageState extends State<AreaResultsPage> {
                           style: TextStyle(fontSize: 14,
                               fontWeight: FontWeight.w900, color: col)),
                       TextSpan(text: perNight,
-                          style: const TextStyle(fontSize: 10,
-                              color: _kSub, fontWeight: FontWeight.w500)),
+                          style: TextStyle(fontSize: 10,
+                              color: context.kSub, fontWeight: FontWeight.w500)),
                     ])),
                   ],
                 ),
@@ -478,13 +447,15 @@ class _AreaResultsPageState extends State<AreaResultsPage> {
   }
 
   Widget _buildGrid(List<_Prop> props) {
+    final screenW = MediaQuery.of(context).size.width;
+    final columns = screenW > 600 ? 3 : 2;
     return RefreshIndicator(
       onRefresh: _load, color: _color,
       child: GridView.builder(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
         physics: const BouncingScrollPhysics(),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2, crossAxisSpacing: 12,
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: columns, crossAxisSpacing: 12,
           mainAxisSpacing: 12, childAspectRatio: 0.7,
         ),
         itemCount: props.length,
@@ -502,7 +473,7 @@ class _AreaResultsPageState extends State<AreaResultsPage> {
       onTap: () => _open(p),
       child: Container(
         decoration: BoxDecoration(
-          color: _kCard,
+          color: context.kCard,
           borderRadius: BorderRadius.circular(18),
           boxShadow: const [BoxShadow(
               color: Color(0x12000000), blurRadius: 10, offset: Offset(0, 4))],
@@ -522,7 +493,7 @@ class _AreaResultsPageState extends State<AreaResultsPage> {
                         : _imgFallback(col),
                   ),
                   if (p.instant)
-                    Positioned(top: 8, left: 8,
+                    PositionedDirectional(top: 8, start: 8,
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                         decoration: BoxDecoration(
@@ -545,19 +516,19 @@ class _AreaResultsPageState extends State<AreaResultsPage> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(p.name, maxLines: 2, overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800,
-                            color: _kText, height: 1.3)),
+                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800,
+                            color: context.kText, height: 1.3)),
                     Row(children: [
-                      const Icon(Icons.star_rounded, size: 11, color: Color(0xFFFFC107)),
+                      Icon(Icons.star_rounded, size: 11, color: Color(0xFFFFC107)),
                       const SizedBox(width: 2),
                       Text(p.rating > 0 ? p.rating.toStringAsFixed(1) : newLabel,
-                          style: const TextStyle(fontSize: 9, color: _kSub,
+                          style: TextStyle(fontSize: 9, color: context.kSub,
                               fontWeight: FontWeight.w600)),
                       const Spacer(),
                       if (p.location.isNotEmpty)
                         Flexible(child: Text(p.location, maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(fontSize: 9, color: _kSub))),
+                            style: TextStyle(fontSize: 9, color: context.kSub))),
                     ]),
                     Text('${p.price} $perNight',
                         style: TextStyle(fontSize: 11,
@@ -611,32 +582,60 @@ class _AreaResultsPageState extends State<AreaResultsPage> {
   }
 
   Widget _buildEmpty() => Center(
-    child: Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Container(
-          width: 80, height: 80,
-          decoration: BoxDecoration(
-            color: _color.withValues(alpha: 0.10),
-            borderRadius: BorderRadius.circular(24),
+    child: Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 40),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            width: 96, height: 96,
+            decoration: BoxDecoration(
+              color: _color.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(28),
+              border: Border.all(color: _color.withValues(alpha: 0.15), width: 1.5),
+            ),
+            child: Icon(_areaIcon(widget.area),
+                color: _color.withValues(alpha: 0.50), size: 42),
           ),
-          child: Icon(_areaIcon(widget.area),
-              color: _color.withValues(alpha: 0.55), size: 36),
-        ),
-        const SizedBox(height: 20),
-        Text(
-          appSettings.arabic
-              ? 'لا توجد عقارات في ${S.areaName(widget.area)}'
-              : 'No properties in ${S.areaName(widget.area)}',
-          textAlign: TextAlign.center,
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: _kText)),
-        const SizedBox(height: 8),
-        Text(S.comingSoon, style: const TextStyle(fontSize: 13, color: _kSub)),
-      ],
+          const SizedBox(height: 24),
+          Text(
+            appSettings.arabic
+                ? 'لا توجد عقارات في ${S.areaName(widget.area)}'
+                : 'No properties in ${S.areaName(widget.area)}',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+                fontSize: 18, fontWeight: FontWeight.w800,
+                color: context.kText, letterSpacing: -0.3)),
+          const SizedBox(height: 8),
+          Text(
+            appSettings.arabic
+                ? 'جاري إضافة عقارات جديدة قريبًا'
+                : 'New properties coming soon',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 13, color: context.kSub, height: 1.5)),
+          const SizedBox(height: 28),
+          GestureDetector(
+            onTap: () => Navigator.of(context).pop(),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 12),
+              decoration: BoxDecoration(
+                color: _color.withValues(alpha: 0.10),
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(color: _color.withValues(alpha: 0.25)),
+              ),
+              child: Text(
+                appSettings.arabic ? 'رجوع للاستكشاف' : 'Back to explore',
+                style: TextStyle(
+                    fontSize: 13, fontWeight: FontWeight.w700, color: _color)),
+            ),
+          ),
+        ],
+      ),
     ),
   );
 
   Widget _buildShimmer() {
+    final shimmerColor = context.kChipBg;
     return ListView(
       padding: const EdgeInsets.all(20),
       children: List.generate(2, (_) => Column(
@@ -646,7 +645,7 @@ class _AreaResultsPageState extends State<AreaResultsPage> {
             height: 22, width: 160,
             margin: const EdgeInsets.only(bottom: 14),
             decoration: BoxDecoration(
-              color: Colors.grey[200], borderRadius: BorderRadius.circular(8))),
+              color: shimmerColor, borderRadius: BorderRadius.circular(8))),
           SizedBox(
             height: 240,
             child: ListView.builder(
@@ -654,9 +653,9 @@ class _AreaResultsPageState extends State<AreaResultsPage> {
               itemCount: 3,
               itemBuilder: (_, __) => Container(
                 width: 180, height: 240,
-                margin: const EdgeInsets.only(right: 12),
+                margin: const EdgeInsetsDirectional.only(end: 12),
                 decoration: BoxDecoration(
-                  color: Colors.grey[200], borderRadius: BorderRadius.circular(20))),
+                  color: shimmerColor, borderRadius: BorderRadius.circular(20))),
             ),
           ),
           const SizedBox(height: 28),

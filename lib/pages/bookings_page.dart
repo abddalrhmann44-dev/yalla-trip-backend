@@ -5,16 +5,13 @@
 import 'package:flutter/material.dart';
 import '../main.dart' show appSettings;
 import '../utils/app_strings.dart';
+import '../widgets/constants.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+// Accent colors (same in light & dark)
 const _kOcean  = Color(0xFF1565C0);
 const _kOrange = Color(0xFFFF6D00);
-const _kSand   = Color(0xFFF5F3EE);
-const _kCard   = Colors.white;
-const _kText   = Color(0xFF0D1B2A);
-const _kSub    = Color(0xFF6B7280);
-const _kBorder = Color(0xFFE5E7EB);
 const _kGreen  = Color(0xFF22C55E);
 const _kRed    = Color(0xFFEF5350);
 
@@ -119,7 +116,7 @@ class _BookingsPageState extends State<BookingsPage>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _kSand,
+      backgroundColor: context.kSand,
       body: Column(children: [
         _buildHeader(),
         Expanded(
@@ -226,10 +223,10 @@ class _BookingsPageState extends State<BookingsPage>
       children: [
         Text(emoji, style: const TextStyle(fontSize: 56)),
         const SizedBox(height: 16),
-        Text(title, style: const TextStyle(fontSize: 18,
-            fontWeight: FontWeight.w800, color: _kText)),
+        Text(title, style: TextStyle(fontSize: 18,
+            fontWeight: FontWeight.w800, color: context.kText)),
         const SizedBox(height: 6),
-        Text(sub, style: const TextStyle(fontSize: 13, color: _kSub)),
+        Text(sub, style: TextStyle(fontSize: 13, color: context.kSub)),
       ],
     ));
   }
@@ -242,7 +239,7 @@ class _BookingsPageState extends State<BookingsPage>
       child: Container(
         margin: const EdgeInsets.only(bottom: 16),
         decoration: BoxDecoration(
-          color: _kCard, borderRadius: BorderRadius.circular(22),
+          color: context.kCard, borderRadius: BorderRadius.circular(22),
           boxShadow: [BoxShadow(
               color: Colors.black.withValues(alpha: 0.07),
               blurRadius: 16, offset: const Offset(0, 5))],
@@ -325,8 +322,8 @@ class _BookingsPageState extends State<BookingsPage>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(b.propertyName,
-                        style: const TextStyle(fontSize: 15,
-                            fontWeight: FontWeight.w900, color: _kText),
+                        style: TextStyle(fontSize: 15,
+                            fontWeight: FontWeight.w900, color: context.kText),
                         maxLines: 1, overflow: TextOverflow.ellipsis),
                     const SizedBox(height: 3),
                     Row(children: [
@@ -350,19 +347,19 @@ class _BookingsPageState extends State<BookingsPage>
                       const Icon(Icons.star_rounded,
                           color: Color(0xFFFFC107), size: 13),
                       Text(' ${b.rating}',
-                          style: const TextStyle(fontSize: 12,
+                          style: TextStyle(fontSize: 12,
                               fontWeight: FontWeight.w800,
-                              color: _kText)),
+                              color: context.kText)),
                     ]),
                   ),
               ]),
               const SizedBox(height: 10),
-              const Divider(height: 1, color: _kBorder),
+              Divider(height: 1, color: context.kBorder),
               const SizedBox(height: 10),
               Row(children: [
                 _infoChip(Icons.login_rounded,  'وصول',   b.checkIn),
-                const Icon(Icons.arrow_forward_rounded,
-                    size: 14, color: _kSub),
+                Icon(Icons.arrow_forward_rounded,
+                    size: 14, color: context.kSub),
                 _infoChip(Icons.logout_rounded, 'مغادرة', b.checkOut),
                 const Spacer(),
                 _infoChip(Icons.nights_stay_rounded,
@@ -370,12 +367,12 @@ class _BookingsPageState extends State<BookingsPage>
               ]),
               const SizedBox(height: 10),
               Row(children: [
-                Text(b.payMethod, style: const TextStyle(
-                    fontSize: 11, color: _kSub)),
+                Text(b.payMethod, style: TextStyle(
+                    fontSize: 11, color: context.kSub)),
                 const Spacer(),
                 Text('EGP ${_comma(b.totalPaid)}',
-                    style: const TextStyle(fontSize: 16,
-                        fontWeight: FontWeight.w900, color: _kText)),
+                    style: TextStyle(fontSize: 16,
+                        fontWeight: FontWeight.w900, color: context.kText)),
               ]),
             ]),
           ),
@@ -400,12 +397,12 @@ class _BookingsPageState extends State<BookingsPage>
 
   Widget _infoChip(IconData icon, String label, String val) =>
     Row(mainAxisSize: MainAxisSize.min, children: [
-      Icon(icon, size: 12, color: _kSub),
+      Icon(icon, size: 12, color: context.kSub),
       const SizedBox(width: 3),
       Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(label, style: const TextStyle(fontSize: 9, color: _kSub)),
-        Text(val, style: const TextStyle(fontSize: 11,
-            fontWeight: FontWeight.w700, color: _kText)),
+        Text(label, style: TextStyle(fontSize: 9, color: context.kSub)),
+        Text(val, style: TextStyle(fontSize: 11,
+            fontWeight: FontWeight.w700, color: context.kText)),
       ]),
       const SizedBox(width: 10),
     ]);
@@ -432,16 +429,16 @@ class _DetailSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       height: MediaQuery.of(context).size.height * 0.82,
-      decoration: const BoxDecoration(
-        color: _kCard,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      decoration: BoxDecoration(
+        color: context.kCard,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
       ),
       child: Column(children: [
         Container(
           margin: const EdgeInsets.only(top: 12),
           width: 40, height: 4,
           decoration: BoxDecoration(
-              color: _kBorder, borderRadius: BorderRadius.circular(2)),
+              color: context.kBorder, borderRadius: BorderRadius.circular(2)),
         ),
         Padding(
           padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
@@ -468,8 +465,8 @@ class _DetailSheet extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(20, 16, 20, 40),
           children: [
             Text(b.propertyName,
-                style: const TextStyle(fontSize: 20,
-                    fontWeight: FontWeight.w900, color: _kText)),
+                style: TextStyle(fontSize: 20,
+                    fontWeight: FontWeight.w900, color: context.kText)),
             const SizedBox(height: 4),
             Row(children: [
               Icon(Icons.location_on_rounded,
@@ -482,15 +479,15 @@ class _DetailSheet extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: _kSand, borderRadius: BorderRadius.circular(16)),
+                color: context.kSand, borderRadius: BorderRadius.circular(16)),
               child: Column(children: [
-                _row('📋 كود الحجز',
+                _row(context, '📋 كود الحجز',
                     '#${b.id.substring(0, 8).toUpperCase()}'),
-                _row('📅 تاريخ الوصول',    b.checkIn),
-                _row('🚪 تاريخ المغادرة',  b.checkOut),
-                _row('🌙 عدد الليالي',      '${b.nights} ليالي'),
-                _row('💳 طريقة الدفع',     b.payMethod),
-                _row('💰 إجمالي المدفوع',
+                _row(context, '📅 تاريخ الوصول',    b.checkIn),
+                _row(context, '🚪 تاريخ المغادرة',  b.checkOut),
+                _row(context, '🌙 عدد الليالي',      '${b.nights} ليالي'),
+                _row(context, '💳 طريقة الدفع',     b.payMethod),
+                _row(context, '💰 إجمالي المدفوع',
                     'EGP ${comma(b.totalPaid)}', highlight: true),
               ]),
             ),
@@ -503,16 +500,16 @@ class _DetailSheet extends StatelessWidget {
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
                       color: _kOcean.withValues(alpha: 0.2))),
-                child: const Column(children: [
-                  Icon(Icons.qr_code_2_rounded,
+                child: Column(children: [
+                  const Icon(Icons.qr_code_2_rounded,
                       size: 80, color: _kOcean),
-                  SizedBox(height: 8),
+                  const SizedBox(height: 8),
                   Text('QR كود الدخول',
                       style: TextStyle(fontSize: 14,
-                          fontWeight: FontWeight.w800, color: _kText)),
-                  SizedBox(height: 4),
+                          fontWeight: FontWeight.w800, color: context.kText)),
+                  const SizedBox(height: 4),
                   Text('اعرض الكود ده عند الوصول',
-                      style: TextStyle(fontSize: 12, color: _kSub)),
+                      style: TextStyle(fontSize: 12, color: context.kSub)),
                 ]),
               ),
             ],
@@ -522,15 +519,15 @@ class _DetailSheet extends StatelessWidget {
     );
   }
 
-  Widget _row(String label, String val, {bool highlight = false}) =>
+  Widget _row(BuildContext context, String label, String val, {bool highlight = false}) =>
     Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(children: [
-        Text(label, style: const TextStyle(fontSize: 13, color: _kSub)),
+        Text(label, style: TextStyle(fontSize: 13, color: context.kSub)),
         const Spacer(),
         Text(val, style: TextStyle(fontSize: 13,
             fontWeight: FontWeight.w800,
-            color: highlight ? _kOcean : _kText)),
+            color: highlight ? _kOcean : context.kText)),
       ]),
     );
 }

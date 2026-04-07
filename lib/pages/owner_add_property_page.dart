@@ -11,18 +11,14 @@ import 'package:image_picker/image_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../widgets/constants.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import '../models/property_model.dart';
 import 'home_page.dart';
 
-const _kOcean = Color(0xFF1565C0);
+const _kOcean  = Color(0xFF1565C0);
 const _kOrange = Color(0xFFFF6D00);
-const _kSand = Color(0xFFF5F3EE);
-const _kCard = Colors.white;
-const _kText = Color(0xFF0D1B2A);
-const _kSub = Color(0xFF6B7280);
-const _kBorder = Color(0xFFE5E7EB);
 const _kGreen = Color(0xFF4CAF50);
 const _kRed = Color(0xFFEF5350);
 
@@ -441,6 +437,9 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
         category: _selType?.key ?? '',
         ownerId: user.uid,
         ownerName: user.displayName ?? 'مالك',
+        ownerEmail: user.email ?? '',
+        approved: false,
+        status: 'pending',
         price: int.tryParse(_priceCtrl.text) ?? 0,
         weekendPrice: int.tryParse(_weekendCtrl.text) ?? 0,
         cleaningFee: int.tryParse(_cleaningCtrl.text) ?? 0,
@@ -511,17 +510,17 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
                 decoration: BoxDecoration(
                     color: _kGreen.withValues(alpha: 0.1),
                     shape: BoxShape.circle),
-                child: const Icon(Icons.check_circle_rounded,
+                child: Icon(Icons.check_circle_rounded,
                     color: _kGreen, size: 48)),
             const SizedBox(height: 20),
-            const Text('تم نشر العقار!',
+            Text('تم نشر العقار!',
                 style: TextStyle(
-                    fontSize: 22, fontWeight: FontWeight.w900, color: _kText)),
+                    fontSize: 22, fontWeight: FontWeight.w900, color: context.kText)),
             const SizedBox(height: 8),
             Text(
                 'عقارك دلوقتي ظاهر على Yalla Trip\nكود العقار: ${docId.substring(0, 8).toUpperCase()}',
                 textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 13, color: _kSub)),
+                style: TextStyle(fontSize: 13, color: context.kSub)),
             const SizedBox(height: 24),
             SizedBox(
               width: double.infinity,
@@ -559,7 +558,7 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _kSand,
+      backgroundColor: context.kSand,
       body: Stack(children: [
         Column(children: [
           _buildHeader(),
@@ -591,7 +590,7 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
   Widget _buildHeader() {
     final progress = (_step + 1) / _kSteps.length;
     return Container(
-      color: _kCard,
+      color: context.kCard,
       child: SafeArea(
         bottom: false,
         child: Column(children: [
@@ -600,9 +599,9 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
             child: Row(children: [
               IconButton(
                 onPressed: _back,
-                icon: const Icon(Icons.arrow_back_rounded),
+                icon: Icon(Icons.arrow_back_rounded),
                 style: IconButton.styleFrom(
-                    backgroundColor: _kSand, foregroundColor: _kText),
+                    backgroundColor: context.kSand, foregroundColor: context.kText),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -610,12 +609,12 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text('${_kSteps[_step].icon}  ${_kSteps[_step].title}',
-                      style: const TextStyle(
+                      style: TextStyle(
                           fontSize: 17,
                           fontWeight: FontWeight.w800,
-                          color: _kText)),
+                          color: context.kText)),
                   Text(_kSteps[_step].subtitle,
-                      style: const TextStyle(fontSize: 12, color: _kSub)),
+                      style: TextStyle(fontSize: 12, color: context.kSub)),
                 ],
               )),
               Container(
@@ -637,7 +636,7 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
             animation: _progressCtrl,
             builder: (_, __) => LinearProgressIndicator(
               value: progress * _progressCtrl.value,
-              backgroundColor: _kBorder,
+              backgroundColor: context.kBorder,
               valueColor: const AlwaysStoppedAnimation(_kOcean),
               minHeight: 3,
             ),
@@ -651,7 +650,7 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
   Widget _buildBottomBar() {
     final isLast = _step == _kSteps.length - 1;
     return Container(
-      color: _kCard,
+      color: context.kCard,
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
       child: SizedBox(
         width: double.infinity,
@@ -682,14 +681,14 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
           margin: const EdgeInsets.all(40),
           padding: const EdgeInsets.all(32),
           decoration: BoxDecoration(
-              color: _kCard, borderRadius: BorderRadius.circular(24)),
+              color: context.kCard, borderRadius: BorderRadius.circular(24)),
           child: Column(mainAxisSize: MainAxisSize.min, children: [
             const CircularProgressIndicator(color: _kOcean),
             const SizedBox(height: 20),
             Text(
               _uploadingImages ? 'جاري رفع الصور...' : 'جاري نشر العقار...',
-              style: const TextStyle(
-                  fontSize: 16, fontWeight: FontWeight.w700, color: _kText),
+              style: TextStyle(
+                  fontSize: 16, fontWeight: FontWeight.w700, color: context.kText),
             ),
           ]),
         ),
@@ -702,9 +701,9 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
   // ══════════════════════════════════════════════════════════
   Widget _buildStep1() {
     return ListView(padding: const EdgeInsets.all(20), children: [
-      const Text('اختار نوع عقارك',
+      Text('اختار نوع عقارك',
           style: TextStyle(
-              fontSize: 22, fontWeight: FontWeight.w900, color: _kText)),
+              fontSize: 22, fontWeight: FontWeight.w900, color: context.kText)),
       const SizedBox(height: 6),
       _requiredLabel('مطلوب'),
       const SizedBox(height: 16),
@@ -717,10 +716,10 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
             margin: const EdgeInsets.only(bottom: 12),
             padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
-              color: sel ? t.color.withValues(alpha: 0.08) : _kCard,
+              color: sel ? t.color.withValues(alpha: 0.08) : context.kCard,
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
-                  color: sel ? t.color : _kBorder, width: sel ? 2.5 : 1.5),
+                  color: sel ? t.color : context.kBorder, width: sel ? 2.5 : 1.5),
               boxShadow: sel
                   ? [
                       BoxShadow(
@@ -741,9 +740,9 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
                       style: TextStyle(
                           fontSize: 17,
                           fontWeight: FontWeight.w800,
-                          color: sel ? t.color : _kText)),
+                          color: sel ? t.color : context.kText)),
                   Text(t.desc,
-                      style: const TextStyle(fontSize: 13, color: _kSub)),
+                      style: TextStyle(fontSize: 13, color: context.kSub)),
                 ],
               )),
               AnimatedContainer(
@@ -753,7 +752,7 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: sel ? t.color : Colors.transparent,
-                  border: Border.all(color: sel ? t.color : _kBorder, width: 2),
+                  border: Border.all(color: sel ? t.color : context.kBorder, width: 2),
                 ),
                 child: sel
                     ? const Icon(Icons.check_rounded,
@@ -772,9 +771,9 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
   // ══════════════════════════════════════════════════════════
   Widget _buildStep2() {
     return ListView(padding: const EdgeInsets.all(20), children: [
-      const Text('صور العقار',
+      Text('صور العقار',
           style: TextStyle(
-              fontSize: 22, fontWeight: FontWeight.w900, color: _kText)),
+              fontSize: 22, fontWeight: FontWeight.w900, color: context.kText)),
       const SizedBox(height: 6),
       _requiredLabel('صورة واحدة على الأقل'),
       const SizedBox(height: 16),
@@ -830,12 +829,12 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
         ),
       ]),
       const SizedBox(height: 18),
-      const Text('توثيق الهوية (إجباري)',
+      Text('توثيق الهوية (إجباري)',
           style: TextStyle(
-              fontSize: 15, fontWeight: FontWeight.w800, color: _kText)),
+              fontSize: 15, fontWeight: FontWeight.w800, color: context.kText)),
       const SizedBox(height: 6),
-      const Text('لازم تصور البطاقة بالكاميرا فقط (وش + ظهر)',
-          style: TextStyle(fontSize: 12, color: _kSub)),
+      Text('لازم تصور البطاقة بالكاميرا فقط (وش + ظهر)',
+          style: TextStyle(fontSize: 12, color: context.kSub)),
       const SizedBox(height: 10),
       Row(children: [
         Expanded(
@@ -845,22 +844,22 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
               padding: const EdgeInsets.symmetric(vertical: 14),
               decoration: BoxDecoration(
                 color: _idFrontImage == null
-                    ? _kCard
+                    ? context.kCard
                     : _kGreen.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(
-                  color: _idFrontImage == null ? _kBorder : _kGreen,
+                  color: _idFrontImage == null ? context.kBorder : _kGreen,
                   width: _idFrontImage == null ? 1.5 : 2,
                 ),
               ),
               child: Column(children: [
-                const Icon(Icons.badge_rounded, color: _kText, size: 22),
+                Icon(Icons.badge_rounded, color: context.kText, size: 22),
                 const SizedBox(height: 6),
                 Text(_idFrontImage == null ? 'البطاقة - الوش' : 'تم تصوير الوش',
                     style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
-                        color: _idFrontImage == null ? _kText : _kGreen)),
+                        color: _idFrontImage == null ? context.kText : _kGreen)),
               ]),
             ),
           ),
@@ -873,23 +872,23 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
               padding: const EdgeInsets.symmetric(vertical: 14),
               decoration: BoxDecoration(
                 color: _idBackImage == null
-                    ? _kCard
+                    ? context.kCard
                     : _kGreen.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(
-                  color: _idBackImage == null ? _kBorder : _kGreen,
+                  color: _idBackImage == null ? context.kBorder : _kGreen,
                   width: _idBackImage == null ? 1.5 : 2,
                 ),
               ),
               child: Column(children: [
-                const Icon(Icons.badge_outlined, color: _kText, size: 22),
+                Icon(Icons.badge_outlined, color: context.kText, size: 22),
                 const SizedBox(height: 6),
                 Text(
                     _idBackImage == null ? 'البطاقة - الظهر' : 'تم تصوير الظهر',
                     style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
-                        color: _idBackImage == null ? _kText : _kGreen)),
+                        color: _idBackImage == null ? context.kText : _kGreen)),
               ]),
             ),
           ),
@@ -970,17 +969,17 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
             borderRadius: BorderRadius.circular(16),
             border: Border.all(color: _kRed.withValues(alpha: 0.2)),
           ),
-          child: const Column(children: [
-            Text('📸', style: TextStyle(fontSize: 36)),
-            SizedBox(height: 10),
+          child: Column(children: [
+            const Text('📸', style: TextStyle(fontSize: 36)),
+            const SizedBox(height: 10),
             Text('لازم تضيف صورة واحدة على الأقل',
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                    fontSize: 14, fontWeight: FontWeight.w700, color: _kText)),
-            SizedBox(height: 4),
+                    fontSize: 14, fontWeight: FontWeight.w700, color: context.kText)),
+            const SizedBox(height: 4),
             Text('الصور بتزيد فرص الحجز كتير',
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 12, color: _kSub)),
+                style: TextStyle(fontSize: 12, color: context.kSub)),
           ]),
         ),
       ],
@@ -992,16 +991,16 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
   // ══════════════════════════════════════════════════════════
   Widget _buildStep3() {
     return ListView(padding: const EdgeInsets.all(20), children: [
-      const Text('المعلومات الأساسية',
+      Text('المعلومات الأساسية',
           style: TextStyle(
-              fontSize: 22, fontWeight: FontWeight.w900, color: _kText)),
+              fontSize: 22, fontWeight: FontWeight.w900, color: context.kText)),
       const SizedBox(height: 6),
       _requiredLabel('كل الحقول مطلوبة'),
       const SizedBox(height: 16),
       _field(_nameCtrl, 'اسم العقار *', 'مثال: شاليه فاخر بإطلالة بحر'),
       const SizedBox(height: 14),
       DropdownButtonFormField<String>(
-        value: _selLocation,
+        initialValue: _selLocation,
         decoration: _inputDec('المنطقة *'),
         items: _kLocations
             .map((l) => DropdownMenuItem(value: l, child: Text(l)))
@@ -1021,12 +1020,12 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
         '${_descCtrl.text.trim().length} / 20 حرف كحد أدنى',
         style: TextStyle(
             fontSize: 11,
-            color: _descCtrl.text.trim().length >= 20 ? _kGreen : _kSub),
+            color: _descCtrl.text.trim().length >= 20 ? _kGreen : context.kSub),
       ),
       const SizedBox(height: 20),
-      const Text('أوقات الدخول والخروج',
+      Text('أوقات الدخول والخروج',
           style: TextStyle(
-              fontSize: 15, fontWeight: FontWeight.w800, color: _kText)),
+              fontSize: 15, fontWeight: FontWeight.w800, color: context.kText)),
       const SizedBox(height: 10),
       Row(children: [
         Expanded(
@@ -1045,9 +1044,9 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
   // ══════════════════════════════════════════════════════════
   Widget _buildStep4() {
     return ListView(padding: const EdgeInsets.all(20), children: [
-      const Text('تفاصيل العقار',
+      Text('تفاصيل العقار',
           style: TextStyle(
-              fontSize: 22, fontWeight: FontWeight.w900, color: _kText)),
+              fontSize: 22, fontWeight: FontWeight.w900, color: context.kText)),
       const SizedBox(height: 16),
       _counter('🛏️  غرف النوم', _bedrooms,
           (v) => setState(() => _bedrooms = v), 1, 20),
@@ -1067,9 +1066,9 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
   // ══════════════════════════════════════════════════════════
   Widget _buildStep5() {
     return ListView(padding: const EdgeInsets.all(20), children: [
-      const Text('المرافق الداخلية',
+      Text('المرافق الداخلية',
           style: TextStyle(
-              fontSize: 22, fontWeight: FontWeight.w900, color: _kText)),
+              fontSize: 22, fontWeight: FontWeight.w900, color: context.kText)),
       const SizedBox(height: 6),
       _requiredLabel('اختار واحد على الأقل'),
       const SizedBox(height: 16),
@@ -1085,10 +1084,10 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
                         horizontal: 14, vertical: 10),
                     decoration: BoxDecoration(
                       color:
-                          t.selected ? _kOcean.withValues(alpha: 0.1) : _kCard,
+                          t.selected ? _kOcean.withValues(alpha: 0.1) : context.kCard,
                       borderRadius: BorderRadius.circular(30),
                       border: Border.all(
-                          color: t.selected ? _kOcean : _kBorder,
+                          color: t.selected ? _kOcean : context.kBorder,
                           width: t.selected ? 2 : 1.5),
                     ),
                     child: Row(mainAxisSize: MainAxisSize.min, children: [
@@ -1098,7 +1097,7 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
                           style: TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.w600,
-                              color: t.selected ? _kOcean : _kText)),
+                              color: t.selected ? _kOcean : context.kText)),
                     ]),
                   ),
                 ))
@@ -1115,9 +1114,9 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
     final regular = _facilities.where((f) => !f.recommended).toList();
 
     return ListView(padding: const EdgeInsets.all(20), children: [
-      const Text('منشآت المجمع',
+      Text('منشآت المجمع',
           style: TextStyle(
-              fontSize: 22, fontWeight: FontWeight.w900, color: _kText)),
+              fontSize: 22, fontWeight: FontWeight.w900, color: context.kText)),
       const SizedBox(height: 6),
       _optionalLabel('اختياري — اختار اللي موجود عندك'),
       const SizedBox(height: 16),
@@ -1157,7 +1156,7 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
                               : Colors.white,
                           borderRadius: BorderRadius.circular(30),
                           border: Border.all(
-                              color: t.selected ? _kOrange : _kBorder,
+                              color: t.selected ? _kOrange : context.kBorder,
                               width: t.selected ? 2 : 1.5),
                         ),
                         child: Row(mainAxisSize: MainAxisSize.min, children: [
@@ -1167,7 +1166,7 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
                               style: TextStyle(
                                   fontSize: 12,
                                   fontWeight: FontWeight.w700,
-                                  color: t.selected ? _kOrange : _kText)),
+                                  color: t.selected ? _kOrange : context.kText)),
                           if (t.selected) ...[
                             const SizedBox(width: 4),
                             const Icon(Icons.check_circle_rounded,
@@ -1196,10 +1195,10 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
                         horizontal: 14, vertical: 10),
                     decoration: BoxDecoration(
                       color:
-                          t.selected ? _kOcean.withValues(alpha: 0.1) : _kCard,
+                          t.selected ? _kOcean.withValues(alpha: 0.1) : context.kCard,
                       borderRadius: BorderRadius.circular(30),
                       border: Border.all(
-                          color: t.selected ? _kOcean : _kBorder,
+                          color: t.selected ? _kOcean : context.kBorder,
                           width: t.selected ? 2 : 1.5),
                     ),
                     child: Row(mainAxisSize: MainAxisSize.min, children: [
@@ -1209,7 +1208,7 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
                           style: TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.w600,
-                              color: t.selected ? _kOcean : _kText)),
+                              color: t.selected ? _kOcean : context.kText)),
                     ]),
                   ),
                 ))
@@ -1223,9 +1222,9 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
   // ══════════════════════════════════════════════════════════
   Widget _buildStep7() {
     return ListView(padding: const EdgeInsets.all(20), children: [
-      const Text('المناطق القريبة',
+      Text('المناطق القريبة',
           style: TextStyle(
-              fontSize: 22, fontWeight: FontWeight.w900, color: _kText)),
+              fontSize: 22, fontWeight: FontWeight.w900, color: context.kText)),
       const SizedBox(height: 6),
       _optionalLabel('اختياري'),
       const SizedBox(height: 16),
@@ -1241,10 +1240,10 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
                         horizontal: 14, vertical: 10),
                     decoration: BoxDecoration(
                       color:
-                          t.selected ? _kOcean.withValues(alpha: 0.1) : _kCard,
+                          t.selected ? _kOcean.withValues(alpha: 0.1) : context.kCard,
                       borderRadius: BorderRadius.circular(30),
                       border: Border.all(
-                          color: t.selected ? _kOcean : _kBorder,
+                          color: t.selected ? _kOcean : context.kBorder,
                           width: t.selected ? 2 : 1.5),
                     ),
                     child: Row(mainAxisSize: MainAxisSize.min, children: [
@@ -1254,7 +1253,7 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
                           style: TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.w600,
-                              color: t.selected ? _kOcean : _kText)),
+                              color: t.selected ? _kOcean : context.kText)),
                     ]),
                   ),
                 ))
@@ -1268,9 +1267,9 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
   // ══════════════════════════════════════════════════════════
   Widget _buildStep8() {
     return ListView(padding: const EdgeInsets.all(20), children: [
-      const Text('التسعير',
+      Text('التسعير',
           style: TextStyle(
-              fontSize: 22, fontWeight: FontWeight.w900, color: _kText)),
+              fontSize: 22, fontWeight: FontWeight.w900, color: context.kText)),
       const SizedBox(height: 6),
       _requiredLabel('السعر العادي وسعر الويك إند مطلوبين'),
       const SizedBox(height: 16),
@@ -1285,12 +1284,12 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
           decoration: BoxDecoration(
-            color: _kSub.withValues(alpha: 0.08),
+            color: context.kSub.withValues(alpha: 0.08),
             borderRadius: BorderRadius.circular(10),
           ),
-          child: const Text('اختياري',
+          child: Text('اختياري',
               style: TextStyle(
-                  fontSize: 11, fontWeight: FontWeight.w700, color: _kSub)),
+                  fontSize: 11, fontWeight: FontWeight.w700, color: context.kSub)),
         ),
       ]),
     ]);
@@ -1301,9 +1300,9 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
   // ══════════════════════════════════════════════════════════
   Widget _buildStep9() {
     return ListView(padding: const EdgeInsets.all(20), children: [
-      const Text('إعدادات الحجز',
+      Text('إعدادات الحجز',
           style: TextStyle(
-              fontSize: 22, fontWeight: FontWeight.w900, color: _kText)),
+              fontSize: 22, fontWeight: FontWeight.w900, color: context.kText)),
       const SizedBox(height: 16),
       ...[
         ('instant', '⚡', 'حجز فوري', 'الحجز يتأكد تلقائياً'),
@@ -1319,10 +1318,10 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
             margin: const EdgeInsets.only(bottom: 10),
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: sel ? _kOcean.withValues(alpha: 0.06) : _kCard,
+              color: sel ? _kOcean.withValues(alpha: 0.06) : context.kCard,
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                  color: sel ? _kOcean : _kBorder, width: sel ? 2 : 1.5),
+                  color: sel ? _kOcean : context.kBorder, width: sel ? 2 : 1.5),
             ),
             child: Row(children: [
               Text(emoji, style: const TextStyle(fontSize: 24)),
@@ -1335,8 +1334,8 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
                       style: TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.w700,
-                          color: sel ? _kOcean : _kText)),
-                  Text(sub, style: const TextStyle(fontSize: 12, color: _kSub)),
+                          color: sel ? _kOcean : context.kText)),
+                  Text(sub, style: TextStyle(fontSize: 12, color: context.kSub)),
                 ],
               )),
               if (sel)
@@ -1386,30 +1385,30 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: _kSub.withValues(alpha: 0.08),
+        color: context.kSub.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(mainAxisSize: MainAxisSize.min, children: [
-        const Icon(Icons.check_circle_outline_rounded, size: 13, color: _kSub),
+        Icon(Icons.check_circle_outline_rounded, size: 13, color: context.kSub),
         const SizedBox(width: 4),
         Text(text,
-            style: const TextStyle(
-                fontSize: 11, fontWeight: FontWeight.w700, color: _kSub)),
+            style: TextStyle(
+                fontSize: 11, fontWeight: FontWeight.w700, color: context.kSub)),
       ]),
     );
   }
 
   InputDecoration _inputDec(String label) => InputDecoration(
         labelText: label,
-        labelStyle: const TextStyle(color: _kSub),
+        labelStyle: TextStyle(color: context.kSub),
         filled: true,
-        fillColor: _kCard,
+        fillColor: context.kCard,
         border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(14),
-            borderSide: const BorderSide(color: _kBorder)),
+            borderSide: BorderSide(color: context.kBorder)),
         enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(14),
-            borderSide: const BorderSide(color: _kBorder)),
+            borderSide: BorderSide(color: context.kBorder)),
         focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(14),
             borderSide: const BorderSide(color: _kOcean, width: 2)),
@@ -1422,7 +1421,7 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
         maxLines: maxLines,
         onChanged: (_) => setState(() {}), // لتحديث عداد الحروف
         decoration: _inputDec(label).copyWith(
-            hintText: hint, hintStyle: const TextStyle(color: _kBorder)),
+            hintText: hint, hintStyle: TextStyle(color: context.kBorder)),
       );
 
   Widget _priceField(TextEditingController c, String label, String suffix,
@@ -1434,7 +1433,7 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
         decoration: _inputDec(label).copyWith(
           prefixText: 'EGP  ',
           suffixText: suffix,
-          suffixStyle: const TextStyle(color: _kSub, fontSize: 12),
+          suffixStyle: TextStyle(color: context.kSub, fontSize: 12),
         ),
       );
 
@@ -1452,7 +1451,7 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
       '18:00'
     ];
     return DropdownButtonFormField<String>(
-      value: value,
+      initialValue: value,
       decoration: _inputDec(label),
       items:
           times.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
@@ -1470,14 +1469,14 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
       decoration: BoxDecoration(
-        color: _kCard,
+        color: context.kCard,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: _kBorder),
+        border: Border.all(color: context.kBorder),
       ),
       child: Row(children: [
         Text(label,
-            style: const TextStyle(
-                fontSize: 15, fontWeight: FontWeight.w600, color: _kText)),
+            style: TextStyle(
+                fontSize: 15, fontWeight: FontWeight.w600, color: context.kText)),
         const Spacer(),
         IconButton(
           onPressed: value > min ? () => onChanged(value - 1) : null,
@@ -1488,8 +1487,8 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
           width: 32,
           child: Text('$value',
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                  fontSize: 18, fontWeight: FontWeight.w800, color: _kText)),
+              style: TextStyle(
+                  fontSize: 18, fontWeight: FontWeight.w800, color: context.kText)),
         ),
         IconButton(
           onPressed: value < max ? () => onChanged(value + 1) : null,
@@ -1505,14 +1504,14 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
       decoration: BoxDecoration(
-        color: _kCard,
+        color: context.kCard,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: _kBorder),
+        border: Border.all(color: context.kBorder),
       ),
       child: Row(children: [
         Text(label,
-            style: const TextStyle(
-                fontSize: 15, fontWeight: FontWeight.w600, color: _kText)),
+            style: TextStyle(
+                fontSize: 15, fontWeight: FontWeight.w600, color: context.kText)),
         const Spacer(),
         Switch.adaptive(
           value: value,

@@ -10,6 +10,7 @@ import '../main.dart' show appSettings;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../widgets/constants.dart';
 import 'explore_page.dart';
 import 'area_results_page.dart';
 import '../utils/app_strings.dart';
@@ -64,11 +65,17 @@ class _ShimmerBoxState extends State<_ShimmerBox>
           gradient: LinearGradient(
             begin: Alignment(_anim.value - 1, 0),
             end: Alignment(_anim.value + 1, 0),
-            colors: const [
-              Color(0xFFEEEEEE),
-              Color(0xFFF8F8F8),
-              Color(0xFFEEEEEE),
-            ],
+            colors: context.isDark
+                ? const [
+                    Color(0xFF1E2530),
+                    Color(0xFF283040),
+                    Color(0xFF1E2530),
+                  ]
+                : const [
+                    Color(0xFFEEEEEE),
+                    Color(0xFFF8F8F8),
+                    Color(0xFFEEEEEE),
+                  ],
           ),
         ),
       ),
@@ -306,7 +313,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.light,
       child: Scaffold(
-        backgroundColor: const Color(0xFFF3F5FA),
+        backgroundColor: context.kSand,
         extendBody: true,
         bottomNavigationBar: _buildNavBar(),
         body: _isLoading ? _buildShimmerScreen() : _buildContent(),
@@ -423,29 +430,27 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             child: Column(children: [
               // ── Row 1: greeting + icons ──────
               Row(children: [
-                const Spacer(),
+                // Greeting — start side
+                Expanded(
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text(_getGreeting(),
+                        style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.75),
+                            fontSize: 11)),
+                    Text('${_getUserName()} 👋',
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w800)),
+                  ]),
+                ),
 
-                // Greeting
-                Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                  Text(_getGreeting(),
-                      style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.75),
-                          fontSize: 11)),
-                  Text('${_getUserName()} 👋',
-                      style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 15,
-                          fontWeight: FontWeight.w800)),
-                ]),
-
-                const SizedBox(width: 14),
-
-                // Action icons
-                _hdrIcon(Icons.notifications_outlined, notif: true),
+                // Action icons — end side
+                _hdrIcon(Icons.favorite_border_rounded),
                 const SizedBox(width: 8),
                 _hdrIcon(Icons.chat_bubble_outline_rounded),
                 const SizedBox(width: 8),
-                _hdrIcon(Icons.favorite_border_rounded),
+                _hdrIcon(Icons.notifications_outlined, notif: true),
               ]),
 
               const SizedBox(height: 16),
@@ -457,7 +462,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   height: 54,
                   margin: const EdgeInsets.only(bottom: 20),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: context.kCard,
                     borderRadius: BorderRadius.circular(18),
                     boxShadow: [
                       BoxShadow(
@@ -475,8 +480,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                     Expanded(
                       child: Text(
                         S.searchHint,
-                        style: const TextStyle(
-                            color: Color(0xFFBBBBBB), fontSize: 14),
+                        style: TextStyle(
+                            color: context.kSub, fontSize: 14),
                       ),
                     ),
                     // Filter pill
@@ -505,9 +510,9 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                           ]),
                         ),
                         if (_filterActive)
-                          Positioned(
+                          PositionedDirectional(
                               top: 4,
-                              right: 4,
+                              end: 4,
                               child: Container(
                                 width: 8,
                                 height: 8,
@@ -552,9 +557,9 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       builder: (_) => StatefulBuilder(
         builder: (ctx, setSheet) => Container(
           height: MediaQuery.of(context).size.height * 0.88,
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+          decoration: BoxDecoration(
+            color: context.kSheetBg,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
           ),
           child: Column(children: [
             // ── Handle ─────────────────────────────
@@ -563,7 +568,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                  color: Colors.grey[300],
+                  color: context.kBorder,
                   borderRadius: BorderRadius.circular(2)),
             ),
             // ── Header ─────────────────────────────
@@ -571,10 +576,10 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
               child: Row(children: [
                 Text(S.filterTitle,
-                    style: const TextStyle(
+                    style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.w900,
-                        color: Color(0xFF0D1B2A))),
+                        color: context.kText)),
                 const Spacer(),
                 TextButton(
                   onPressed: () {
@@ -625,12 +630,12 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                     decoration: BoxDecoration(
                                       color: tmpArea == a
                                           ? const Color(0xFF1565C0)
-                                          : const Color(0xFFF5F5F5),
+                                          : context.kChipBg,
                                       borderRadius: BorderRadius.circular(20),
                                       border: Border.all(
                                           color: tmpArea == a
                                               ? const Color(0xFF1565C0)
-                                              : Colors.transparent),
+                                              : context.kBorder),
                                     ),
                                     child: Text(a,
                                         style: TextStyle(
@@ -638,7 +643,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                             fontWeight: FontWeight.w600,
                                             color: tmpArea == a
                                                 ? Colors.white
-                                                : const Color(0xFF555555))),
+                                                : context.kSub)),
                                   ),
                                 ))
                             .toList(),
@@ -661,12 +666,12 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                     decoration: BoxDecoration(
                                       color: tmpType == t
                                           ? const Color(0xFFFF6D00)
-                                          : const Color(0xFFF5F5F5),
+                                          : context.kChipBg,
                                       borderRadius: BorderRadius.circular(20),
                                       border: Border.all(
                                           color: tmpType == t
                                               ? const Color(0xFFFF6D00)
-                                              : Colors.transparent),
+                                              : context.kBorder),
                                     ),
                                     child: Text(t,
                                         style: TextStyle(
@@ -674,7 +679,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                             fontWeight: FontWeight.w600,
                                             color: tmpType == t
                                                 ? Colors.white
-                                                : const Color(0xFF555555))),
+                                                : context.kSub)),
                                   ),
                                 ))
                             .toList(),
@@ -688,8 +693,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           _priceChip('${tmpPrice.start.round()} ج'),
-                          const Icon(Icons.arrow_forward_rounded,
-                              size: 16, color: Colors.grey),
+                          Icon(Icons.arrow_forward_rounded,
+                              size: 16, color: context.kSub),
                           _priceChip('${tmpPrice.end.round()} ج'),
                         ],
                       ),
@@ -699,7 +704,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                         max: 10000,
                         divisions: 100,
                         activeColor: const Color(0xFF1565C0),
-                        inactiveColor: const Color(0xFFDDE3F0),
+                        inactiveColor: context.kBorder,
                         onChanged: (v) => setSheet(() => tmpPrice = v),
                       ),
                       const SizedBox(height: 16),
@@ -746,7 +751,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                   decoration: BoxDecoration(
                                     color: tmpRating == r
                                         ? const Color(0xFFFFC107)
-                                        : const Color(0xFFF5F5F5),
+                                        : context.kChipBg,
                                     borderRadius: BorderRadius.circular(12),
                                   ),
                                   child: Text(
@@ -756,7 +761,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                         fontWeight: FontWeight.w700,
                                         color: tmpRating == r
                                             ? Colors.white
-                                            : const Color(0xFF555555)),
+                                            : context.kSub),
                                   ),
                                 ),
                               ),
@@ -792,7 +797,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             Container(
               padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: context.kSheetBg,
                 boxShadow: [
                   BoxShadow(
                       color: Colors.black.withValues(alpha: 0.08),
@@ -854,13 +859,13 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
   // Filter helper widgets
   Widget _fSection(String title) => Text(title,
-      style: const TextStyle(
-          fontSize: 15, fontWeight: FontWeight.w800, color: Color(0xFF0D1B2A)));
+      style: TextStyle(
+          fontSize: 15, fontWeight: FontWeight.w800, color: context.kText));
 
   Widget _priceChip(String label) => Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: const Color(0xFFEEF2FF),
+          color: context.kChipBg,
           borderRadius: BorderRadius.circular(10),
           border:
               Border.all(color: const Color(0xFF1565C0).withValues(alpha: 0.3)),
@@ -880,10 +885,10 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   }) =>
       Row(children: [
         Text(label,
-            style: const TextStyle(
+            style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
-                color: Color(0xFF555555))),
+                color: context.kSub)),
         const Spacer(),
         GestureDetector(
           onTap: onDec,
@@ -891,22 +896,22 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             width: 34,
             height: 34,
             decoration: BoxDecoration(
-              color: const Color(0xFFF0F4FF),
+              color: context.kChipBg,
               borderRadius: BorderRadius.circular(10),
               border: Border.all(
                   color: const Color(0xFF1565C0).withValues(alpha: 0.3)),
             ),
-            child: const Icon(Icons.remove_rounded,
-                size: 18, color: Color(0xFF1565C0)),
+            child: Icon(Icons.remove_rounded,
+                size: 18, color: const Color(0xFF1565C0)),
           ),
         ),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Text('$value',
-              style: const TextStyle(
+              style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w800,
-                  color: Color(0xFF0D1B2A))),
+                  color: context.kText)),
         ),
         GestureDetector(
           onTap: onInc,
@@ -929,16 +934,16 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           duration: const Duration(milliseconds: 180),
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           decoration: BoxDecoration(
-            color: selected ? const Color(0xFF1565C0) : const Color(0xFFF5F5F5),
+            color: selected ? const Color(0xFF1565C0) : context.kChipBg,
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
-                color: selected ? const Color(0xFF1565C0) : Colors.transparent),
+                color: selected ? const Color(0xFF1565C0) : context.kBorder),
           ),
           child: Text(label,
               style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
-                  color: selected ? Colors.white : const Color(0xFF555555))),
+                  color: selected ? Colors.white : context.kSub)),
         ),
       );
 
@@ -970,9 +975,9 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         child: Icon(icon, color: Colors.white, size: 19),
       ),
       if (notif)
-        Positioned(
+        PositionedDirectional(
             top: 7,
-            right: 7,
+            end: 7,
             child: Container(
               width: 9,
               height: 9,
@@ -1015,7 +1020,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               width: sel ? 22 : 6,
               height: 6,
               decoration: BoxDecoration(
-                color: sel ? const Color(0xFF1565C0) : const Color(0xFFCCCCCC),
+                color: sel ? const Color(0xFF1565C0) : context.kBorder,
                 borderRadius: BorderRadius.circular(3),
               ),
             );
@@ -1112,9 +1117,9 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               ),
 
               // ── Badge فوق يسار ───────────────────────
-              Positioned(
+              PositionedDirectional(
                 top: 14,
-                left: 14,
+                start: 14,
                 child: Container(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
@@ -1229,7 +1234,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 width: 54,
                 height: 70,
                 decoration: BoxDecoration(
-                  color: sel ? c.color : Colors.white,
+                  color: sel ? c.color : context.kCard,
                   borderRadius: BorderRadius.circular(17),
                   boxShadow: [
                     BoxShadow(
@@ -1274,7 +1279,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                           style: TextStyle(
                             fontSize: 8.5,
                             fontWeight: FontWeight.w700,
-                            color: sel ? Colors.white : const Color(0xFF555555),
+                            color: sel ? Colors.white : context.kSub,
                           )),
                     ]),
               ),
@@ -1316,7 +1321,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           )),
       child: Container(
         width: 155,
-        margin: const EdgeInsets.only(right: 12),
+        margin: const EdgeInsetsDirectional.only(end: 12),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(22),
           boxShadow: [
@@ -1420,10 +1425,10 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         width: double.infinity,
         padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 24),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: context.kCard,
           borderRadius: BorderRadius.circular(24),
           border: Border.all(
-            color: const Color(0xFF1565C0).withValues(alpha: 0.12),
+            color: context.kText.withValues(alpha: 0.12),
             width: 1.5,
           ),
           boxShadow: [
@@ -1446,16 +1451,16 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 color: Color(0xFF1565C0), size: 32),
           ),
           const SizedBox(height: 16),
-          const Text('لا توجد عروض حالياً',
+          Text('لا توجد عروض حالياً',
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w800,
-                color: Color(0xFF0D1B2A),
+                color: context.kText,
               )),
           const SizedBox(height: 6),
           Text('ستظهر العروض والخصومات هنا فور إضافتها',
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 13, color: Colors.grey.shade500)),
+              style: TextStyle(fontSize: 13, color: context.kSub)),
         ]),
       ),
     );
@@ -1466,44 +1471,37 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   // ════════════════════════════════════════════════
 
   Widget _buildNavBar() {
+    const ocean = Color(0xFF1565C0);
     final items = [
-      {'i': Icons.home_rounded, 'l': appSettings.arabic ? 'الرئيسية' : 'Home'},
-      {
-        'i': Icons.explore_rounded,
-        'l': appSettings.arabic ? 'استكشف' : 'Explore'
-      },
-      {
-        'i': Icons.calendar_today_rounded,
-        'l': appSettings.arabic ? 'حجوزاتي' : 'Bookings'
-      },
-      {
-        'i': Icons.chat_bubble_outline_rounded,
-        'l': appSettings.arabic ? 'رسائل' : 'Messages'
-      },
-      {
-        'i': Icons.person_outline_rounded,
-        'l': appSettings.arabic ? 'حسابي' : 'Profile'
-      },
+      {'a': Icons.home_rounded, 'o': Icons.home_outlined, 'l': appSettings.arabic ? 'الرئيسية' : 'Home'},
+      {'a': Icons.explore_rounded, 'o': Icons.explore_outlined, 'l': appSettings.arabic ? 'استكشف' : 'Explore'},
+      {'a': Icons.calendar_month_rounded, 'o': Icons.calendar_month_outlined, 'l': appSettings.arabic ? 'حجوزاتي' : 'Bookings'},
+      {'a': Icons.chat_rounded, 'o': Icons.chat_bubble_outline_rounded, 'l': appSettings.arabic ? 'رسائل' : 'Messages'},
+      {'a': Icons.person_rounded, 'o': Icons.person_outline_rounded, 'l': appSettings.arabic ? 'حسابي' : 'Profile'},
     ];
 
     return Container(
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.kCard,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: context.kBorder.withValues(alpha: 0.5)),
         boxShadow: [
           BoxShadow(
-              color: Colors.black.withValues(alpha: 0.09),
-              blurRadius: 28,
-              offset: const Offset(0, -8)),
+              color: Colors.black.withValues(alpha: 0.10),
+              blurRadius: 24,
+              offset: const Offset(0, -6)),
         ],
       ),
       child: SafeArea(
         top: false,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: List.generate(items.length, (i) {
               final sel = _navIdx == i;
+              final inactiveColor = context.kSub;
               return GestureDetector(
                 onTap: () {
                   setState(() => _navIdx = i);
@@ -1531,7 +1529,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                           Text('Messages — ابدأ حجز للدردشة مع المالك',
                               style: TextStyle(fontWeight: FontWeight.w600)),
                         ]),
-                        backgroundColor: const Color(0xFF1565C0),
+                        backgroundColor: ocean,
                         behavior: SnackBarBehavior.floating,
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12)),
@@ -1550,33 +1548,26 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 220),
                   padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                   decoration: BoxDecoration(
                     color: sel
-                        ? const Color(0xFF1565C0).withValues(alpha: 0.1)
+                        ? ocean.withValues(alpha: 0.10)
                         : Colors.transparent,
-                    borderRadius: BorderRadius.circular(14),
+                    borderRadius: BorderRadius.circular(16),
                   ),
                   child: Column(mainAxisSize: MainAxisSize.min, children: [
-                    Icon(items[i]['i'] as IconData,
-                        size: 24,
-                        color: sel
-                            ? const Color(0xFF1565C0)
-                            : const Color(0xFFAAAAAA),
-                        shadows: sel
-                            ? const [
-                                Shadow(
-                                    color: Color(0x661565C0), blurRadius: 10),
-                              ]
-                            : null),
+                    Icon(
+                        sel
+                            ? items[i]['a'] as IconData
+                            : items[i]['o'] as IconData,
+                        size: 23,
+                        color: sel ? ocean : inactiveColor),
                     const SizedBox(height: 3),
                     Text(items[i]['l'] as String,
                         style: TextStyle(
                           fontSize: 10,
                           fontWeight: sel ? FontWeight.w800 : FontWeight.w500,
-                          color: sel
-                              ? const Color(0xFF1565C0)
-                              : const Color(0xFFAAAAAA),
+                          color: sel ? ocean : inactiveColor,
                         )),
                   ]),
                 ),
@@ -1596,10 +1587,10 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     return Row(children: [
       Expanded(
           child: Text(title,
-              style: const TextStyle(
+              style: TextStyle(
                   fontSize: 19,
                   fontWeight: FontWeight.w900,
-                  color: Color(0xFF0D1B2A),
+                  color: context.kText,
                   letterSpacing: -0.4))),
       if (action.isNotEmpty) _seeAll(action),
     ]);
@@ -1695,9 +1686,9 @@ class _SearchSheetState extends State<_SearchSheet> {
   Widget build(BuildContext context) {
     return Container(
       height: MediaQuery.of(context).size.height * 0.88,
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      decoration: BoxDecoration(
+        color: context.kSheetBg,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
       ),
       child: Column(children: [
         // Handle
@@ -1706,7 +1697,7 @@ class _SearchSheetState extends State<_SearchSheet> {
           width: 40,
           height: 4,
           decoration: BoxDecoration(
-              color: Colors.grey[300], borderRadius: BorderRadius.circular(2)),
+              color: context.kBorder, borderRadius: BorderRadius.circular(2)),
         ),
 
         // Search input
@@ -1715,7 +1706,7 @@ class _SearchSheetState extends State<_SearchSheet> {
           child: Container(
             height: 54,
             decoration: BoxDecoration(
-              color: const Color(0xFFF5F7FF),
+              color: context.kInputFill,
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
                   color: const Color(0xFF1565C0).withValues(alpha: 0.25)),
@@ -1733,13 +1724,13 @@ class _SearchSheetState extends State<_SearchSheet> {
                 onSubmitted: (v) {
                   if (v.trim().isNotEmpty) widget.onSearch(v.trim());
                 },
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   hintText: 'ابحث عن وجهة، نوع، أو اسم عقار…',
-                  hintStyle: TextStyle(color: Color(0xFFBBBBBB), fontSize: 14),
+                  hintStyle: TextStyle(color: context.kSub, fontSize: 14),
                   border: InputBorder.none,
                 ),
                 textInputAction: TextInputAction.search,
-                style: const TextStyle(fontSize: 15, color: Color(0xFF0D1B2A)),
+                style: TextStyle(fontSize: 15, color: context.kText),
               )),
               if (_query.isNotEmpty)
                 GestureDetector(
@@ -1747,10 +1738,10 @@ class _SearchSheetState extends State<_SearchSheet> {
                     _ctrl.clear();
                     setState(() => _query = '');
                   },
-                  child: const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 12),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
                     child: Icon(Icons.close_rounded,
-                        color: Color(0xFFAAAAAA), size: 20),
+                        color: context.kSub, size: 20),
                   ),
                 ),
             ]),
@@ -1764,23 +1755,23 @@ class _SearchSheetState extends State<_SearchSheet> {
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
             child: Row(children: [
-              const Icon(Icons.history_rounded,
-                  size: 16, color: Color(0xFFAAAAAA)),
+              Icon(Icons.history_rounded,
+                  size: 16, color: context.kSub),
               const SizedBox(width: 6),
               Text(S.recentSearch,
-                  style: const TextStyle(
+                  style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w700,
-                      color: Color(0xFFAAAAAA))),
+                      color: context.kSub)),
             ]),
           ),
           ...widget.recentSearches.take(3).map((r) => ListTile(
                 dense: true,
-                leading: const Icon(Icons.history_rounded,
-                    color: Color(0xFFCCCCCC), size: 18),
+                leading: Icon(Icons.history_rounded,
+                    color: context.kBorder, size: 18),
                 title: Text(r,
-                    style: const TextStyle(
-                        fontSize: 14, color: Color(0xFF0D1B2A))),
+                    style: TextStyle(
+                        fontSize: 14, color: context.kText)),
                 onTap: () => widget.onSearch(r),
               )),
           const Divider(height: 24, indent: 20, endIndent: 20),
@@ -1821,17 +1812,17 @@ class _SearchSheetState extends State<_SearchSheet> {
                           style: const TextStyle(fontSize: 20))),
                 ),
                 title: Text(s['label']!,
-                    style: const TextStyle(
+                    style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w700,
-                        color: Color(0xFF0D1B2A))),
+                        color: context.kText)),
                 subtitle: Text(
                   s['area']!.isNotEmpty ? s['area']! : s['type']!,
                   style:
-                      const TextStyle(fontSize: 12, color: Color(0xFFAAAAAA)),
+                      TextStyle(fontSize: 12, color: context.kSub),
                 ),
-                trailing: const Icon(Icons.arrow_forward_ios_rounded,
-                    size: 13, color: Color(0xFFCCCCCC)),
+                trailing: Icon(Icons.arrow_forward_ios_rounded,
+                    size: 13, color: context.kBorder),
                 onTap: () => widget.onSearch(
                   s['label']!,
                   area: s['area']!.isNotEmpty ? s['area'] : null,

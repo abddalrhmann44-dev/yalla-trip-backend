@@ -6,18 +6,14 @@
 import 'package:flutter/material.dart';
 import '../main.dart' show appSettings;
 import '../utils/app_strings.dart';
+import '../widgets/constants.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'property_details_page.dart';
 import '../models/property_model.dart';
 
-// ── Colors ────────────────────────────────────────────────────
+// ── Colors (theme-dependent ones come from AppThemeX) ─────────
 const _kOcean  = Color(0xFF1565C0);
 const _kOrange = Color(0xFFFF6D00);
-const _kSand   = Color(0xFFF5F3EE);
-const _kCard   = Colors.white;
-const _kText   = Color(0xFF0D1B2A);
-const _kSub    = Color(0xFF6B7280);
-const _kBorder = Color(0xFFE5E7EB);
 const _kGreen  = Color(0xFF4CAF50);
 
 // ── Model ─────────────────────────────────────────────────────
@@ -260,7 +256,7 @@ class _ExplorePageState extends State<ExplorePage>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _kSand,
+      backgroundColor: context.kSand,
       body: Column(children: [
         _buildHeader(),
         if (_showFilters) _buildFilterPanel(),
@@ -311,8 +307,8 @@ class _ExplorePageState extends State<ExplorePage>
                 ),
               ),
               const SizedBox(width: 12),
-              const Text('Explore',
-                  style: TextStyle(color: Colors.white,
+              Text(S.explore,
+                  style: const TextStyle(color: Colors.white,
                       fontSize: 20, fontWeight: FontWeight.w900)),
               const Spacer(),
               // Grid/List toggle
@@ -340,7 +336,7 @@ class _ExplorePageState extends State<ExplorePage>
             child: Container(
               height: 50,
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: context.kCard,
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.15),
                     blurRadius: 20, offset: const Offset(0, 6))],
@@ -351,19 +347,19 @@ class _ExplorePageState extends State<ExplorePage>
                 const SizedBox(width: 8),
                 Expanded(child: TextField(
                   controller: _searchCtrl,
-                  style: const TextStyle(fontSize: 14, color: _kText),
-                  decoration: const InputDecoration(
-                    hintText: 'Search destination, area, name…',
-                    hintStyle: TextStyle(color: Color(0xFFBBBBBB), fontSize: 13),
+                  style: TextStyle(fontSize: 14, color: context.kText),
+                  decoration: InputDecoration(
+                    hintText: S.exploreSearchHint,
+                    hintStyle: TextStyle(color: context.kSub, fontSize: 13),
                     border: InputBorder.none,
                   ),
                 )),
                 if (_query.isNotEmpty)
                   GestureDetector(
                     onTap: () { _searchCtrl.clear(); setState(() => _query = ''); },
-                    child: const Padding(
-                      padding: EdgeInsets.only(right: 8),
-                      child: Icon(Icons.close_rounded, color: _kSub, size: 18)),
+                    child: Padding(
+                      padding: const EdgeInsetsDirectional.only(end: 8),
+                      child: Icon(Icons.close_rounded, color: context.kSub, size: 18)),
                   ),
                 // Filter button
                 GestureDetector(
@@ -378,7 +374,7 @@ class _ExplorePageState extends State<ExplorePage>
                     child: Row(children: [
                       const Icon(Icons.tune_rounded, color: Colors.white, size: 14),
                       const SizedBox(width: 4),
-                      Text(_showFilters ? 'Close' : 'Filter',
+                      Text(_showFilters ? S.close : S.filterBtn,
                           style: const TextStyle(color: Colors.white,
                               fontSize: 11, fontWeight: FontWeight.w700)),
                     ]),
@@ -401,11 +397,11 @@ class _ExplorePageState extends State<ExplorePage>
             labelStyle: const TextStyle(
                 fontSize: 13, fontWeight: FontWeight.w800),
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            tabs: const [
-              Tab(text: '🔍  Search'),
-              Tab(text: '🗺️  Map Areas'),
-              Tab(text: '🔥  Trending'),
-              Tab(text: '⚡  Today\'s Deals'),
+            tabs: [
+              Tab(text: '🔍  ${S.search}'),
+              Tab(text: '🗺️  ${S.areasTab}'),
+              Tab(text: '🔥  ${S.trending}'),
+              Tab(text: '⚡  ${S.deals}'),
             ],
           ),
         ]),
@@ -416,12 +412,12 @@ class _ExplorePageState extends State<ExplorePage>
   // ── Filter Panel ──────────────────────────────────────────
   Widget _buildFilterPanel() {
     return Container(
-      color: _kCard,
+      color: context.kCard,
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start,
         children: [
         // Area chips
-        _filterLabel('📍 Area'),
+        _filterLabel('📍 ${S.area}'),
         const SizedBox(height: 6),
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
@@ -434,7 +430,7 @@ class _ExplorePageState extends State<ExplorePage>
         const SizedBox(height: 10),
 
         // Category
-        _filterLabel('🏷️ Category'),
+        _filterLabel('🏷️ ${S.propType}'),
         const SizedBox(height: 6),
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
@@ -447,15 +443,15 @@ class _ExplorePageState extends State<ExplorePage>
         // Price
         Row(mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-          _filterLabel('💰 Max Price'),
-          Text('EGP ${_comma(_maxPrice)}',
+          _filterLabel('💰 ${S.maxPriceLabel}'),
+          Text('${S.egp} ${_comma(_maxPrice)}',
               style: const TextStyle(fontSize: 12,
                   fontWeight: FontWeight.w800, color: _kOcean)),
         ]),
         SliderTheme(
           data: SliderTheme.of(context).copyWith(
             activeTrackColor: _kOcean, thumbColor: _kOcean,
-            inactiveTrackColor: _kBorder, trackHeight: 4,
+            inactiveTrackColor: context.kBorder, trackHeight: 4,
             overlayColor: _kOcean.withValues(alpha: 0.1),
           ),
           child: Slider(
@@ -470,19 +466,19 @@ class _ExplorePageState extends State<ExplorePage>
           Expanded(child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-            _filterLabel('⭐ Min Rating: ${_minRating.toStringAsFixed(1)}'),
+            _filterLabel('⭐ ${S.minRating}: ${_minRating.toStringAsFixed(1)}'),
             Slider(
               value: _minRating, min: 0, max: 5, divisions: 10,
               activeColor: const Color(0xFFFFC107),
-              inactiveColor: _kBorder,
+              inactiveColor: context.kBorder,
               onChanged: (v) => setState(() => _minRating = v),
             ),
           ])),
 
           Column(children: [
-            _toggle('⚡ Instant', _instantOnly,
+            _toggle('⚡ ${S.instantOnly}', _instantOnly,
                 (v) => setState(() => _instantOnly = v)),
-            _toggle('🟢 Online', _onlineOnly,
+            _toggle('🟢 ${S.onlineOnly}', _onlineOnly,
                 (v) => setState(() => _onlineOnly = v)),
           ]),
         ]),
@@ -515,16 +511,16 @@ class _ExplorePageState extends State<ExplorePage>
       onTap: () => setState(() => _selArea = area),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
-        margin: const EdgeInsets.only(right: 6),
+        margin: const EdgeInsetsDirectional.only(end: 6),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: sel ? _kOcean : _kSand,
+          color: sel ? _kOcean : context.kSand,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: sel ? _kOcean : _kBorder),
+          border: Border.all(color: sel ? _kOcean : context.kBorder),
         ),
         child: Text(area, style: TextStyle(
             fontSize: 11, fontWeight: FontWeight.w700,
-            color: sel ? Colors.white : _kSub)),
+            color: sel ? Colors.white : context.kSub)),
       ),
     );
   }
@@ -535,27 +531,27 @@ class _ExplorePageState extends State<ExplorePage>
       onTap: () => setState(() => _selCat = cat),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
-        margin: const EdgeInsets.only(right: 6),
+        margin: const EdgeInsetsDirectional.only(end: 6),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: sel ? _kOrange : _kSand,
+          color: sel ? _kOrange : context.kSand,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: sel ? _kOrange : _kBorder),
+          border: Border.all(color: sel ? _kOrange : context.kBorder),
         ),
         child: Text(S.catName(cat), style: TextStyle(
             fontSize: 11, fontWeight: FontWeight.w700,
-            color: sel ? Colors.white : _kSub)),
+            color: sel ? Colors.white : context.kSub)),
       ),
     );
   }
 
   Widget _filterLabel(String t) => Text(t,
-      style: const TextStyle(fontSize: 12,
-          fontWeight: FontWeight.w700, color: _kSub));
+      style: TextStyle(fontSize: 12,
+          fontWeight: FontWeight.w700, color: context.kSub));
 
   Widget _toggle(String label, bool val, ValueChanged<bool> onChange) {
     return Row(mainAxisSize: MainAxisSize.min, children: [
-      Text(label, style: const TextStyle(fontSize: 11, color: _kSub)),
+      Text(label, style: TextStyle(fontSize: 11, color: context.kSub)),
       Switch.adaptive(value: val, activeThumbColor: _kOcean,
           onChanged: onChange, materialTapTargetSize:
           MaterialTapTargetSize.shrinkWrap),
@@ -573,12 +569,12 @@ class _ExplorePageState extends State<ExplorePage>
       Padding(
         padding: const EdgeInsets.fromLTRB(20, 14, 20, 8),
         child: Row(children: [
-          Text('${results.length} properties found',
-              style: const TextStyle(fontSize: 13,
-                  fontWeight: FontWeight.w700, color: _kText)),
+          Text('${results.length} ${S.propertiesFound}',
+              style: TextStyle(fontSize: 13,
+                  fontWeight: FontWeight.w700, color: context.kText)),
           const Spacer(),
           Text(_selArea == S.all ? S.allAreas : _selArea,
-              style: const TextStyle(fontSize: 12, color: _kSub)),
+              style: TextStyle(fontSize: 12, color: context.kSub)),
         ]),
       ),
 
@@ -648,14 +644,14 @@ class _ExplorePageState extends State<ExplorePage>
           width: double.infinity,
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            color: _kCard,
+            color: context.kCard,
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: _kBorder),
+            border: Border.all(color: context.kBorder),
           ),
           child: Column(children: [
-            const Text('🗺️ Egypt Coastal Map',
+            Text('🗺️ ${S.egyptMap}',
                 style: TextStyle(fontSize: 16,
-                    fontWeight: FontWeight.w900, color: _kText)),
+                    fontWeight: FontWeight.w900, color: context.kText)),
             const SizedBox(height: 16),
             // Stylized map dots
             _mapIllustration(),
@@ -703,7 +699,7 @@ class _ExplorePageState extends State<ExplorePage>
                   color: Colors.white.withValues(alpha: 0.25),
                   borderRadius: BorderRadius.circular(20),
                 ),
-                child: Text('${area['count']} places',
+                child: Text('${area['count']} ${S.places}',
                     style: const TextStyle(color: Colors.white,
                         fontSize: 10, fontWeight: FontWeight.w700)),
               ),
@@ -798,7 +794,7 @@ class _ExplorePageState extends State<ExplorePage>
       margin: const EdgeInsets.only(bottom: 14),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: _kCard, borderRadius: BorderRadius.circular(18),
+        color: context.kCard, borderRadius: BorderRadius.circular(18),
         boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06),
             blurRadius: 12, offset: const Offset(0, 4))],
       ),
@@ -807,12 +803,12 @@ class _ExplorePageState extends State<ExplorePage>
         Container(
           width: 32, height: 32,
           decoration: BoxDecoration(
-            color: rank <= 3 ? _kOrange : _kBorder,
+            color: rank <= 3 ? _kOrange : context.kBorder,
             shape: BoxShape.circle,
           ),
           child: Center(child: Text('$rank',
               style: TextStyle(
-                  color: rank <= 3 ? Colors.white : _kSub,
+                  color: rank <= 3 ? Colors.white : context.kSub,
                   fontSize: 12, fontWeight: FontWeight.w900))),
         ),
         const SizedBox(width: 10),
@@ -831,8 +827,8 @@ class _ExplorePageState extends State<ExplorePage>
         Expanded(child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-          Text(p.name, style: const TextStyle(
-              fontSize: 13, fontWeight: FontWeight.w800, color: _kText),
+          Text(p.name, style: TextStyle(
+              fontSize: 13, fontWeight: FontWeight.w800, color: context.kText),
               maxLines: 1, overflow: TextOverflow.ellipsis),
           const SizedBox(height: 3),
           Row(children: [
@@ -847,17 +843,17 @@ class _ExplorePageState extends State<ExplorePage>
             const Icon(Icons.star_rounded,
                 color: Color(0xFFFFC107), size: 13),
             Text(' ${p.rating}  ',
-                style: const TextStyle(fontSize: 11,
-                    fontWeight: FontWeight.w700, color: _kText)),
-            Text('(${p.reviewCount} reviews)',
-                style: const TextStyle(fontSize: 10, color: _kSub)),
+                style: TextStyle(fontSize: 11,
+                    fontWeight: FontWeight.w700, color: context.kText)),
+            Text('(${p.reviewCount} ${S.reviews})',
+                style: TextStyle(fontSize: 10, color: context.kSub)),
           ]),
         ])),
         Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-          Text('EGP ${_comma(p.price)}',
-              style: const TextStyle(fontSize: 15,
-                  fontWeight: FontWeight.w900, color: _kText)),
-          const Text('/night', style: TextStyle(fontSize: 10, color: _kSub)),
+          Text('${S.egp} ${_comma(p.price)}',
+              style: TextStyle(fontSize: 15,
+                  fontWeight: FontWeight.w900, color: context.kText)),
+          Text('/${S.night}', style: TextStyle(fontSize: 10, color: context.kSub)),
           const SizedBox(height: 6),
           GestureDetector(
             onTap: () => Navigator.push(context, MaterialPageRoute(
@@ -871,8 +867,8 @@ class _ExplorePageState extends State<ExplorePage>
                 color: _kOcean,
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: const Text('Book',
-                  style: TextStyle(color: Colors.white,
+              child: Text(S.book,
+                  style: const TextStyle(color: Colors.white,
                       fontSize: 12, fontWeight: FontWeight.w800)),
             ),
           ),
@@ -901,14 +897,14 @@ class _ExplorePageState extends State<ExplorePage>
           child: Row(children: [
             const Text('⚡', style: TextStyle(fontSize: 28)),
             const SizedBox(width: 10),
-            const Expanded(child: Column(
+            Expanded(child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-              Text("Today's Featured Deals",
-                  style: TextStyle(color: Colors.white,
+              Text(S.todayFeatured,
+                  style: const TextStyle(color: Colors.white,
                       fontSize: 16, fontWeight: FontWeight.w900)),
-              Text('Hand-picked for maximum value',
-                  style: TextStyle(color: Colors.white70, fontSize: 11)),
+              Text(S.handPicked,
+                  style: const TextStyle(color: Colors.white70, fontSize: 11)),
             ])),
             Container(
               padding: const EdgeInsets.symmetric(
@@ -917,7 +913,7 @@ class _ExplorePageState extends State<ExplorePage>
                 color: Colors.white.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(20),
               ),
-              child: Text('${deals.length} deals',
+              child: Text(S.dealsCount(deals.length),
                   style: const TextStyle(color: Colors.white,
                       fontSize: 11, fontWeight: FontWeight.w700)),
             ),
@@ -935,7 +931,7 @@ class _ExplorePageState extends State<ExplorePage>
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
       decoration: BoxDecoration(
-        color: _kCard, borderRadius: BorderRadius.circular(20),
+        color: context.kCard, borderRadius: BorderRadius.circular(20),
         boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.07),
             blurRadius: 14, offset: const Offset(0, 4))],
       ),
@@ -962,7 +958,7 @@ class _ExplorePageState extends State<ExplorePage>
                     child: Center(child: Text(p.emoji,
                         style: const TextStyle(fontSize: 60)))),
               // Fav
-              Positioned(top: 10, right: 10,
+              PositionedDirectional(top: 10, end: 10,
                 child: GestureDetector(
                   onTap: () => setState(() =>
                       fav ? _favs.remove(p.name) : _favs.add(p.name)),
@@ -980,7 +976,7 @@ class _ExplorePageState extends State<ExplorePage>
                   ),
                 )),
               // Category
-              Positioned(top: 10, left: 10,
+              PositionedDirectional(top: 10, start: 10,
                 child: Container(
                   padding: const EdgeInsets.symmetric(
                       horizontal: 8, vertical: 4),
@@ -988,12 +984,12 @@ class _ExplorePageState extends State<ExplorePage>
                     color: Colors.black.withValues(alpha: 0.45),
                     borderRadius: BorderRadius.circular(20),
                   ),
-                  child: Text(p.category,
+                  child: Text(S.catName(p.category),
                       style: const TextStyle(color: Colors.white,
                           fontSize: 10, fontWeight: FontWeight.w700)),
                 )),
               // Rating
-              Positioned(bottom: 8, left: 10,
+              PositionedDirectional(bottom: 8, start: 10,
                 child: Container(
                   padding: const EdgeInsets.symmetric(
                       horizontal: 8, vertical: 4),
@@ -1010,7 +1006,7 @@ class _ExplorePageState extends State<ExplorePage>
                   ]),
                 )),
               if (p.instant)
-                Positioned(bottom: 8, right: 10,
+                PositionedDirectional(bottom: 8, end: 10,
                   child: Container(
                     padding: const EdgeInsets.symmetric(
                         horizontal: 8, vertical: 4),
@@ -1018,11 +1014,11 @@ class _ExplorePageState extends State<ExplorePage>
                       color: _kGreen,
                       borderRadius: BorderRadius.circular(20),
                     ),
-                    child: const Row(children: [
-                      Icon(Icons.bolt_rounded,
+                    child: Row(children: [
+                      const Icon(Icons.bolt_rounded,
                           color: Colors.white, size: 11),
-                      Text('Instant',
-                          style: TextStyle(color: Colors.white,
+                      Text(S.instantBook,
+                          style: const TextStyle(color: Colors.white,
                               fontSize: 9, fontWeight: FontWeight.w800)),
                     ]),
                   )),
@@ -1036,8 +1032,8 @@ class _ExplorePageState extends State<ExplorePage>
             Expanded(child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-              Text(p.name, style: const TextStyle(
-                  fontSize: 14, fontWeight: FontWeight.w800, color: _kText),
+              Text(p.name, style: TextStyle(
+                  fontSize: 14, fontWeight: FontWeight.w800, color: context.kText),
                   maxLines: 1, overflow: TextOverflow.ellipsis),
               const SizedBox(height: 4),
               Row(children: [
@@ -1049,22 +1045,22 @@ class _ExplorePageState extends State<ExplorePage>
               ]),
               if (p.online) ...[
                 const SizedBox(height: 4),
-                const Row(children: [
-                  Icon(Icons.circle, size: 7, color: _kGreen),
-                  SizedBox(width: 3),
-                  Text('Owner Online',
-                      style: TextStyle(fontSize: 9, color: _kGreen,
+                Row(children: [
+                  const Icon(Icons.circle, size: 7, color: _kGreen),
+                  const SizedBox(width: 3),
+                  Text(S.ownerOnline,
+                      style: const TextStyle(fontSize: 9, color: _kGreen,
                           fontWeight: FontWeight.w700)),
                 ]),
               ],
             ])),
             Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
               RichText(text: TextSpan(children: [
-                TextSpan(text: 'EGP ${_comma(p.price)}',
-                    style: const TextStyle(fontSize: 16,
-                        fontWeight: FontWeight.w900, color: _kText)),
-                const TextSpan(text: '/night',
-                    style: TextStyle(fontSize: 10, color: _kSub)),
+                TextSpan(text: '${S.egp} ${_comma(p.price)}',
+                    style: TextStyle(fontSize: 16,
+                        fontWeight: FontWeight.w900, color: context.kText)),
+                TextSpan(text: '/${S.night}',
+                    style: TextStyle(fontSize: 10, color: context.kSub)),
               ])),
               const SizedBox(height: 8),
               GestureDetector(
@@ -1083,8 +1079,8 @@ class _ExplorePageState extends State<ExplorePage>
                         color: _kOcean.withValues(alpha: 0.4),
                         blurRadius: 10, offset: const Offset(0, 3))],
                   ),
-                  child: const Text('Book Now',
-                      style: TextStyle(color: Colors.white,
+                  child: Text(S.bookProperty,
+                      style: const TextStyle(color: Colors.white,
                           fontSize: 12, fontWeight: FontWeight.w900)),
                 ),
               ),
@@ -1104,7 +1100,7 @@ class _ExplorePageState extends State<ExplorePage>
           ))),
       child: Container(
         decoration: BoxDecoration(
-          color: _kCard, borderRadius: BorderRadius.circular(18),
+          color: context.kCard, borderRadius: BorderRadius.circular(18),
           boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.07),
               blurRadius: 10, offset: const Offset(0, 3))],
         ),
@@ -1129,7 +1125,7 @@ class _ExplorePageState extends State<ExplorePage>
                           colors: [p.color, p.color.withValues(alpha: 0.55)])),
                       child: Center(child: Text(p.emoji,
                           style: const TextStyle(fontSize: 42)))),
-                Positioned(top: 6, right: 6,
+                PositionedDirectional(top: 6, end: 6,
                   child: GestureDetector(
                     onTap: () => setState(() =>
                         fav ? _favs.remove(p.name) : _favs.add(p.name)),
@@ -1151,8 +1147,8 @@ class _ExplorePageState extends State<ExplorePage>
             padding: const EdgeInsets.all(10),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-              Text(p.name, style: const TextStyle(
-                  fontSize: 11, fontWeight: FontWeight.w800, color: _kText),
+              Text(p.name, style: TextStyle(
+                  fontSize: 11, fontWeight: FontWeight.w800, color: context.kText),
                   maxLines: 2, overflow: TextOverflow.ellipsis),
               const SizedBox(height: 3),
               Text(p.area, style: TextStyle(
@@ -1160,15 +1156,15 @@ class _ExplorePageState extends State<ExplorePage>
               const SizedBox(height: 5),
               Row(mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                Text('EGP ${_comma(p.price)}',
-                    style: const TextStyle(fontSize: 12,
-                        fontWeight: FontWeight.w900, color: _kText)),
+                Text('${S.egp} ${_comma(p.price)}',
+                    style: TextStyle(fontSize: 12,
+                        fontWeight: FontWeight.w900, color: context.kText)),
                 Row(children: [
                   const Icon(Icons.star_rounded,
                       color: Color(0xFFFFC107), size: 11),
                   Text('${p.rating}',
-                      style: const TextStyle(fontSize: 10,
-                          fontWeight: FontWeight.w700, color: _kText)),
+                      style: TextStyle(fontSize: 10,
+                          fontWeight: FontWeight.w700, color: context.kText)),
                 ]),
               ]),
             ]),
@@ -1192,15 +1188,15 @@ class _ExplorePageState extends State<ExplorePage>
             size: 40, color: _kOcean),
       ),
       const SizedBox(height: 16),
-      const Text('لا توجد عقارات حالياً',
+      Text(S.noResults,
           style: TextStyle(fontSize: 17,
-              fontWeight: FontWeight.w900, color: _kText)),
+              fontWeight: FontWeight.w900, color: context.kText)),
       const SizedBox(height: 6),
-      const Padding(
-        padding: EdgeInsets.symmetric(horizontal: 40),
-        child: Text('ستظهر العقارات هنا فور إضافتها من الأصحاب',
+      Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 40),
+        child: Text(S.noResultsSub,
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 13, color: _kSub)),
+            style: TextStyle(fontSize: 13, color: context.kSub)),
       ),
       const SizedBox(height: 16),
       GestureDetector(
@@ -1209,8 +1205,8 @@ class _ExplorePageState extends State<ExplorePage>
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
           decoration: BoxDecoration(
             color: _kOcean, borderRadius: BorderRadius.circular(12)),
-          child: const Text('إعادة ضبط الفلتر',
-              style: TextStyle(color: Colors.white,
+          child: Text(S.resetFilters,
+              style: const TextStyle(color: Colors.white,
                   fontSize: 13, fontWeight: FontWeight.w700)),
         ),
       ),

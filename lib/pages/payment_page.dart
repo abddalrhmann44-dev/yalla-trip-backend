@@ -8,6 +8,7 @@
 import 'package:flutter/material.dart';
 import '../main.dart' show appSettings;
 import '../utils/app_strings.dart';
+import '../widgets/constants.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -15,11 +16,6 @@ import '../models/property_model.dart';
 import 'home_page.dart';
 
 const _kOcean = Color(0xFF1565C0);
-const _kSand = Color(0xFFF5F3EE);
-const _kCard = Colors.white;
-const _kText = Color(0xFF0D1B2A);
-const _kSub = Color(0xFF6B7280);
-const _kBorder = Color(0xFFE5E7EB);
 const _kGreen = Color(0xFF22C55E);
 const double _kPlatformCut = 0.08; // 8%
 
@@ -107,18 +103,18 @@ class _PaymentPageState extends State<PaymentPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _kSand,
+      backgroundColor: context.kSand,
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded,
-              color: _kText, size: 18),
+          icon: Icon(Icons.arrow_back_ios_new_rounded,
+              color: context.kText, size: 18),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text('إتمام الدفع',
+        title: Text('إتمام الدفع',
             style: TextStyle(
-                fontSize: 16, fontWeight: FontWeight.w900, color: _kText)),
+                fontSize: 16, fontWeight: FontWeight.w900, color: context.kText)),
         centerTitle: true,
       ),
       body: Stack(children: [
@@ -131,14 +127,14 @@ class _PaymentPageState extends State<PaymentPage> {
               const SizedBox(height: 16),
               _escrowBanner(),
               const SizedBox(height: 24),
-              const Text('اختر طريقة الدفع',
+              Text('اختر طريقة الدفع',
                   style: TextStyle(
                       fontSize: 17,
                       fontWeight: FontWeight.w900,
-                      color: _kText)),
+                      color: context.kText)),
               const SizedBox(height: 6),
-              const Text('مدفوعاتك مؤمّنة عبر Fawry Pay',
-                  style: TextStyle(fontSize: 12, color: _kSub)),
+              Text('مدفوعاتك مؤمّنة عبر Fawry Pay',
+                  style: TextStyle(fontSize: 12, color: context.kSub)),
               const SizedBox(height: 14),
               ..._kMethods.map(_methodTile),
               if (_sel == 'visa' || _sel == 'meeza') ...[
@@ -242,9 +238,9 @@ class _PaymentPageState extends State<PaymentPage> {
   Widget _orderCard() => Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: _kCard,
+          color: context.kCard,
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: _kBorder),
+          border: Border.all(color: context.kBorder),
           boxShadow: [
             BoxShadow(
                 color: Colors.black.withValues(alpha: 0.05),
@@ -281,25 +277,25 @@ class _PaymentPageState extends State<PaymentPage> {
                 Text(p.name,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w800,
-                        color: _kText)),
+                        color: context.kText)),
                 Text(
                     '${p.area} · ${widget.nights} ليالي · '
                     '${widget.guests} ضيوف',
-                    style: const TextStyle(fontSize: 12, color: _kSub)),
+                    style: TextStyle(fontSize: 12, color: context.kSub)),
                 Text('${widget.checkIn}  →  ${widget.checkOut}',
-                    style: const TextStyle(fontSize: 11, color: _kSub)),
+                    style: TextStyle(fontSize: 11, color: context.kSub)),
               ],
             )),
           ]),
-          const Divider(height: 18, color: _kBorder),
+          Divider(height: 18, color: context.kBorder),
           _row('${p.price.toInt()} × ${widget.nights} ليالي',
               '${widget.baseAmount} جنيه'),
           if (widget.cleaningFee > 0)
             _row(S.cleaningFee, '${widget.cleaningFee} جنيه'),
-          const Divider(height: 14, color: _kBorder),
+          Divider(height: 14, color: context.kBorder),
           _row(S.totalPrice, '${widget.totalAmount} جنيه', bold: true),
         ]),
       );
@@ -311,13 +307,13 @@ class _PaymentPageState extends State<PaymentPage> {
               child: Text(l,
                   style: TextStyle(
                       fontSize: 13,
-                      color: bold ? _kText : _kSub,
+                      color: bold ? context.kText : context.kSub,
                       fontWeight: bold ? FontWeight.w900 : FontWeight.w400))),
           Text(v,
               style: TextStyle(
                   fontSize: bold ? 16 : 13,
                   fontWeight: bold ? FontWeight.w900 : FontWeight.w700,
-                  color: bold ? _kOcean : _kText)),
+                  color: bold ? _kOcean : context.kText)),
         ]),
       );
 
@@ -331,10 +327,10 @@ class _PaymentPageState extends State<PaymentPage> {
         margin: const EdgeInsets.only(bottom: 10),
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: sel ? m.bg : _kCard,
+          color: sel ? m.bg : context.kCard,
           borderRadius: BorderRadius.circular(16),
           border:
-              Border.all(color: sel ? m.color : _kBorder, width: sel ? 2 : 1.5),
+              Border.all(color: sel ? m.color : context.kBorder, width: sel ? 2 : 1.5),
           boxShadow: [
             BoxShadow(
               color: sel
@@ -367,8 +363,8 @@ class _PaymentPageState extends State<PaymentPage> {
                   style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w800,
-                      color: sel ? m.color : _kText)),
-              Text(m.desc, style: const TextStyle(fontSize: 12, color: _kSub)),
+                      color: sel ? m.color : context.kText)),
+              Text(m.desc, style: TextStyle(fontSize: 12, color: context.kSub)),
             ],
           )),
           AnimatedContainer(
@@ -378,7 +374,7 @@ class _PaymentPageState extends State<PaymentPage> {
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: sel ? m.color : Colors.transparent,
-              border: Border.all(color: sel ? m.color : _kBorder, width: 2),
+              border: Border.all(color: sel ? m.color : context.kBorder, width: 2),
             ),
             child: sel
                 ? const Icon(Icons.check_rounded, size: 14, color: Colors.white)
@@ -393,9 +389,9 @@ class _PaymentPageState extends State<PaymentPage> {
   Widget _cardForm() => Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: _kCard,
+          color: context.kCard,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: _kBorder),
+          border: Border.all(color: context.kBorder),
         ),
         child: Column(children: [
           _cf(_numCtrl, 'رقم البطاقة', Icons.credit_card_rounded,
@@ -424,9 +420,9 @@ class _PaymentPageState extends State<PaymentPage> {
           {TextInputFormatter? fmt, int? max, bool obscure = false}) =>
       Container(
         decoration: BoxDecoration(
-            color: _kSand,
+            color: context.kSand,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: _kBorder)),
+            border: Border.all(color: context.kBorder)),
         child: TextField(
           controller: c,
           keyboardType: kb,
@@ -804,13 +800,13 @@ class _PaymentPageState extends State<PaymentPage> {
             ),
           ),
           const SizedBox(height: 20),
-          const Text('تم الحجز بنجاح! 🎉',
+          Text('تم الحجز بنجاح! 🎉',
               style: TextStyle(
-                  fontSize: 24, fontWeight: FontWeight.w900, color: _kText)),
+                  fontSize: 24, fontWeight: FontWeight.w900, color: context.kText)),
           const SizedBox(height: 8),
           Text('${p.name}\n${widget.checkIn}  →  ${widget.checkOut}',
               textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 14, color: _kSub, height: 1.6)),
+              style: TextStyle(fontSize: 14, color: context.kSub, height: 1.6)),
           const SizedBox(height: 16),
 
           // Escrow confirmation

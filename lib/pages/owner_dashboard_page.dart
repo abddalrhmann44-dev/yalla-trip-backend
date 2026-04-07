@@ -5,6 +5,7 @@
 
 import 'package:flutter/material.dart';
 import '../main.dart' show appSettings;
+import '../widgets/constants.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -12,14 +13,9 @@ import 'owner_add_property_page.dart';
 import 'home_page.dart';
 import '../services/user_role_service.dart';
 
-// ── Colors ──────────────────────────────────────────────────────
+// Accent colors (same in light & dark)
 const _kOcean  = Color(0xFF1565C0);
 const _kOrange = Color(0xFFFF6D00);
-const _kSand   = Color(0xFFF5F3EE);
-const _kCard   = Colors.white;
-const _kText   = Color(0xFF0D1B2A);
-const _kSub    = Color(0xFF6B7280);
-const _kBorder = Color(0xFFE5E7EB);
 const _kGreen  = Color(0xFF22C55E);
 
 // ── Property Model ──────────────────────────────────────────────
@@ -161,14 +157,14 @@ class _OwnerDashboardPageState extends State<OwnerDashboardPage>
       builder: (_) => AlertDialog(
         shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20)),
-        title: const Text('حذف العقار؟',
+        title: Text('حذف العقار؟',
             style: TextStyle(fontWeight: FontWeight.w900)),
         content: Text('هيتحذف "${p.name}" نهائياً ومش هيرجع.',
-            style: const TextStyle(color: _kSub)),
+            style: TextStyle(color: context.kSub)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('لأ', style: TextStyle(color: _kSub)),
+            child: Text('لأ', style: TextStyle(color: context.kSub)),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
@@ -208,7 +204,7 @@ class _OwnerDashboardPageState extends State<OwnerDashboardPage>
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.light,
       child: Scaffold(
-        backgroundColor: _kSand,
+        backgroundColor: context.kSand,
         body: _loading
             ? const Center(
                 child: CircularProgressIndicator(color: _kOcean))
@@ -372,7 +368,7 @@ class _OwnerDashboardPageState extends State<OwnerDashboardPage>
           margin: const EdgeInsets.only(top: 1),
           padding: const EdgeInsets.symmetric(vertical: 20),
           decoration: BoxDecoration(
-            color: _kCard,
+            color: context.kCard,
             borderRadius: const BorderRadius.vertical(
                 top: Radius.circular(28)),
             boxShadow: [BoxShadow(
@@ -422,13 +418,13 @@ class _OwnerDashboardPageState extends State<OwnerDashboardPage>
           fontSize: 20, fontWeight: FontWeight.w900, color: color)),
       const SizedBox(height: 2),
       Text(label, textAlign: TextAlign.center,
-          style: const TextStyle(fontSize: 10, color: _kSub, height: 1.3)),
+          style: TextStyle(fontSize: 10, color: context.kSub, height: 1.3)),
     ]);
   }
 
   Widget _divider() => Container(
       width: 1, height: 50,
-      color: _kBorder);
+      color: context.kBorder);
 
   // ── Section Title ────────────────────────────────────────────
   Widget _buildSectionTitle(String title) {
@@ -436,12 +432,12 @@ class _OwnerDashboardPageState extends State<OwnerDashboardPage>
       child: Padding(
         padding: const EdgeInsets.fromLTRB(20, 24, 20, 12),
         child: Row(children: [
-          Text(title, style: const TextStyle(
-              fontSize: 18, fontWeight: FontWeight.w900, color: _kText)),
+          Text(title, style: TextStyle(
+              fontSize: 18, fontWeight: FontWeight.w900, color: context.kText)),
           const Spacer(),
           Text('${_properties.length} عقار',
-              style: const TextStyle(fontSize: 13,
-                  fontWeight: FontWeight.w600, color: _kSub)),
+              style: TextStyle(fontSize: 13,
+                  fontWeight: FontWeight.w600, color: context.kSub)),
         ]),
       ),
     );
@@ -465,7 +461,7 @@ class _OwnerDashboardPageState extends State<OwnerDashboardPage>
     return Container(
       margin: const EdgeInsets.fromLTRB(20, 0, 20, 16),
       decoration: BoxDecoration(
-        color: _kCard,
+        color: context.kCard,
         borderRadius: BorderRadius.circular(22),
         boxShadow: [BoxShadow(
             color: Colors.black.withValues(alpha: 0.07),
@@ -595,8 +591,8 @@ class _OwnerDashboardPageState extends State<OwnerDashboardPage>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(p.name,
-                      style: const TextStyle(fontSize: 16,
-                          fontWeight: FontWeight.w900, color: _kText),
+                      style: TextStyle(fontSize: 16,
+                          fontWeight: FontWeight.w900, color: context.kText),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis),
                   const SizedBox(height: 5),
@@ -630,17 +626,17 @@ class _OwnerDashboardPageState extends State<OwnerDashboardPage>
             ]),
 
             const SizedBox(height: 14),
-            const Divider(height: 1, color: _kBorder),
+            Divider(height: 1, color: context.kBorder),
             const SizedBox(height: 12),
 
             // ── Action buttons ──
             Row(children: [
               // Reviews count
-              const Icon(Icons.rate_review_rounded,
-                  size: 14, color: _kSub),
+              Icon(Icons.rate_review_rounded,
+                  size: 14, color: context.kSub),
               const SizedBox(width: 4),
               Text('${p.reviewCount} مراجعة',
-                  style: const TextStyle(fontSize: 12, color: _kSub,
+                  style: TextStyle(fontSize: 12, color: context.kSub,
                       fontWeight: FontWeight.w600)),
               const Spacer(),
 
@@ -740,15 +736,15 @@ class _OwnerDashboardPageState extends State<OwnerDashboardPage>
                     size: 48, color: _kOcean),
               ),
               const SizedBox(height: 24),
-              const Text('مفيش عقارات لسه',
+              Text('مفيش عقارات لسه',
                   style: TextStyle(fontSize: 20,
-                      fontWeight: FontWeight.w900, color: _kText)),
+                      fontWeight: FontWeight.w900, color: context.kText)),
               const SizedBox(height: 8),
-              const Text(
+              Text(
                 'ابدأ أضف أول عقارك دلوقتي\nوابدأ تستقبل حجوزات من آلاف المسافرين',
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 14,
-                    color: _kSub, height: 1.5),
+                    color: context.kSub, height: 1.5),
               ),
               const SizedBox(height: 28),
               ElevatedButton.icon(

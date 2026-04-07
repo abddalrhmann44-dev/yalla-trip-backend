@@ -17,7 +17,7 @@ class CustomButton extends StatelessWidget {
   final double? borderRadius;
 
   const CustomButton({
-    Key? key,
+    super.key,
     required this.label,
     this.onPressed,
     this.variant     = ButtonVariant.primary,
@@ -28,7 +28,7 @@ class CustomButton extends StatelessWidget {
     this.suffixIcon,
     this.customChild,
     this.borderRadius,
-  }) : super(key: key);
+  });
 
   // ── Size config ──────────────────────────────────────────
   double get _height {
@@ -107,7 +107,7 @@ class CustomButton extends StatelessWidget {
         style: ElevatedButton.styleFrom(
           backgroundColor: _backgroundColor,
           foregroundColor: _foregroundColor,
-          disabledBackgroundColor: _backgroundColor.withOpacity(0.6),
+          disabledBackgroundColor: _backgroundColor.withValues(alpha: 0.6),
           elevation: 0,
           shadowColor: Colors.transparent,
           padding: _padding,

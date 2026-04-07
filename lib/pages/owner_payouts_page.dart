@@ -7,16 +7,13 @@
 import 'package:flutter/material.dart';
 import '../main.dart' show appSettings;
 import '../utils/app_strings.dart';
+import '../widgets/constants.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+// Accent colors (same in light & dark)
 const _kOcean  = Color(0xFF1565C0);
 const _kOrange = Color(0xFFFF6D00);
-const _kSand   = Color(0xFFF5F3EE);
-const _kCard   = Colors.white;
-const _kText   = Color(0xFF0D1B2A);
-const _kSub    = Color(0xFF6B7280);
-const _kBorder = Color(0xFFE5E7EB);
 const _kGreen  = Color(0xFF22C55E);
 const _kRed    = Color(0xFFEF5350);
 
@@ -48,7 +45,7 @@ class _Payout {
     switch (status) {
       case 'paid':       return _kGreen;
       case 'processing': return _kOrange;
-      default:           return _kSub;
+      default:           return const Color(0xFF6B7280);
     }
   }
 
@@ -147,7 +144,7 @@ class _OwnerPayoutsPageState extends State<OwnerPayoutsPage>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _kSand,
+      backgroundColor: context.kSand,
       body: NestedScrollView(
         headerSliverBuilder: (_, __) => [
           SliverAppBar(
@@ -297,9 +294,9 @@ class _OwnerPayoutsPageState extends State<OwnerPayoutsPage>
     margin: const EdgeInsets.only(bottom: 12),
     padding: const EdgeInsets.all(16),
     decoration: BoxDecoration(
-      color: _kCard,
+      color: context.kCard,
       borderRadius: BorderRadius.circular(18),
-      border: Border.all(color: _kBorder),
+      border: Border.all(color: context.kBorder),
       boxShadow: [BoxShadow(
           color: Colors.black.withValues(alpha: 0.04),
           blurRadius: 8, offset: const Offset(0, 2))],
@@ -313,25 +310,25 @@ class _OwnerPayoutsPageState extends State<OwnerPayoutsPage>
           children: [
             Text(p.propertyName,
                 maxLines: 1, overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 14,
-                    fontWeight: FontWeight.w900, color: _kText)),
+                style: TextStyle(fontSize: 14,
+                    fontWeight: FontWeight.w900, color: context.kText)),
             const SizedBox(height: 2),
             Text('${p.checkIn}  →  ${p.checkOut}',
-                style: const TextStyle(fontSize: 12, color: _kSub)),
+                style: TextStyle(fontSize: 12, color: context.kSub)),
             if (p.guestName.isNotEmpty)
               Text('الضيف: ${p.guestName}',
-                  style: const TextStyle(fontSize: 11, color: _kSub)),
+                  style: TextStyle(fontSize: 11, color: context.kSub)),
           ],
         )),
         Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
           Text('${p.ownerAmount} جنيه',
-              style: const TextStyle(fontSize: 20,
+              style: TextStyle(fontSize: 20,
                   fontWeight: FontWeight.w900, color: _kOcean)),
-          const Text('نصيبك الصافي',
-              style: TextStyle(fontSize: 10, color: _kSub)),
+          Text('نصيبك الصافي',
+              style: TextStyle(fontSize: 10, color: context.kSub)),
         ]),
       ]),
-      const Divider(height: 18, color: _kBorder),
+      Divider(height: 18, color: context.kBorder),
 
       // Breakdown
       _bRow('إجمالي الحجز', '${p.totalCollected} جنيه',
@@ -340,7 +337,7 @@ class _OwnerPayoutsPageState extends State<OwnerPayoutsPage>
           '- ${p.platformFee} جنيه', _kRed),
       _bRow('نصيبك الصافي',
           '${p.ownerAmount} جنيه', _kGreen, bold: true),
-      const Divider(height: 14, color: _kBorder),
+      Divider(height: 14, color: context.kBorder),
 
       // Status + release date
       Row(children: [
@@ -363,13 +360,13 @@ class _OwnerPayoutsPageState extends State<OwnerPayoutsPage>
         ),
         const Spacer(),
         if (p.status == 'held') ...[
-          const Icon(Icons.schedule_rounded, size: 12, color: _kSub),
+          Icon(Icons.schedule_rounded, size: 12, color: context.kSub),
           const SizedBox(width: 4),
           Text(
             'إصدار: ${p.payoutRelease.day}/'
             '${p.payoutRelease.month}/'
             '${p.payoutRelease.year}',
-            style: const TextStyle(fontSize: 11, color: _kSub),
+            style: TextStyle(fontSize: 11, color: context.kSub),
           ),
         ],
       ]),
@@ -381,7 +378,7 @@ class _OwnerPayoutsPageState extends State<OwnerPayoutsPage>
       padding: const EdgeInsets.symmetric(vertical: 3),
       child: Row(children: [
         Expanded(child: Text(l, style: TextStyle(
-            fontSize: 12, color: _kSub,
+            fontSize: 12, color: context.kSub,
             fontWeight: bold ? FontWeight.w700 : FontWeight.w400))),
         Text(v, style: TextStyle(
             fontSize: bold ? 14 : 13,
@@ -406,12 +403,12 @@ class _OwnerPayoutsPageState extends State<OwnerPayoutsPage>
         tab == 'paid'
             ? 'مفيش مدفوعات مكتملة لحد دلوقتي'
             : 'مفيش مستحقات لحد دلوقتي',
-        style: const TextStyle(fontSize: 15,
-            fontWeight: FontWeight.w800, color: _kText),
+        style: TextStyle(fontSize: 15,
+            fontWeight: FontWeight.w800, color: context.kText),
       ),
       const SizedBox(height: 6),
-      const Text('هيظهر هنا بعد أول حجز',
-          style: TextStyle(fontSize: 13, color: _kSub)),
+      Text('هيظهر هنا بعد أول حجز',
+          style: TextStyle(fontSize: 13, color: context.kSub)),
     ]),
   );
 
@@ -440,12 +437,12 @@ class _OwnerPayoutsPageState extends State<OwnerPayoutsPage>
               borderRadius: BorderRadius.circular(2)),
           )),
           const SizedBox(height: 20),
-          const Text('سياسة صرف المستحقات',
+          Text('سياسة صرف المستحقات',
               style: TextStyle(fontSize: 18,
-                  fontWeight: FontWeight.w900, color: _kText)),
+                  fontWeight: FontWeight.w900, color: context.kText)),
           const SizedBox(height: 4),
-          const Text('مبنية على سياسة Airbnb',
-              style: TextStyle(fontSize: 12, color: _kSub)),
+          Text('مبنية على سياسة Airbnb',
+              style: TextStyle(fontSize: 12, color: context.kSub)),
           const SizedBox(height: 20),
           _pStep('1', '💳', 'العميل يدفع',
               'فلوسه محجوزة في Escrow آمن'),
@@ -504,11 +501,11 @@ class _OwnerPayoutsPageState extends State<OwnerPayoutsPage>
         Expanded(child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(title, style: const TextStyle(
+            Text(title, style: TextStyle(
                 fontSize: 14, fontWeight: FontWeight.w800,
-                color: _kText)),
-            Text(sub, style: const TextStyle(
-                fontSize: 12, color: _kSub)),
+                color: context.kText)),
+            Text(sub, style: TextStyle(
+                fontSize: 12, color: context.kSub)),
           ],
         )),
       ]),
@@ -523,7 +520,7 @@ class _CommRow extends StatelessWidget {
     padding: const EdgeInsets.only(bottom: 5),
     child: Row(children: [
       Expanded(child: Text(label,
-          style: const TextStyle(fontSize: 12, color: _kSub))),
+          style: TextStyle(fontSize: 12, color: context.kSub))),
       Text(value, style: const TextStyle(
           fontSize: 13, fontWeight: FontWeight.w800, color: _kOcean)),
     ]),

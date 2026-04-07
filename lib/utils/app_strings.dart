@@ -259,6 +259,17 @@ class S {
       : 'Try different filters or search terms';
   static String get allAreas => _ar ? 'كل المناطق' : 'All Areas';
   static String get sortBy => _ar ? 'ترتيب حسب' : 'Sort by';
+  static String get explore => _ar ? 'استكشف' : 'Explore';
+  static String get exploreSearchHint => _ar
+      ? 'ابحث عن وجهة، منطقة، أو اسم…'
+      : 'Search destination, area, name…';
+  static String get egyptMap => _ar ? 'خريطة الساحل المصري' : 'Egypt Coastal Map';
+  static String get todayFeatured => _ar ? 'عروض اليوم المميزة' : "Today's Featured Deals";
+  static String get handPicked => _ar ? 'مختارة بعناية لأفضل قيمة' : 'Hand-picked for maximum value';
+  static String get ownerOnline => _ar ? 'المالك متصل' : 'Owner Online';
+  static String get maxPriceLabel => _ar ? 'أقصى سعر' : 'Max Price';
+  static String get book => _ar ? 'احجز' : 'Book';
+  static String dealsCount(int n) => _ar ? '$n عرض' : '$n deals';
 
   // ── AREA RESULTS PAGE ───────────────────────────────────────
   static String get availableProps => _ar ? 'عقار متاح' : 'available';
@@ -500,4 +511,215 @@ class S {
       _ar ? 'الحد الأدنى للليالي' : 'Minimum Nights';
   static String get maxNightsL =>
       _ar ? 'الحد الأقصى للليالي' : 'Maximum Nights';
+
+  // ── NOTIFICATION SYSTEM ───────────────────────────────────
+  static String get notifPropertyApproved =>
+      _ar ? 'تم قبول العقار' : 'Property Approved';
+  static String get notifPropertyRejected =>
+      _ar ? 'تم رفض العقار' : 'Property Rejected';
+  static String get notifNeedsEdit =>
+      _ar ? 'مطلوب تعديل' : 'Edits Required';
+  static String notifApprovedBody(String name) => _ar
+      ? 'تمت الموافقة على $name ويمكن الآن ظهوره للجميع.'
+      : '$name has been approved and is now visible to everyone.';
+  static String notifRejectedBody(String name) => _ar
+      ? 'عذرًا، لم يتم قبول $name. يمكنك المحاولة مرة أخرى.'
+      : 'Sorry, $name was not approved. You can try again.';
+  static String notifNeedsEditBody(String name) => _ar
+      ? 'يرجى تعديل بيانات $name حسب ملاحظات الإدارة.'
+      : 'Please update $name according to admin notes.';
+  static String get notifPermissionTitle =>
+      _ar ? 'تفعيل الإشعارات' : 'Enable Notifications';
+  static String get notifPermissionBody => _ar
+      ? 'فعّل الإشعارات عشان توصلك تحديثات حجوزاتك وعقاراتك'
+      : 'Enable notifications to receive booking and property updates';
+
+  // ── ADMIN PANEL ───────────────────────────────────────────
+  static String get adminPending =>
+      _ar ? 'العقارات المعلقة' : 'Pending Properties';
+  static String get adminApprove => _ar ? 'موافقة' : 'Approve';
+  static String get adminReject => _ar ? 'رفض' : 'Reject';
+  static String get adminRequestEdit =>
+      _ar ? 'طلب تعديل' : 'Request Edit';
+  static String get adminNoPending =>
+      _ar ? 'لا توجد عقارات معلقة' : 'No pending properties';
+  static String get adminNoPendingSub => _ar
+      ? 'كل العقارات تمت مراجعتها'
+      : 'All properties have been reviewed';
+  static String get adminApproveConfirm => _ar
+      ? 'هل تريد الموافقة على هذا العقار؟'
+      : 'Approve this property?';
+  static String get adminRejectConfirm => _ar
+      ? 'هل تريد رفض هذا العقار؟'
+      : 'Reject this property?';
+  static String get adminEditConfirm => _ar
+      ? 'هل تريد طلب تعديل على هذا العقار؟'
+      : 'Request edits for this property?';
+  static String get adminApproved =>
+      _ar ? 'تمت الموافقة ✅' : 'Approved ✅';
+  static String get adminRejected =>
+      _ar ? 'تم الرفض ❌' : 'Rejected ❌';
+  static String get adminEditRequested =>
+      _ar ? 'تم طلب التعديل ✏️' : 'Edit requested ✏️';
+  static String get statusPending =>
+      _ar ? 'في الانتظار' : 'Pending';
+  static String get statusApproved =>
+      _ar ? 'مقبول' : 'Approved';
+  static String get statusRejected =>
+      _ar ? 'مرفوض' : 'Rejected';
+  static String get statusNeedsEdit =>
+      _ar ? 'يحتاج تعديل' : 'Needs Edit';
+  static String get ownerLabel => _ar ? 'المالك' : 'Owner';
+  static String get submittedAt => _ar ? 'تم الإرسال' : 'Submitted';
+  static String get categoryLabel => _ar ? 'التصنيف' : 'Category';
+  static String get areaLabel => _ar ? 'المنطقة' : 'Area';
+
+  // ── BOOKING MANAGEMENT SYSTEM ────────────────────────────
+  static String get newBooking => _ar ? 'حجز جديد' : 'New Booking';
+  static String get numberOfPeople => _ar ? 'عدد الأشخاص' : 'Number of People';
+  static String get bookingDateLabel => _ar ? 'تاريخ الحجز' : 'Booking Date';
+  static String get promoCodeHint =>
+      _ar ? 'أدخل كود الخصم' : 'Enter promo code';
+  static String get promoOptional =>
+      _ar ? 'كود خصم (اختياري)' : 'Promo Code (optional)';
+  static String get validatePromo => _ar ? 'تحقق' : 'Verify';
+  static String get promoApplied =>
+      _ar ? 'تم التطبيق' : 'Applied';
+  static String get promoInvalid =>
+      _ar ? 'كود غير صحيح' : 'Invalid Code';
+  static String get paymentMethodLabel =>
+      _ar ? 'طريقة الدفع' : 'Payment Method';
+  static String get pricingDetails =>
+      _ar ? 'تفاصيل السعر' : 'Pricing Details';
+  static String get basePriceLabel =>
+      _ar ? 'السعر الأساسي' : 'Base Price';
+  static String get discountLabel => _ar ? 'الخصم' : 'Discount';
+  static String get totalLabel => _ar ? 'الإجمالي' : 'Total';
+  static String get bkPlatformFee =>
+      _ar ? 'رسوم المنصة' : 'Platform Fee';
+  static String get yourEarnings => _ar ? 'أرباحك' : 'Your Earnings';
+  static String get confirmBookingBtn =>
+      _ar ? 'تأكيد الحجز' : 'Confirm Booking';
+  static String get bookingSuccess =>
+      _ar ? 'تم تأكيد حجزك!' : 'Booking Confirmed!';
+  static String get bookingCodeLabel =>
+      _ar ? 'كود الحجز' : 'Booking Code';
+  static String get tapToCopy =>
+      _ar ? 'اضغط للنسخ' : 'Tap to Copy';
+  static String get codeCopied =>
+      _ar ? 'تم نسخ كود الحجز' : 'Booking code copied';
+  static String get backToHome =>
+      _ar ? 'العودة للصفحة الرئيسية' : 'Back to Home';
+  static String get saveCodeNote => _ar
+      ? 'احفظ كود الحجز لتقديمه عند الوصول'
+      : 'Save this code to present on arrival';
+  static String get perPerson =>
+      _ar ? 'جنيه / شخص' : 'EGP / person';
+  static String get loginRequired =>
+      _ar ? 'يجب تسجيل الدخول أولاً' : 'Login required';
+  static String get bkPaymentFailed =>
+      _ar ? 'فشل في الدفع' : 'Payment failed';
+
+  // ── OWNER VERIFICATION ───────────────────────────────────
+  static String get verifyBookingCode =>
+      _ar ? 'تحقق من كود الحجز' : 'Verify Booking Code';
+  static String get enterBookingCode =>
+      _ar ? 'أدخل كود الحجز' : 'Enter Booking Code';
+  static String get codeIs8Chars =>
+      _ar ? 'الكود مكون من 8 أحرف' : 'Code is 8 characters';
+  static String get verifyBtn => _ar ? 'تحقق' : 'Verify';
+  static String get invalidCode =>
+      _ar ? 'كود غير صحيح' : 'Invalid Code';
+  static String get tryAgain =>
+      _ar ? 'تأكد من الكود وحاول تاني' : 'Check the code and try again';
+  static String get bookingConfirmedBadge =>
+      _ar ? 'حجز مؤكد' : 'Booking Confirmed';
+  static String get guestName =>
+      _ar ? 'اسم الضيف' : 'Guest Name';
+  static String get placeLabel => _ar ? 'المكان' : 'Place';
+  static String get statusLabel => _ar ? 'الحالة' : 'Status';
+
+  // ── OWNER EARNINGS ───────────────────────────────────────
+  static String get myEarnings => _ar ? 'أرباحي' : 'My Earnings';
+  static String get bkTotalEarnings =>
+      _ar ? 'إجمالي الأرباح' : 'Total Earnings';
+  static String get totalBookingsCount =>
+      _ar ? 'عدد الحجوزات' : 'Total Bookings';
+  static String get searchByCode =>
+      _ar ? 'بحث بكود الحجز...' : 'Search by booking code...';
+  static String get noBookingsFound =>
+      _ar ? 'لا توجد حجوزات' : 'No bookings found';
+  static String get filterByDate =>
+      _ar ? 'تصفية بالتاريخ' : 'Filter by Date';
+
+  // ── ADMIN BOOKING DASHBOARD ──────────────────────────────
+  static String get adminDashboard =>
+      _ar ? 'لوحة الإدارة' : 'Admin Dashboard';
+  static String get platformRevenue =>
+      _ar ? 'إيرادات المنصة' : 'Platform Revenue';
+  static String get ownerEarningsTotal =>
+      _ar ? 'أرباح الملاك' : 'Owner Earnings';
+  static String get tradingVolume =>
+      _ar ? 'حجم التداول' : 'Trading Volume';
+  static String get promoUsageCount =>
+      _ar ? 'استخدام أكواد الخصم' : 'Promo Usage';
+  static String get last7Days =>
+      _ar ? 'حجوزات آخر 7 أيام' : 'Last 7 Days Bookings';
+  static String get managementSection =>
+      _ar ? 'إدارة' : 'Management';
+  static String get promoCodes =>
+      _ar ? 'أكواد الخصم' : 'Promo Codes';
+  static String get platformFees =>
+      _ar ? 'رسوم المنصة' : 'Platform Fees';
+  static String get recentBookings =>
+      _ar ? 'آخر الحجوزات' : 'Recent Bookings';
+  static String get bkNoBookingsYet =>
+      _ar ? 'لا توجد حجوزات بعد' : 'No bookings yet';
+
+  // ── ADMIN PROMO MANAGER ──────────────────────────────────
+  static String get managePromos =>
+      _ar ? 'إدارة أكواد الخصم' : 'Manage Promo Codes';
+  static String get addPromoCode =>
+      _ar ? 'إضافة كود' : 'Add Code';
+  static String get noPromos =>
+      _ar ? 'لا توجد أكواد خصم' : 'No promo codes';
+  static String get promoActive => _ar ? 'نشط' : 'Active';
+  static String get promoInactive => _ar ? 'معطل' : 'Inactive';
+  static String get expired => _ar ? 'منتهي' : 'Expired';
+  static String get expiryDateLabel =>
+      _ar ? 'تاريخ الانتهاء' : 'Expiry Date';
+  static String get usageLabel =>
+      _ar ? 'الاستخدام' : 'Usage';
+  static String get deactivate => _ar ? 'تعطيل' : 'Deactivate';
+  static String get activate => _ar ? 'تفعيل' : 'Activate';
+  static String get deletePromo =>
+      _ar ? 'حذف الكود؟' : 'Delete Code?';
+  static String get createPromo =>
+      _ar ? 'إنشاء الكود' : 'Create Code';
+  static String get promoCodeField =>
+      _ar ? 'الكود (مثل SUMMER25)' : 'Code (e.g. SUMMER25)';
+  static String get discountPercent =>
+      _ar ? 'نسبة الخصم %' : 'Discount %';
+  static String get maxUsageField =>
+      _ar ? 'أقصى استخدام (اختياري)' : 'Max Usage (optional)';
+
+  // ── ADMIN FINANCIAL SETTINGS ─────────────────────────────
+  static String get feeSettings =>
+      _ar ? 'إعدادات الرسوم' : 'Fee Settings';
+  static String get currentFee =>
+      _ar ? 'الرسوم الحالية' : 'Current Fee';
+  static String get perBooking =>
+      _ar ? 'من كل حجز' : 'Per booking';
+  static String get editFeePercent =>
+      _ar ? 'تعديل نسبة الرسوم' : 'Edit Fee Percentage';
+  static String get feeDescription => _ar
+      ? 'النسبة المئوية التي تأخذها المنصة من كل حجز'
+      : 'Percentage the platform takes from each booking';
+  static String get savedSuccessfully =>
+      _ar ? 'تم الحفظ بنجاح' : 'Saved successfully';
+  static String get feeChangeNote => _ar
+      ? 'التغيير يتم تطبيقه فوراً على كل الحجوزات الجديدة'
+      : 'Changes apply immediately to all new bookings';
+  static String get enterValidFee =>
+      _ar ? 'أدخل قيمة صحيحة بين 0 و 100' : 'Enter a valid value between 0 and 100';
 }

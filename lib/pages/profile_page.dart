@@ -8,6 +8,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import '../services/user_role_service.dart';
+import '../widgets/constants.dart';
 import 'owner_add_property_page.dart';
 import 'owner_payouts_page.dart';
 import 'bookings_page.dart';
@@ -16,15 +17,11 @@ import 'login_page.dart';
 import '../main.dart' show appSettings;
 import '../utils/app_strings.dart';
 
-const _kOcean = Color(0xFF1565C0);
+// Accent colors (same in light & dark)
+const _kOcean  = Color(0xFF1565C0);
 const _kOrange = Color(0xFFFF6D00);
-const _kSand = Color(0xFFF5F3EE);
-const _kCard = Colors.white;
-const _kText = Color(0xFF0D1B2A);
-const _kSub = Color(0xFF6B7280);
-const _kBorder = Color(0xFFE5E7EB);
-const _kGreen = Color(0xFF4CAF50);
-const _kRed = Color(0xFFEF5350);
+const _kGreen  = Color(0xFF4CAF50);
+const _kRed    = Color(0xFFEF5350);
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -141,15 +138,15 @@ class _ProfilePageState extends State<ProfilePage> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Text('تحويل الحساب لمالك عقار؟',
             style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
-        content: const Text(
+        content: Text(
           'هتقدر تضيف عقاراتك وتستقبل حجوزات وتستلم مدفوعات.\n\nممكن ترجع عميل في أي وقت.',
-          style: TextStyle(color: _kSub, height: 1.5),
+          style: TextStyle(color: context.kSub, height: 1.5),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('إلغاء',
-                style: TextStyle(color: _kSub, fontWeight: FontWeight.w700)),
+            child: Text('إلغاء',
+                style: TextStyle(color: context.kSub, fontWeight: FontWeight.w700)),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
@@ -189,14 +186,14 @@ class _ProfilePageState extends State<ProfilePage> {
   @override
   Widget build(BuildContext context) {
     if (_loading) {
-      return const Scaffold(
-        backgroundColor: _kSand,
-        body: Center(child: CircularProgressIndicator(color: _kOcean)),
+      return Scaffold(
+        backgroundColor: context.kSand,
+        body: const Center(child: CircularProgressIndicator(color: _kOcean)),
       );
     }
 
     return Scaffold(
-      backgroundColor: _kSand,
+      backgroundColor: context.kSand,
       body: CustomScrollView(
         physics: const BouncingScrollPhysics(),
         slivers: [
@@ -219,7 +216,7 @@ class _ProfilePageState extends State<ProfilePage> {
   // ── Header (Real data) ────────────────────────────────────
   Widget _buildHeader() {
     return Container(
-      color: Colors.white,
+      color: context.kCard,
       child: SafeArea(
           bottom: false,
           child: Column(
@@ -235,14 +232,14 @@ class _ProfilePageState extends State<ProfilePage> {
                       width: 40,
                       height: 40,
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF5F7FF),
+                        color: context.kChipBg,
                         borderRadius: BorderRadius.circular(13),
                         border: Border.all(
-                            color: const Color(0xFF0D1B2A)
+                            color: context.kText
                                 .withValues(alpha: 0.08)),
                       ),
-                      child: const Icon(Icons.arrow_back_ios_new_rounded,
-                          color: Color(0xFF0D1B2A), size: 16),
+                      child: Icon(Icons.arrow_back_ios_new_rounded,
+                          color: context.kText, size: 16),
                     ),
                   ),
                   const Spacer(),
@@ -253,12 +250,12 @@ class _ProfilePageState extends State<ProfilePage> {
                     decoration: BoxDecoration(
                       color: _isOwner
                           ? _kOrange.withValues(alpha: 0.1)
-                          : const Color(0xFFF5F7FF),
+                          : context.kChipBg,
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(
                         color: _isOwner
                             ? _kOrange.withValues(alpha: 0.4)
-                            : const Color(0xFF0D1B2A).withValues(alpha: 0.1),
+                            : context.kText.withValues(alpha: 0.1),
                       ),
                     ),
                     child: Text(
@@ -266,7 +263,7 @@ class _ProfilePageState extends State<ProfilePage> {
                       style: TextStyle(
                           color: _isOwner
                               ? _kOrange
-                              : const Color(0xFF0D1B2A).withValues(alpha: 0.6),
+                              : context.kText.withValues(alpha: 0.6),
                           fontSize: 11,
                           fontWeight: FontWeight.w800),
                     ),
@@ -285,10 +282,10 @@ class _ProfilePageState extends State<ProfilePage> {
                     Expanded(
                       child: Text(
                         _name.isNotEmpty ? _name : S.noData,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 26,
                           fontWeight: FontWeight.w900,
-                          color: Color(0xFF0D1B2A),
+                          color: context.kText,
                           letterSpacing: -0.8,
                         ),
                       ),
@@ -297,22 +294,22 @@ class _ProfilePageState extends State<ProfilePage> {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 10, vertical: 5),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF5F7FF),
+                        color: context.kChipBg,
                         borderRadius: BorderRadius.circular(10),
                         border: Border.all(
-                            color: const Color(0xFF0D1B2A)
+                            color: context.kText
                                 .withValues(alpha: 0.08)),
                       ),
                       child:
                           const Row(mainAxisSize: MainAxisSize.min, children: [
                         Icon(Icons.edit_rounded,
-                            size: 13, color: Color(0xFF1565C0)),
+                            size: 13, color: _kOcean),
                         SizedBox(width: 4),
                         Text('تعديل',
                             style: TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w700,
-                                color: Color(0xFF1565C0))),
+                                color: _kOcean)),
                       ]),
                     ),
                   ]),
@@ -324,7 +321,7 @@ class _ProfilePageState extends State<ProfilePage> {
               // ── Thin divider ────────────────────────────
               Divider(
                   height: 1,
-                  color: const Color(0xFF0D1B2A).withValues(alpha: 0.07)),
+                  color: context.kBorder),
             ],
           )),
     );
@@ -346,9 +343,9 @@ class _ProfilePageState extends State<ProfilePage> {
           padding:
               EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
           child: Container(
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+            decoration: BoxDecoration(
+              color: context.kCard,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
             ),
             child: Column(mainAxisSize: MainAxisSize.min, children: [
               // Handle
@@ -357,7 +354,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                    color: Colors.grey[300],
+                    color: context.kBorder,
                     borderRadius: BorderRadius.circular(2)),
               ),
 
@@ -366,10 +363,10 @@ class _ProfilePageState extends State<ProfilePage> {
                 padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
                 child: Row(children: [
                   Text(S.myProfile,
-                      style: const TextStyle(
+                      style: TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.w900,
-                          color: Color(0xFF0D1B2A))),
+                          color: context.kText)),
                   const Spacer(),
                   GestureDetector(
                     onTap: () => Navigator.pop(ctx),
@@ -377,11 +374,11 @@ class _ProfilePageState extends State<ProfilePage> {
                       width: 32,
                       height: 32,
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF5F7FF),
+                        color: context.kChipBg,
                         borderRadius: BorderRadius.circular(10),
                       ),
-                      child: const Icon(Icons.close_rounded,
-                          size: 16, color: Color(0xFF0D1B2A)),
+                      child: Icon(Icons.close_rounded,
+                          size: 16, color: context.kText),
                     ),
                   ),
                 ]),
@@ -470,28 +467,28 @@ class _ProfilePageState extends State<ProfilePage> {
       {TextInputType? keyType}) {
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFFF5F7FF),
+        color: context.kInputFill,
         borderRadius: BorderRadius.circular(14),
         border:
-            Border.all(color: const Color(0xFF0D1B2A).withValues(alpha: 0.08)),
+            Border.all(color: context.kText.withValues(alpha: 0.08)),
       ),
       child: Row(children: [
         const SizedBox(width: 14),
-        Icon(icon, size: 18, color: const Color(0xFF1565C0)),
+        Icon(icon, size: 18, color: _kOcean),
         const SizedBox(width: 10),
         Expanded(
             child: TextField(
           controller: ctrl,
           keyboardType: keyType,
-          style: const TextStyle(
+          style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w600,
-              color: Color(0xFF0D1B2A)),
+              color: context.kText),
           decoration: InputDecoration(
             labelText: label,
             labelStyle: TextStyle(
                 fontSize: 11,
-                color: const Color(0xFF0D1B2A).withValues(alpha: 0.4)),
+                color: context.kSub),
             border: InputBorder.none,
             contentPadding: const EdgeInsets.symmetric(vertical: 14),
           ),
@@ -583,12 +580,12 @@ class _ProfilePageState extends State<ProfilePage> {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
             decoration: BoxDecoration(
-              color: _kSub.withValues(alpha: 0.1),
+              color: context.kSub.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: const Text('Guest Mode',
+            child: Text('Guest Mode',
                 style: TextStyle(
-                    fontSize: 11, fontWeight: FontWeight.w700, color: _kSub)),
+                    fontSize: 11, fontWeight: FontWeight.w700, color: context.kSub)),
           ),
         ),
       ]),
@@ -611,146 +608,117 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  // ── Owner Section (real data) ─────────────────────────────
+  // ── Owner Section — Airbnb-style menu ────────────────────
   Widget _buildOwnerSection() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        // Stats row
-        Row(children: [
-          _statCard(_listingsCount.toString(), 'عقاراتي', '🏠', _kOcean),
-          const SizedBox(width: 8),
-          _statCard(_bookingsCount.toString(), 'حجوزاتي', '📅', _kGreen),
-          const SizedBox(width: 8),
-          _statCard(_avgRating > 0 ? _avgRating.toStringAsFixed(1) : '—',
-              'التقييم', '⭐', const Color(0xFFFFC107)),
-        ]),
-
-        const SizedBox(height: 12),
-
-        // Revenue card
+        // ── Compact stats summary ──
         Container(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
           decoration: BoxDecoration(
-            gradient: const LinearGradient(
-                colors: [Color(0xFF1565C0), Color(0xFF0D47A1)]),
-            borderRadius: BorderRadius.circular(18),
-            boxShadow: [
-              BoxShadow(
-                  color: _kOcean.withValues(alpha: 0.35),
-                  blurRadius: 12,
-                  offset: const Offset(0, 4))
-            ],
+            color: context.kCard,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: context.kBorder),
           ),
           child: Row(children: [
-            const Text('💰', style: TextStyle(fontSize: 32)),
-            const SizedBox(width: 12),
-            Expanded(
-                child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(S.totalRevenue,
-                    style:
-                        const TextStyle(color: Colors.white70, fontSize: 11)),
-                Text(
-                    _totalRevenue > 0
-                        ? 'EGP ${_totalRevenue.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]},')}'
-                        : 'EGP 0',
-                    style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 22,
-                        fontWeight: FontWeight.w900)),
-                Text(
-                    _bookingsCount > 0
-                        ? '$_bookingsCount حجز حتى الآن'
-                        : S.noBookingsYet,
-                    style:
-                        const TextStyle(color: Colors.white70, fontSize: 11)),
-              ],
-            )),
+            _miniStat(_listingsCount.toString(), 'عقار', _kOcean),
+            _statDivider(),
+            _miniStat(_bookingsCount.toString(), 'حجز', _kGreen),
+            _statDivider(),
+            _miniStat(
+                _avgRating > 0 ? _avgRating.toStringAsFixed(1) : '—',
+                'تقييم',
+                const Color(0xFFFFC107)),
           ]),
         ),
 
-        const SizedBox(height: 16),
+        const SizedBox(height: 24),
 
-        Row(children: [
-          Expanded(
-            child: _ownerQuickAction(
-              icon: Icons.calendar_month_rounded,
-              label: 'حجوزاتي كمالك',
-              onTap: () => Navigator.push(context,
-                  MaterialPageRoute(builder: (_) => const BookingsPage())),
-            ),
+        // ── الاستضافة section ──
+        _sectionTitle('الاستضافة'),
+        const SizedBox(height: 10),
+
+        _menuCard(children: [
+          _menuItem(
+            icon: Icons.dashboard_rounded,
+            title: 'لوحة التحكم',
+            subtitle: 'إدارة عقاراتك وحجوزاتك',
+            onTap: () => Navigator.push(context,
+                MaterialPageRoute(builder: (_) => const HostDashboardPage())),
           ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: _ownerQuickAction(
-              icon: Icons.payments_rounded,
-              label: 'الإيرادات',
-              onTap: () => Navigator.push(context,
-                  MaterialPageRoute(builder: (_) => const OwnerPayoutsPage())),
-            ),
+          _menuDivider(),
+          _menuItem(
+            icon: Icons.calendar_month_rounded,
+            title: 'حجوزاتي كمالك',
+            subtitle: '$_bookingsCount حجز',
+            onTap: () => Navigator.push(context,
+                MaterialPageRoute(builder: (_) => const BookingsPage())),
           ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: _ownerQuickAction(
-              icon: Icons.chat_rounded,
-              label: 'الرسائل',
-              onTap: () => Navigator.push(context,
-                  MaterialPageRoute(builder: (_) => const HostDashboardPage())),
-            ),
+          _menuDivider(),
+          _menuItem(
+            icon: Icons.payments_rounded,
+            title: 'الإيرادات',
+            subtitle: _totalRevenue > 0
+                ? 'إجمالي $_totalRevenue جنيه'
+                : 'لا توجد إيرادات بعد',
+            onTap: () => Navigator.push(context,
+                MaterialPageRoute(builder: (_) => const OwnerPayoutsPage())),
+          ),
+          _menuDivider(),
+          _menuItem(
+            icon: Icons.chat_rounded,
+            title: 'الرسائل',
+            subtitle: 'تواصل مع الضيوف',
+            onTap: () => Navigator.push(context,
+                MaterialPageRoute(builder: (_) => const HostDashboardPage())),
+          ),
+          _menuDivider(),
+          _menuItem(
+            icon: Icons.add_home_rounded,
+            title: S.addProperty,
+            subtitle: S.addPropertySub,
+            color: _kOrange,
+            onTap: () => Navigator.push(context,
+                MaterialPageRoute(
+                    builder: (_) => const OwnerAddPropertyPage())),
           ),
         ]),
-
-        const SizedBox(height: 12),
-
-        // Add listing CTA
-        GestureDetector(
-          onTap: () => Navigator.push(context,
-              MaterialPageRoute(builder: (_) => const OwnerAddPropertyPage())),
-          child: Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: _kOrange.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                  color: _kOrange.withValues(alpha: 0.3), width: 1.5),
-            ),
-            child: Row(children: [
-              Text('➕', style: TextStyle(fontSize: 24)),
-              SizedBox(width: 12),
-              Expanded(
-                  child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(S.addProperty,
-                      style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w800,
-                          color: _kText)),
-                  Text(S.addPropertySub,
-                      style: const TextStyle(fontSize: 11, color: _kSub)),
-                ],
-              )),
-              Icon(Icons.arrow_forward_ios_rounded, size: 14, color: _kOrange),
-            ]),
-          ),
-        ),
 
         const SizedBox(height: 20),
       ]),
     );
   }
 
+  // ── Compact stat for owner summary row ──────────────────
+  Widget _miniStat(String value, String label, Color color) {
+    return Expanded(
+      child: Column(children: [
+        Text(value,
+            style: TextStyle(
+                fontSize: 20, fontWeight: FontWeight.w900, color: color)),
+        const SizedBox(height: 2),
+        Text(label,
+            style: TextStyle(
+                fontSize: 11,
+                color: context.kSub,
+                fontWeight: FontWeight.w600)),
+      ]),
+    );
+  }
+
+  Widget _statDivider() => Container(
+      width: 1, height: 32, color: context.kBorder);
+
+  // ── Guest stat card (kept for guest section) ────────────
   Widget _statCard(String val, String label, String emoji, Color color) {
     return Expanded(
         child: Container(
       padding: const EdgeInsets.symmetric(vertical: 14),
       decoration: BoxDecoration(
-        color: _kCard,
+        color: context.kCard,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: _kBorder),
+        border: Border.all(color: context.kBorder),
         boxShadow: [
           BoxShadow(
               color: Colors.black.withValues(alpha: 0.05),
@@ -765,37 +733,70 @@ class _ProfilePageState extends State<ProfilePage> {
             style: TextStyle(
                 fontSize: 18, fontWeight: FontWeight.w900, color: color)),
         Text(label,
-            style: const TextStyle(
-                fontSize: 10, color: _kSub, fontWeight: FontWeight.w600)),
+            style: TextStyle(
+                fontSize: 10, color: context.kSub, fontWeight: FontWeight.w600)),
       ]),
     ));
   }
 
-  Widget _ownerQuickAction({
+  // ── Reusable menu card container ────────────────────────
+  Widget _menuCard({required List<Widget> children}) {
+    return Container(
+      decoration: BoxDecoration(
+        color: context.kCard,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: context.kBorder),
+      ),
+      child: Column(children: children),
+    );
+  }
+
+  Widget _menuDivider() =>
+      Divider(height: 1, indent: 56, color: context.kBorder);
+
+  // ── Airbnb-style navigation row ─────────────────────────
+  Widget _menuItem({
     required IconData icon,
-    required String label,
+    required String title,
+    String? subtitle,
+    Color? color,
     required VoidCallback onTap,
   }) {
-    return GestureDetector(
+    final c = color ?? _kOcean;
+    return InkWell(
       onTap: onTap,
-      child: Container(
-        height: 76,
-        decoration: BoxDecoration(
-          color: _kCard,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: _kBorder),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, color: _kOcean, size: 20),
-            const SizedBox(height: 6),
-            Text(label,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                    fontSize: 10, fontWeight: FontWeight.w700, color: _kText)),
-          ],
-        ),
+      borderRadius: BorderRadius.circular(16),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        child: Row(children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: c.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, size: 18, color: c),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title,
+                    style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: context.kText)),
+                if (subtitle != null && subtitle.isNotEmpty)
+                  Text(subtitle,
+                      style: TextStyle(fontSize: 11, color: context.kSub)),
+              ],
+            ),
+          ),
+          Icon(Icons.arrow_forward_ios_rounded,
+              size: 14, color: context.kSub),
+        ]),
       ),
     );
   }
@@ -826,9 +827,9 @@ class _ProfilePageState extends State<ProfilePage> {
           margin: const EdgeInsets.symmetric(vertical: 4),
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: context.kCard,
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: const Color(0xFFE5E7EB)),
+            border: Border.all(color: context.kBorder),
           ),
           child: Row(children: [
             Container(
@@ -847,13 +848,13 @@ class _ProfilePageState extends State<ProfilePage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(S.language,
-                    style: const TextStyle(
+                    style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w700,
-                        color: Color(0xFF0D1B2A))),
+                        color: context.kText)),
                 Text(S.langLabel,
-                    style: const TextStyle(
-                        fontSize: 12, color: Color(0xFF6B7280))),
+                    style: TextStyle(
+                        fontSize: 12, color: context.kSub)),
               ],
             )),
             // Toggle بين AR / EN
@@ -864,7 +865,7 @@ class _ProfilePageState extends State<ProfilePage> {
               },
               child: Container(
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF5F7FF),
+                  color: context.kChipBg,
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(color: _kOcean.withValues(alpha: 0.2)),
                 ),
@@ -883,7 +884,7 @@ class _ProfilePageState extends State<ProfilePage> {
                             fontWeight: FontWeight.w800,
                             color: appSettings.arabic
                                 ? Colors.white
-                                : const Color(0xFF6B7280))),
+                                : context.kSub)),
                   ),
                   AnimatedContainer(
                     duration: const Duration(milliseconds: 200),
@@ -899,7 +900,7 @@ class _ProfilePageState extends State<ProfilePage> {
                             fontWeight: FontWeight.w800,
                             color: !appSettings.arabic
                                 ? Colors.white
-                                : const Color(0xFF6B7280))),
+                                : context.kSub)),
                   ),
                 ]),
               ),
@@ -952,7 +953,7 @@ class _ProfilePageState extends State<ProfilePage> {
             width: double.infinity,
             padding: const EdgeInsets.symmetric(vertical: 14),
             decoration: BoxDecoration(
-              color: _kCard,
+              color: context.kCard,
               borderRadius: BorderRadius.circular(14),
               border: Border.all(color: _kRed.withValues(alpha: 0.3)),
             ),
@@ -966,8 +967,8 @@ class _ProfilePageState extends State<ProfilePage> {
           ),
         ),
         const SizedBox(height: 10),
-        const Text('Talaa v1.0.0 · Made with ❤️ in Egypt',
-            style: TextStyle(fontSize: 11, color: _kSub)),
+        Text('Talaa v1.0.0 · Made with ❤️ in Egypt',
+            style: TextStyle(fontSize: 11, color: context.kSub)),
         const SizedBox(height: 4),
       ]),
     );
@@ -975,14 +976,13 @@ class _ProfilePageState extends State<ProfilePage> {
 
   Widget _switchTile(
       String title, String sub, bool val, ValueChanged<bool> onChange) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E2530) : _kCard,
+        color: context.kCard,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: isDark ? const Color(0xFF2E3540) : _kBorder),
+        border: Border.all(color: context.kBorder),
       ),
       child: Row(children: [
         Expanded(
@@ -993,10 +993,10 @@ class _ProfilePageState extends State<ProfilePage> {
                 style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
-                    color: isDark ? Colors.white : _kText)),
+                    color: context.kText)),
             Text(sub,
                 style: TextStyle(
-                    fontSize: 10, color: isDark ? Colors.white54 : _kSub)),
+                    fontSize: 10, color: context.kSub)),
           ],
         )),
         Switch.adaptive(
@@ -1010,17 +1010,16 @@ class _ProfilePageState extends State<ProfilePage> {
 
   Widget _navTile(IconData icon, String label, Color color,
       {VoidCallback? onTap}) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     return GestureDetector(
       onTap: onTap,
       child: Container(
         margin: const EdgeInsets.only(bottom: 8),
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF1E2530) : _kCard,
+          color: context.kCard,
           borderRadius: BorderRadius.circular(14),
           border:
-              Border.all(color: isDark ? const Color(0xFF2E3540) : _kBorder),
+              Border.all(color: context.kBorder),
         ),
         child: Row(children: [
           Icon(icon, size: 18, color: color),
@@ -1033,19 +1032,18 @@ class _ProfilePageState extends State<ProfilePage> {
                       color: color))),
           Icon(Icons.arrow_forward_ios_rounded,
               size: 13,
-              color: onTap != null ? color.withValues(alpha: 0.4) : _kBorder),
+              color: onTap != null ? color.withValues(alpha: 0.4) : context.kBorder),
         ]),
       ),
     );
   }
 
   Widget _sectionTitle(String t) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Text(t,
         style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w900,
-            color: isDark ? Colors.white : _kText));
+            color: context.kText));
   }
 
   // ── Logout Dialog ─────────────────────────────────────────
@@ -1057,8 +1055,8 @@ class _ProfilePageState extends State<ProfilePage> {
                   borderRadius: BorderRadius.circular(20)),
               title: const Text('تسجيل الخروج؟',
                   style: TextStyle(fontWeight: FontWeight.w900)),
-              content: const Text('هل أنت متأكد من تسجيل الخروج؟',
-                  style: TextStyle(color: _kSub)),
+              content: Text('هل أنت متأكد من تسجيل الخروج؟',
+                  style: TextStyle(color: context.kSub)),
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(context),
@@ -1104,9 +1102,9 @@ class _ProfilePageState extends State<ProfilePage> {
                   borderRadius: BorderRadius.circular(20)),
               title: const Text('حذف الحساب؟',
                   style: TextStyle(fontWeight: FontWeight.w900, color: _kRed)),
-              content: const Text(
+              content: Text(
                   'سيتم حذف حسابك وجميع بياناتك نهائياً. لا يمكن التراجع.',
-                  style: TextStyle(color: _kSub)),
+                  style: TextStyle(color: context.kSub)),
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(context),

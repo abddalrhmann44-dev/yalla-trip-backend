@@ -12,14 +12,14 @@ class ChatBubble extends StatelessWidget {
   final bool isRead;
 
   const ChatBubble({
-    Key? key,
+    super.key,
     required this.message,
     required this.type,
     required this.time,
     this.showAvatar = false,
     this.senderName,
     this.isRead = false,
-  }) : super(key: key);
+  });
 
   bool get isSent => type == BubbleType.sent;
 
@@ -81,7 +81,7 @@ class ChatBubble extends StatelessWidget {
                             color: AppColors.border, width: 1.5),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.04),
+                        color: Colors.black.withValues(alpha: 0.04),
                         blurRadius: 8,
                         offset: const Offset(0, 2),
                       ),
@@ -157,7 +157,7 @@ class ChatBubble extends StatelessWidget {
 
 class ChatSystemMessage extends StatelessWidget {
   final String message;
-  const ChatSystemMessage({Key? key, required this.message}) : super(key: key);
+  const ChatSystemMessage({super.key, required this.message});
 
   @override
   Widget build(BuildContext context) {

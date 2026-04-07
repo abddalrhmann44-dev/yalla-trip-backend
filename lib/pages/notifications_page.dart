@@ -6,16 +6,13 @@
 import 'package:flutter/material.dart';
 import '../main.dart' show appSettings;
 import '../utils/app_strings.dart';
+import '../widgets/constants.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+// Accent colors (same in light & dark)
 const _kOcean  = Color(0xFF1565C0);
 const _kOrange = Color(0xFFFF6D00);
-const _kSand   = Color(0xFFF5F3EE);
-const _kCard   = Colors.white;
-const _kText   = Color(0xFF0D1B2A);
-const _kSub    = Color(0xFF6B7280);
-const _kBorder = Color(0xFFE5E7EB);
 const _kGreen  = Color(0xFF22C55E);
 
 // ── Notification Model ─────────────────────────────────────────
@@ -54,7 +51,7 @@ class _Notif {
       case 'payment_received':  return _kGreen;
       case 'new_review':        return const Color(0xFFF59E0B);
       case 'promo':             return _kOcean;
-      default:                  return _kSub;
+      default:                  return const Color(0xFF6B7280);
     }
   }
 
@@ -214,19 +211,19 @@ class _NotificationsPageState extends State<NotificationsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _kSand,
+      backgroundColor: context.kSand,
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded,
-              color: _kText, size: 18),
+          icon: Icon(Icons.arrow_back_ios_new_rounded,
+              color: context.kText, size: 18),
           onPressed: () => Navigator.pop(context),
         ),
         title: Row(mainAxisSize: MainAxisSize.min, children: [
           Text(S.notificationsTitle,
               style: TextStyle(fontSize: 17,
-                  fontWeight: FontWeight.w900, color: _kText)),
+                  fontWeight: FontWeight.w900, color: context.kText)),
           if (_unreadCount > 0) ...[
             const SizedBox(width: 8),
             Container(
@@ -296,12 +293,12 @@ class _NotificationsPageState extends State<NotificationsPage> {
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           color: n.isRead
-              ? _kCard
+              ? context.kCard
               : n.color.withValues(alpha: 0.04),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: n.isRead
-                ? _kBorder
+                ? context.kBorder
                 : n.color.withValues(alpha: 0.25),
             width: n.isRead ? 1 : 1.5,
           ),
@@ -334,7 +331,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
                       fontWeight: n.isRead
                           ? FontWeight.w600
                           : FontWeight.w900,
-                      color: _kText,
+                      color: context.kText,
                     ))),
                 if (!n.isRead)
                   Container(
@@ -346,8 +343,8 @@ class _NotificationsPageState extends State<NotificationsPage> {
               const SizedBox(height: 4),
               Text(n.body, maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                      fontSize: 12, color: _kSub, height: 1.5)),
+                  style: TextStyle(
+                      fontSize: 12, color: context.kSub, height: 1.5)),
               const SizedBox(height: 6),
               Text(n.timeAgo,
                   style: TextStyle(
@@ -381,12 +378,12 @@ class _NotificationsPageState extends State<NotificationsPage> {
               color: _kOcean.withValues(alpha: 0.5)),
         ),
         const SizedBox(height: 20),
-        const Text('مفيش إشعارات لحد دلوقتي',
+        Text('مفيش إشعارات لحد دلوقتي',
             style: TextStyle(fontSize: 16,
-                fontWeight: FontWeight.w800, color: _kText)),
+                fontWeight: FontWeight.w800, color: context.kText)),
         const SizedBox(height: 8),
-        const Text('هيظهروا هنا لما تحجز أو يجيلك عرض',
-            style: TextStyle(fontSize: 13, color: _kSub)),
+        Text('هيظهروا هنا لما تحجز أو يجيلك عرض',
+            style: TextStyle(fontSize: 13, color: context.kSub)),
       ],
     ),
   );

@@ -1,5 +1,29 @@
 import 'package:flutter/material.dart';
 
+// ── Theme-aware color helpers ────────────────────────────
+// Use these in any widget that has access to BuildContext:
+//   final t = Theme.of(context);
+//   final cs = t.colorScheme;
+//   ... or use the extension:  context.kText, context.kCard, etc.
+extension AppThemeX on BuildContext {
+  ThemeData get _theme => Theme.of(this);
+  bool get isDark => _theme.brightness == Brightness.dark;
+
+  // Semantic page colors (match the old _k* constants)
+  Color get kSand   => _theme.scaffoldBackgroundColor;
+  Color get kCard   => _theme.cardColor;
+  Color get kText   => _theme.colorScheme.onSurface;
+  Color get kSub    => isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280);
+  Color get kBorder => _theme.colorScheme.outline;
+
+  // Surface used inside cards / bottom sheets
+  Color get kSurface     => _theme.colorScheme.surface;
+  Color get kInputFill   => isDark ? const Color(0xFF0F172A) : const Color(0xFFF5F7FF);
+  Color get kSheetBg     => isDark ? const Color(0xFF111827) : Colors.white;
+  Color get kChipBg      => isDark ? const Color(0xFF1E2530) : const Color(0xFFF5F7FF);
+  Color get kOverlayText => isDark ? const Color(0xFFE6EDF3) : const Color(0xFF0D1B2A);
+}
+
 // ── Colors ──────────────────────────────────────────────
 class AppColors {
   AppColors._();

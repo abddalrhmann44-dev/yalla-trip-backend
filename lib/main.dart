@@ -21,6 +21,12 @@ import 'widgets/constants.dart';
 import 'utils/app_strings.dart';
 import 'services/connectivity_guard.dart';
 import 'services/version_check_service.dart';
+import 'services/notification_service.dart';
+import 'pages/admin_pending_page.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'features/booking/presentation/pages/owner_verify_booking_page.dart';
+import 'features/booking/presentation/pages/owner_earnings_dashboard.dart';
+import 'features/booking/presentation/pages/admin_dashboard_page.dart';
 
 class AppSettings extends ChangeNotifier {
   bool _darkMode = false;
@@ -85,7 +91,11 @@ void main() async {
   ]);
 
   await appSettings.load();
-  runApp(const TalaaApp());
+
+  // Initialize FCM & local notifications
+  await NotificationService.instance.initialize();
+
+  runApp(const ProviderScope(child: TalaaApp()));
 }
 
 class TalaaApp extends StatefulWidget {
@@ -149,6 +159,10 @@ class _TalaaAppState extends State<TalaaApp> {
         '/explore': (_) => const ExplorePage(),
         '/bookings': (_) => const BookingsPage(),
         '/profile': (_) => const ProfilePage(),
+        '/admin': (_) => const AdminPendingPage(),
+        '/owner-verify': (_) => const OwnerVerifyBookingPage(),
+        '/owner-earnings': (_) => const OwnerEarningsDashboard(),
+        '/admin-dashboard': (_) => const AdminDashboardPage(),
       },
       onGenerateRoute: (settings) {
         switch (settings.name) {
@@ -173,34 +187,87 @@ class _TalaaAppState extends State<TalaaApp> {
 
   ThemeData _buildTheme(Brightness brightness) {
     final isDark = brightness == Brightness.dark;
+    final scaffoldBg = isDark ? const Color(0xFF0B0F14) : Colors.white;
+    final surface = isDark ? const Color(0xFF111827) : const Color(0xFFF8F7F4);
+    final card = isDark ? const Color(0xFF161F2E) : Colors.white;
+    final onBg = isDark ? const Color(0xFFE6EDF3) : const Color(0xFF0D1B2A);
+    final onSurface = isDark ? const Color(0xFFE6EDF3) : const Color(0xFF0D1B2A);
+    final outline = isDark ? const Color(0xFF2B3445) : const Color(0xFFE5E7EB);
+
+    final schemeBase = ColorScheme.fromSeed(
+      seedColor: AppColors.primary,
+      brightness: brightness,
+    );
+
+    final scheme = schemeBase.copyWith(
+      surface: surface,
+      onSurface: onSurface,
+      outline: outline,
+      onPrimary: Colors.white,
+    );
+
     final base = ThemeData(
       useMaterial3: true,
       brightness: brightness,
-      colorScheme: ColorScheme.fromSeed(
-        seedColor: AppColors.primary,
-        brightness: brightness,
-      ),
-      scaffoldBackgroundColor: isDark ? const Color(0xFF0D1117) : Colors.white,
+      colorScheme: scheme,
+      scaffoldBackgroundColor: scaffoldBg,
+      cardColor: card,
     );
+
     return base.copyWith(
       textTheme: base.textTheme.apply(
-        bodyColor: isDark ? Colors.white : const Color(0xFF0D1B2A),
-        displayColor: isDark ? Colors.white : const Color(0xFF0D1B2A),
+        bodyColor: onBg,
+        displayColor: onBg,
       ),
-      cardColor: isDark ? const Color(0xFF1C2333) : Colors.white,
       appBarTheme: AppBarTheme(
-        backgroundColor: isDark ? const Color(0xFF161B22) : Colors.white,
-        foregroundColor: isDark ? Colors.white : AppColors.primary,
+        backgroundColor: isDark ? const Color(0xFF0F172A) : Colors.white,
+        foregroundColor: isDark ? onBg : AppColors.primary,
         elevation: 0,
         centerTitle: false,
+        iconTheme: IconThemeData(color: isDark ? onBg : AppColors.primary),
+        actionsIconTheme: IconThemeData(color: isDark ? onBg : AppColors.primary),
+      ),
+      iconTheme: IconThemeData(color: onSurface),
+      dividerTheme: DividerThemeData(color: outline),
+      cardTheme: CardThemeData(
+        color: card,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      ),
+      listTileTheme: ListTileThemeData(
+        iconColor: onSurface,
+        textColor: onSurface,
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF3F4F6),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(color: outline),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(color: outline),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(color: scheme.primary, width: 1.5),
+        ),
+        hintStyle: TextStyle(color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280)),
+        labelStyle: TextStyle(color: onSurface),
+      ),
+      bottomNavigationBarTheme: BottomNavigationBarThemeData(
+        backgroundColor: isDark ? const Color(0xFF0F172A) : Colors.white,
+        selectedItemColor: scheme.primary,
+        unselectedItemColor: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.primary,
-          foregroundColor: Colors.white,
+          backgroundColor: scheme.primary,
+          foregroundColor: scheme.onPrimary,
           elevation: 0,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
           textStyle: const TextStyle(
               fontFamily: 'Outfit', fontSize: 15, fontWeight: FontWeight.w800),
         ),
@@ -291,7 +358,7 @@ class _AuthGateState extends State<_AuthGate>
         builder: (context, _) => FadeTransition(
           opacity: _exitFade,
           child: Scaffold(
-            backgroundColor: Colors.white,
+            backgroundColor: Theme.of(context).scaffoldBackgroundColor,
             body: Center(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -349,7 +416,7 @@ class _AuthGateState extends State<_AuthGate>
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(
-            backgroundColor: Colors.white,
+            backgroundColor: Colors.transparent,
             body: Center(
               child: CircularProgressIndicator(
                 strokeWidth: 2,
@@ -358,6 +425,12 @@ class _AuthGateState extends State<_AuthGate>
             ),
           );
         }
+
+        // Save FCM token when user logs in
+        if (snapshot.hasData && snapshot.data != null) {
+          NotificationService.instance.saveTokenToFirestore();
+        }
+
         return snapshot.hasData && snapshot.data != null
             ? const HomePage()
             : const WelcomePage();

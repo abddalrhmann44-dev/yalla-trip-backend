@@ -115,7 +115,7 @@ class _SplashScreenState extends State<SplashScreen>
             width: size.width * 0.8, height: size.width * 0.8,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              border: Border.all(color: const Color(0xFFE8A838).withOpacity(0.08), width: 1),
+              border: Border.all(color: const Color(0xFFE8A838).withValues(alpha: 0.08), width: 1),
             ),
           ),
         ),
@@ -125,7 +125,7 @@ class _SplashScreenState extends State<SplashScreen>
             width: size.width * 1.2, height: size.width * 1.2,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              border: Border.all(color: const Color(0xFF1565C0).withOpacity(0.12), width: 1),
+              border: Border.all(color: const Color(0xFF1565C0).withValues(alpha: 0.12), width: 1),
             ),
           ),
         ),
@@ -135,7 +135,7 @@ class _SplashScreenState extends State<SplashScreen>
             width: 180, height: 180,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: const Color(0xFF1565C0).withOpacity(0.05),
+              color: const Color(0xFF1565C0).withValues(alpha: 0.05),
             ),
           ),
         ),
@@ -143,7 +143,7 @@ class _SplashScreenState extends State<SplashScreen>
         // Gold accent line
         Positioned(
           top: MediaQuery.of(context).padding.top, left: 0, right: 0,
-          child: Container(height: 1.5, color: const Color(0xFFE8A838).withOpacity(0.35)),
+          child: Container(height: 1.5, color: const Color(0xFFE8A838).withValues(alpha: 0.35)),
         ),
 
         // Center content
@@ -173,7 +173,7 @@ class _SplashScreenState extends State<SplashScreen>
                   'اكتشف  •  احجز  •  استمتع',
                   style: TextStyle(
                     fontSize: 13, fontFamily: 'Outfit', fontWeight: FontWeight.w500,
-                    color: Colors.white.withOpacity(0.5), letterSpacing: 2.5,
+                    color: Colors.white.withValues(alpha: 0.5), letterSpacing: 2.5,
                   ),
                 ),
               ),
@@ -192,7 +192,7 @@ class _SplashScreenState extends State<SplashScreen>
               const SizedBox(height: 14),
               Text('v1.0.0', style: TextStyle(
                 fontSize: 11, fontFamily: 'Outfit', fontWeight: FontWeight.w400,
-                color: Colors.white.withOpacity(0.2), letterSpacing: 1.2,
+                color: Colors.white.withValues(alpha: 0.2), letterSpacing: 1.2,
               )),
             ]),
           ),
@@ -209,7 +209,7 @@ class _SplashScreenState extends State<SplashScreen>
           width: 130, height: 130,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            border: Border.all(color: const Color(0xFFE8A838).withOpacity(0.35), width: 1.5),
+            border: Border.all(color: const Color(0xFFE8A838).withValues(alpha: 0.35), width: 1.5),
           ),
         ),
         AnimatedBuilder(
@@ -221,7 +221,7 @@ class _SplashScreenState extends State<SplashScreen>
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 boxShadow: [BoxShadow(
-                  color: const Color(0xFF1565C0).withOpacity(0.25 + pulse * 0.15),
+                  color: const Color(0xFF1565C0).withValues(alpha: 0.25 + pulse * 0.15),
                   blurRadius: 24 + pulse * 12,
                 )],
               ),
@@ -244,9 +244,9 @@ class _SplashScreenState extends State<SplashScreen>
                         width: 40,
                         decoration: BoxDecoration(
                           gradient: LinearGradient(colors: [
-                            Colors.white.withOpacity(0),
-                            Colors.white.withOpacity(0.15),
-                            Colors.white.withOpacity(0),
+                            Colors.white.withValues(alpha: 0),
+                            Colors.white.withValues(alpha: 0.15),
+                            Colors.white.withValues(alpha: 0),
                           ]),
                         ),
                       ),
@@ -326,7 +326,7 @@ class _SplashScreenState extends State<SplashScreen>
               width: 6 + pulse * 2, height: 6 + pulse * 2,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: const Color(0xFFE8A838).withOpacity(0.4 + pulse * 0.6),
+                color: const Color(0xFFE8A838).withValues(alpha: 0.4 + pulse * 0.6),
               ),
             );
           }),

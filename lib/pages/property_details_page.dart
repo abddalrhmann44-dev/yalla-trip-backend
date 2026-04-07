@@ -6,15 +6,12 @@
 import 'package:flutter/material.dart';
 import '../main.dart' show appSettings;
 import '../utils/app_strings.dart';
+import '../widgets/constants.dart';
 import '../models/property_model.dart';
 import 'booking_flow_page.dart';
 
 const _kOcean  = Color(0xFF1565C0);
 const _kOrange = Color(0xFFFF6D00);
-const _kSand   = Color(0xFFF5F3EE);
-const _kText   = Color(0xFF0D1B2A);
-const _kSub    = Color(0xFF6B7280);
-const _kBorder = Color(0xFFE5E7EB);
 
 class PropertyDetailsPage extends StatefulWidget {
   final PropertyModel property;
@@ -44,7 +41,7 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _kSand,
+      backgroundColor: context.kSand,
       body: Stack(children: [
 
         CustomScrollView(slivers: [
@@ -189,7 +186,7 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
                           p.areaColor.withValues(alpha: 0.12), p.areaColor),
                       const SizedBox(width: 8),
                       _badge('📍', p.area,
-                          const Color(0xFFF3F4F6), _kSub),
+                          Color(0xFFF3F4F6), context.kSub),
                       if (p.featured) ...[
                         const SizedBox(width: 8),
                         _badge('⭐', S.featured,
@@ -199,9 +196,9 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
                     const SizedBox(height: 12),
                     // Property name
                     Text(p.name,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 22, fontWeight: FontWeight.w900,
-                          color: _kText, height: 1.2,
+                          color: context.kText, height: 1.2,
                         )),
                     const SizedBox(height: 8),
                     // Location
@@ -211,8 +208,8 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
                       const SizedBox(width: 4),
                       Expanded(child: Text(
                         p.address.isNotEmpty ? p.address : p.location,
-                        style: const TextStyle(
-                            fontSize: 13, color: _kSub),
+                        style: TextStyle(
+                            fontSize: 13, color: context.kSub),
                       )),
                     ]),
                     const SizedBox(height: 14),
@@ -246,7 +243,7 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
                             S.instantBooking, const Color(0xFF22C55E)),
                       if (!p.instant)
                         _infoBadge(Icons.schedule_rounded,
-                            S.needsApproval, _kSub),
+                            S.needsApproval, context.kSub),
                     ]),
                   ],
                 ),
@@ -282,17 +279,17 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
                     children: [
                       Text(S.aboutProperty,
                           style: TextStyle(fontSize: 16,
-                              fontWeight: FontWeight.w900, color: _kText)),
+                              fontWeight: FontWeight.w900, color: context.kText)),
                       const SizedBox(height: 10),
                       AnimatedCrossFade(
                         firstChild: Text(p.description,
                             maxLines: 3,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                                fontSize: 14, color: _kSub, height: 1.6)),
+                            style: TextStyle(
+                                fontSize: 14, color: context.kSub, height: 1.6)),
                         secondChild: Text(p.description,
-                            style: const TextStyle(
-                                fontSize: 14, color: _kSub, height: 1.6)),
+                            style: TextStyle(
+                                fontSize: 14, color: context.kSub, height: 1.6)),
                         crossFadeState: _descExpand
                             ? CrossFadeState.showSecond
                             : CrossFadeState.showFirst,
@@ -360,12 +357,12 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
               // Price
               Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text('${p.price.toInt()} جنيه',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 22, fontWeight: FontWeight.w900,
                       color: _kOcean,
                     )),
-                const Text('/ الليلة',
-                    style: TextStyle(fontSize: 12, color: _kSub)),
+                Text('/ الليلة',
+                    style: TextStyle(fontSize: 12, color: context.kSub)),
               ]),
               const Spacer(),
               // Book button
@@ -408,8 +405,8 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
     color: Colors.white,
     padding: const EdgeInsets.all(20),
     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text(title, style: const TextStyle(
-          fontSize: 16, fontWeight: FontWeight.w900, color: _kText)),
+      Text(title, style: TextStyle(
+          fontSize: 16, fontWeight: FontWeight.w900, color: context.kText)),
       const SizedBox(height: 14),
       child,
     ]),
@@ -442,15 +439,15 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
 
   Widget _stat(String emoji, String val, String label) =>
     Expanded(child: Column(children: [
-      Text(emoji, style: const TextStyle(fontSize: 22)),
+      Text(emoji, style: TextStyle(fontSize: 22)),
       const SizedBox(height: 4),
-      Text(val, style: const TextStyle(
-          fontSize: 16, fontWeight: FontWeight.w900, color: _kText)),
-      Text(label, style: const TextStyle(fontSize: 11, color: _kSub)),
+      Text(val, style: TextStyle(
+          fontSize: 16, fontWeight: FontWeight.w900, color: context.kText)),
+      Text(label, style: TextStyle(fontSize: 11, color: context.kSub)),
     ]));
 
   Widget _divV() => Container(
-    height: 40, width: 1, color: _kBorder);
+    height: 40, width: 1, color: context.kBorder);
 
   Widget _chipGrid(List<String> items) => Wrap(
     spacing: 8, runSpacing: 8,
@@ -476,7 +473,7 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
     if (p.cleaningFee > 0)
       _priceRow(S.cleaningFee,
           '${p.cleaningFee.toInt()} جنيه'),
-    const Divider(color: _kBorder, height: 24),
+    Divider(color: context.kBorder, height: 24),
     _priceRow('الحد الأدنى للإقامة',
         '${p.minNights} ليالي', bold: true),
     if (p.maxNights > 0)
@@ -490,12 +487,12 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
       child: Row(children: [
         Expanded(child: Text(label,
             style: TextStyle(fontSize: 13,
-                color: bold ? _kText : _kSub,
+                color: bold ? context.kText : context.kSub,
                 fontWeight: bold ? FontWeight.w700 : FontWeight.w400))),
         Text(val, style: TextStyle(
             fontSize: 13,
             fontWeight: bold ? FontWeight.w900 : FontWeight.w700,
-            color: bold ? _kOcean : _kText)),
+            color: bold ? _kOcean : context.kText)),
       ]),
     );
 
@@ -522,26 +519,26 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
         const SizedBox(height: 6),
         Text(time, style: TextStyle(
             fontSize: 18, fontWeight: FontWeight.w900, color: color)),
-        Text(label, style: const TextStyle(
-            fontSize: 11, color: _kSub)),
+        Text(label, style: TextStyle(
+            fontSize: 11, color: context.kSub)),
       ]),
     );
 
   Widget _reviewsSection() {
     if (p.reviewCount == 0) {
-      return const Center(
+      return Center(
         child: Padding(
           padding: EdgeInsets.symmetric(vertical: 12),
           child: Text('لا يوجد تقييمات بعد',
-              style: TextStyle(color: _kSub, fontSize: 13)),
+              style: TextStyle(color: context.kSub, fontSize: 13)),
         ),
       );
     }
     return Column(children: [
       Row(children: [
         Text(p.rating.toStringAsFixed(1),
-            style: const TextStyle(
-                fontSize: 48, fontWeight: FontWeight.w900, color: _kText)),
+            style: TextStyle(
+                fontSize: 48, fontWeight: FontWeight.w900, color: context.kText)),
         const SizedBox(width: 16),
         Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(children: List.generate(5, (i) => Icon(
@@ -550,7 +547,7 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
                 : Icons.star_border_rounded,
             color: const Color(0xFFF59E0B), size: 20))),
           Text('${p.reviewCount} تقييم',
-              style: const TextStyle(fontSize: 13, color: _kSub)),
+              style: TextStyle(fontSize: 13, color: context.kSub)),
         ]),
       ]),
     ]);
@@ -574,10 +571,10 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(p.ownerName.isNotEmpty ? p.ownerName : 'المالك',
-            style: const TextStyle(fontSize: 15,
-                fontWeight: FontWeight.w800, color: _kText)),
-        const Text('مضيف في Yalla Trip',
-            style: TextStyle(fontSize: 12, color: _kSub)),
+            style: TextStyle(fontSize: 15,
+                fontWeight: FontWeight.w800, color: context.kText)),
+        Text('مضيف في Yalla Trip',
+            style: TextStyle(fontSize: 12, color: context.kSub)),
       ],
     )),
     Container(

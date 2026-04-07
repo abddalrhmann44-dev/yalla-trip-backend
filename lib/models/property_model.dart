@@ -45,6 +45,9 @@ class PropertyModel {
   final String checkinTime;
   final String checkoutTime;
   final DateTime createdAt;
+  final bool approved;
+  final String status; // pending | approved | rejected | needs_edit
+  final String ownerEmail;
 
   const PropertyModel({
     required this.id,
@@ -85,6 +88,9 @@ class PropertyModel {
     this.checkinTime = '14:00',
     this.checkoutTime = '12:00',
     required this.createdAt,
+    this.approved = false,
+    this.status = 'pending',
+    this.ownerEmail = '',
   });
 
   // ── From Firestore ─────────────────────────────────────────
@@ -128,6 +134,9 @@ class PropertyModel {
       checkinTime: d['checkinTime'] ?? '14:00',
       checkoutTime: d['checkoutTime'] ?? '12:00',
       createdAt: (d['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      approved: d['approved'] ?? false,
+      status: d['status'] ?? 'pending',
+      ownerEmail: d['ownerEmail'] ?? '',
     );
   }
 
@@ -170,6 +179,10 @@ class PropertyModel {
         'checkinTime': checkinTime,
         'checkoutTime': checkoutTime,
         'createdAt': FieldValue.serverTimestamp(),
+        'approved': approved,
+        'status': status,
+        'ownerEmail': ownerEmail,
+        'updatedAt': FieldValue.serverTimestamp(),
       };
 
   // ── Helpers ────────────────────────────────────────────────

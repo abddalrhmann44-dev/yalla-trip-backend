@@ -6,15 +6,12 @@
 import 'package:flutter/material.dart';
 import '../main.dart' show appSettings;
 import '../utils/app_strings.dart';
+import '../widgets/constants.dart';
 import '../models/property_model.dart';
 import 'payment_page.dart';
 
 const _kOcean  = Color(0xFF1565C0);
 const _kOrange = Color(0xFFFF6D00);
-const _kSand   = Color(0xFFF5F3EE);
-const _kText   = Color(0xFF0D1B2A);
-const _kSub    = Color(0xFF6B7280);
-const _kBorder = Color(0xFFE5E7EB);
 const _kGreen  = Color(0xFF22C55E);
 
 class BookingFlowPage extends StatefulWidget {
@@ -98,21 +95,21 @@ class _BookingFlowPageState extends State<BookingFlowPage>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _kSand,
+      backgroundColor: context.kSand,
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded,
-              color: _kText, size: 18),
+          icon: Icon(Icons.arrow_back_ios_new_rounded,
+              color: context.kText, size: 18),
           onPressed: () {
             if (_step > 0) { _goStep(_step - 1); }
             else { Navigator.pop(context); }
           },
         ),
         title: Text(_stepTitle(),
-            style: const TextStyle(
-                fontSize: 16, fontWeight: FontWeight.w900, color: _kText)),
+            style: TextStyle(
+                fontSize: 16, fontWeight: FontWeight.w900, color: context.kText)),
         centerTitle: true,
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(4),
@@ -120,7 +117,7 @@ class _BookingFlowPageState extends State<BookingFlowPage>
             animation: _progressAnim,
             builder: (_, __) => LinearProgressIndicator(
               value: _progressAnim.value,
-              backgroundColor: _kBorder,
+              backgroundColor: context.kBorder,
               valueColor: const AlwaysStoppedAnimation(_kOcean),
               minHeight: 4,
             ),
@@ -162,10 +159,10 @@ class _BookingFlowPageState extends State<BookingFlowPage>
         // Calendar header
         Text(S.dateRange,
             style: TextStyle(fontSize: 18,
-                fontWeight: FontWeight.w900, color: _kText)),
+                fontWeight: FontWeight.w900, color: context.kText)),
         const SizedBox(height: 4),
         Text('الحد الأدنى ${p.minNights} ليالي',
-            style: const TextStyle(fontSize: 13, color: _kSub)),
+            style: TextStyle(fontSize: 13, color: context.kSub)),
         const SizedBox(height: 20),
 
         // Date range tiles
@@ -279,7 +276,7 @@ class _BookingFlowPageState extends State<BookingFlowPage>
             : Colors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: date != null ? color : _kBorder,
+          color: date != null ? color : context.kBorder,
           width: date != null ? 1.8 : 1.5,
         ),
         boxShadow: [BoxShadow(
@@ -288,10 +285,10 @@ class _BookingFlowPageState extends State<BookingFlowPage>
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
-          Icon(icon, size: 15, color: date != null ? color : _kSub),
+          Icon(icon, size: 15, color: date != null ? color : context.kSub),
           const SizedBox(width: 5),
           Text(label, style: TextStyle(
-              fontSize: 11, color: date != null ? color : _kSub,
+              fontSize: 11, color: date != null ? color : context.kSub,
               fontWeight: FontWeight.w600)),
         ]),
         const SizedBox(height: 6),
@@ -301,7 +298,7 @@ class _BookingFlowPageState extends State<BookingFlowPage>
               : 'اختر تاريخ',
           style: TextStyle(
               fontSize: 15, fontWeight: FontWeight.w900,
-              color: date != null ? _kText : _kSub),
+              color: date != null ? context.kText : context.kSub),
         ),
       ]),
     ),
@@ -355,21 +352,21 @@ class _BookingFlowPageState extends State<BookingFlowPage>
         // Guests
         Text(S.guestsNum,
             style: TextStyle(fontSize: 16,
-                fontWeight: FontWeight.w900, color: _kText)),
+                fontWeight: FontWeight.w900, color: context.kText)),
         const SizedBox(height: 12),
         _guestCounter(),
         const SizedBox(height: 20),
 
         // Note to host
-        const Text('ملاحظة للمضيف (اختياري)',
+        Text('ملاحظة للمضيف (اختياري)',
             style: TextStyle(fontSize: 16,
-                fontWeight: FontWeight.w900, color: _kText)),
+                fontWeight: FontWeight.w900, color: context.kText)),
         const SizedBox(height: 10),
         Container(
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: _kBorder),
+            border: Border.all(color: context.kBorder),
           ),
           child: TextField(
             controller: _noteCtrl,
@@ -416,22 +413,22 @@ class _BookingFlowPageState extends State<BookingFlowPage>
     decoration: BoxDecoration(
       color: Colors.white,
       borderRadius: BorderRadius.circular(16),
-      border: Border.all(color: _kBorder),
+      border: Border.all(color: context.kBorder),
     ),
     child: Row(children: [
-      const Icon(Icons.people_rounded, color: _kOcean, size: 22),
+      Icon(Icons.people_rounded, color: _kOcean, size: 22),
       const SizedBox(width: 12),
-      const Text('ضيوف',
+      Text('ضيوف',
           style: TextStyle(fontSize: 14,
-              fontWeight: FontWeight.w700, color: _kText)),
+              fontWeight: FontWeight.w700, color: context.kText)),
       const Spacer(),
       _counterBtn(Icons.remove_rounded,
           _guests > 1 ? () => setState(() => _guests--) : null),
       Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16),
         child: Text('$_guests',
-            style: const TextStyle(fontSize: 18,
-                fontWeight: FontWeight.w900, color: _kText)),
+            style: TextStyle(fontSize: 18,
+                fontWeight: FontWeight.w900, color: context.kText)),
       ),
       _counterBtn(Icons.add_rounded,
           _guests < p.guests ? () => setState(() => _guests++) : null),
@@ -465,17 +462,17 @@ class _BookingFlowPageState extends State<BookingFlowPage>
     decoration: BoxDecoration(
       color: Colors.white,
       borderRadius: BorderRadius.circular(16),
-      border: Border.all(color: _kBorder),
+      border: Border.all(color: context.kBorder),
     ),
     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      const Row(children: [
+      Row(children: [
         Icon(Icons.policy_rounded, color: _kOcean, size: 18),
         SizedBox(width: 8),
         Text('سياسة الإلغاء والحجز',
             style: TextStyle(fontSize: 15,
-                fontWeight: FontWeight.w900, color: _kText)),
+                fontWeight: FontWeight.w900, color: context.kText)),
       ]),
-      const Divider(height: 20, color: _kBorder),
+      Divider(height: 20, color: context.kBorder),
 
       // Cancellation policy
       _policyItem(
@@ -498,7 +495,7 @@ class _BookingFlowPageState extends State<BookingFlowPage>
         title: 'بدون استرداد',
         body: 'الإلغاء قبل أقل من 3 أيام أو عدم الحضور: لا يُسترد المبلغ.',
       ),
-      const Divider(height: 20, color: _kBorder),
+      Divider(height: 20, color: context.kBorder),
 
       // Booking rules
       _policyItem(
@@ -511,7 +508,7 @@ class _BookingFlowPageState extends State<BookingFlowPage>
       const SizedBox(height: 12),
       _policyItem(
         icon: Icons.no_drinks_rounded,
-        color: _kSub,
+        color: context.kSub,
         title: 'قواعد العقار',
         body: 'يُرجى احترام جيران العقار وعدم إقامة حفلات صاخبة.',
       ),
@@ -550,11 +547,11 @@ class _BookingFlowPageState extends State<BookingFlowPage>
     Expanded(child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(title, style: const TextStyle(
-            fontSize: 13, fontWeight: FontWeight.w800, color: _kText)),
+        Text(title, style: TextStyle(
+            fontSize: 13, fontWeight: FontWeight.w800, color: context.kText)),
         const SizedBox(height: 3),
-        Text(body, style: const TextStyle(
-            fontSize: 12, color: _kSub, height: 1.5)),
+        Text(body, style: TextStyle(
+            fontSize: 12, color: context.kSub, height: 1.5)),
       ],
     )),
   ]);
@@ -572,17 +569,17 @@ class _BookingFlowPageState extends State<BookingFlowPage>
         const SizedBox(height: 20),
 
         // Trip summary
-        const Text('ملخص الرحلة',
+        Text('ملخص الرحلة',
             style: TextStyle(fontSize: 16,
-                fontWeight: FontWeight.w900, color: _kText)),
+                fontWeight: FontWeight.w900, color: context.kText)),
         const SizedBox(height: 12),
         _summaryCard(),
         const SizedBox(height: 20),
 
         // Price breakdown
-        const Text('تفاصيل السعر',
+        Text('تفاصيل السعر',
             style: TextStyle(fontSize: 16,
-                fontWeight: FontWeight.w900, color: _kText)),
+                fontWeight: FontWeight.w900, color: context.kText)),
         const SizedBox(height: 12),
         _priceBreakdown(),
         const SizedBox(height: 24),
@@ -622,9 +619,9 @@ class _BookingFlowPageState extends State<BookingFlowPage>
           ),
         ),
         const SizedBox(height: 12),
-        const Center(
+        Center(
           child: Text('🔒 دفع آمن ومشفر',
-              style: TextStyle(fontSize: 12, color: _kSub)),
+              style: TextStyle(fontSize: 12, color: context.kSub)),
         ),
       ]),
     );
@@ -635,14 +632,14 @@ class _BookingFlowPageState extends State<BookingFlowPage>
     decoration: BoxDecoration(
       color: Colors.white,
       borderRadius: BorderRadius.circular(16),
-      border: Border.all(color: _kBorder),
+      border: Border.all(color: context.kBorder),
     ),
     child: Column(children: [
       _priceRow('${p.price.toInt()} جنيه × $_nights ليالي',
           '$_baseTotal جنيه'),
       if (_cleaningFee > 0)
         _priceRow(S.cleaningFee, '$_cleaningFee جنيه'),
-      const Divider(height: 20, color: _kBorder),
+      Divider(height: 20, color: context.kBorder),
       _priceRow(S.totalPrice, '$_grandTotal جنيه', bold: true),
     ]),
   );
@@ -652,12 +649,12 @@ class _BookingFlowPageState extends State<BookingFlowPage>
       padding: const EdgeInsets.symmetric(vertical: 5),
       child: Row(children: [
         Expanded(child: Text(label, style: TextStyle(
-            fontSize: 13, color: bold ? _kText : _kSub,
+            fontSize: 13, color: bold ? context.kText : context.kSub,
             fontWeight: bold ? FontWeight.w900 : FontWeight.w400))),
         Text(val, style: TextStyle(
             fontSize: bold ? 15 : 13,
             fontWeight: bold ? FontWeight.w900 : FontWeight.w700,
-            color: bold ? _kOcean : _kText)),
+            color: bold ? _kOcean : context.kText)),
       ]),
     );
 
@@ -687,7 +684,7 @@ class _BookingFlowPageState extends State<BookingFlowPage>
     decoration: BoxDecoration(
       color: Colors.white,
       borderRadius: BorderRadius.circular(16),
-      border: Border.all(color: _kBorder),
+      border: Border.all(color: context.kBorder),
     ),
     child: Row(children: [
       ClipRRect(
@@ -712,20 +709,20 @@ class _BookingFlowPageState extends State<BookingFlowPage>
           Text(p.name,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 14,
-                  fontWeight: FontWeight.w800, color: _kText)),
+              style: TextStyle(fontSize: 14,
+                  fontWeight: FontWeight.w800, color: context.kText)),
           const SizedBox(height: 3),
           Text('${p.categoryEmoji} ${p.category} · ${p.area}',
-              style: const TextStyle(fontSize: 12, color: _kSub)),
+              style: TextStyle(fontSize: 12, color: context.kSub)),
           const SizedBox(height: 3),
           Row(children: [
             const Icon(Icons.star_rounded,
                 size: 13, color: Color(0xFFF59E0B)),
             const SizedBox(width: 3),
             Text(p.rating.toStringAsFixed(1),
-                style: const TextStyle(
+                style: TextStyle(
                     fontSize: 12, fontWeight: FontWeight.w700,
-                    color: _kText)),
+                    color: context.kText)),
           ]),
         ],
       )),
@@ -741,7 +738,7 @@ class _BookingFlowPageState extends State<BookingFlowPage>
     decoration: BoxDecoration(
       color: Colors.white,
       borderRadius: BorderRadius.circular(16),
-      border: Border.all(color: _kBorder),
+      border: Border.all(color: context.kBorder),
     ),
     child: Column(children: [
       Row(children: [
@@ -751,19 +748,19 @@ class _BookingFlowPageState extends State<BookingFlowPage>
                 : '—',
             _kGreen),
         const SizedBox(width: 1),
-        Container(width: 1, height: 40, color: _kBorder),
+        Container(width: 1, height: 40, color: context.kBorder),
         const SizedBox(width: 1),
         _summaryItem(Icons.logout_rounded, 'المغادرة',
             _checkOut != null
                 ? '${_checkOut!.day}/${_checkOut!.month}/${_checkOut!.year}'
                 : '—',
             _kOrange),
-        Container(width: 1, height: 40, color: _kBorder),
+        Container(width: 1, height: 40, color: context.kBorder),
         _summaryItem(Icons.nights_stay_rounded,
             'ليالي', '$_nights', _kOcean),
-        Container(width: 1, height: 40, color: _kBorder),
+        Container(width: 1, height: 40, color: context.kBorder),
         _summaryItem(Icons.people_rounded,
-            'ضيوف', '$_guests', _kSub),
+            'ضيوف', '$_guests', context.kSub),
       ]),
     ]),
   );
@@ -775,6 +772,6 @@ class _BookingFlowPageState extends State<BookingFlowPage>
       const SizedBox(height: 4),
       Text(val, style: TextStyle(
           fontSize: 14, fontWeight: FontWeight.w900, color: color)),
-      Text(label, style: const TextStyle(fontSize: 10, color: _kSub)),
+      Text(label, style: TextStyle(fontSize: 10, color: context.kSub)),
     ]));
 }
