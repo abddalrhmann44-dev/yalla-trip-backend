@@ -16,6 +16,9 @@ import 'area_results_page.dart';
 import '../utils/app_strings.dart';
 import 'bookings_page.dart';
 import 'profile_page.dart';
+import 'property_details_page.dart';
+import '../services/listing_service.dart';
+import '../models/property_model.dart';
 
 // ────────────────────────────────────────────────────────────────
 //  MODELS
@@ -1414,11 +1417,61 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   // ════════════════════════════════════════════════
 
   // ════════════════════════════════════════════════
-  //  OFFERS — سيُضاف لاحقاً من Firebase
+  //  OFFERS — Live Firebase stream
   // ════════════════════════════════════════════════
 
   Widget _buildOffersSection() {
-    // عرض placeholder حتى يتم إضافة عروض حقيقية من Firebase
+    return StreamBuilder<List<PropertyModel>>(
+      stream: ListingService.instance.streamActiveOffers(),
+      builder: (context, snap) {
+        // Loading shimmer
+        if (snap.connectionState == ConnectionState.waiting) {
+          return Padding(
+            padding: const EdgeInsets.fromLTRB(20, 28, 0, 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const _ShimmerBox(width: 200, height: 22, radius: 8),
+                const SizedBox(height: 14),
+                Row(children: const [
+                  _ShimmerBox(width: 195, height: 225, radius: 22),
+                  SizedBox(width: 12),
+                  _ShimmerBox(width: 195, height: 225, radius: 22),
+                ]),
+              ],
+            ),
+          );
+        }
+
+        final offers = snap.data ?? [];
+        if (offers.isEmpty) return _buildOffersPlaceholder();
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 26, 20, 14),
+              child: _secTitle(
+                appSettings.arabic ? '🔥 العروض الحصرية' : '🔥 Exclusive Deals',
+                action: '',
+              ),
+            ),
+            SizedBox(
+              height: 225,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                itemCount: offers.length,
+                itemBuilder: (_, i) => _offerCard(offers[i]),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildOffersPlaceholder() {
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 28, 20, 8),
       child: Container(
@@ -1428,21 +1481,14 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           color: context.kCard,
           borderRadius: BorderRadius.circular(24),
           border: Border.all(
-            color: context.kText.withValues(alpha: 0.12),
-            width: 1.5,
-          ),
-          boxShadow: [
-            BoxShadow(
+              color: context.kText.withValues(alpha: 0.12), width: 1.5),
+          boxShadow: [BoxShadow(
               color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 16,
-              offset: const Offset(0, 4),
-            ),
-          ],
+              blurRadius: 16, offset: const Offset(0, 4))],
         ),
         child: Column(children: [
           Container(
-            width: 64,
-            height: 64,
+            width: 64, height: 64,
             decoration: BoxDecoration(
               color: const Color(0xFF1565C0).withValues(alpha: 0.08),
               shape: BoxShape.circle,
@@ -1452,16 +1498,142 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           ),
           const SizedBox(height: 16),
           Text('لا توجد عروض حالياً',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w800,
-                color: context.kText,
-              )),
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800,
+                  color: context.kText)),
           const SizedBox(height: 6),
           Text('ستظهر العروض والخصومات هنا فور إضافتها',
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 13, color: context.kSub)),
         ]),
+      ),
+    );
+  }
+
+  Widget _offerCard(PropertyModel p) {
+    final areaColor    = p.areaColor;
+    final offerPriceInt = p.offerPrice?.toInt() ?? p.price;
+    final disc          = p.discountPercent;
+    final end           = p.offerEnd;
+    String remaining    = '';
+    if (end != null) {
+      final diff = end.difference(DateTime.now());
+      if (diff.inDays >= 1)       { remaining = 'Ends in ${diff.inDays}d'; }
+      else if (diff.inHours >= 1) { remaining = 'Ends in ${diff.inHours}h'; }
+      else                        { remaining = 'Ends soon'; }
+    }
+
+    return GestureDetector(
+      onTap: () => Navigator.push(context,
+          MaterialPageRoute(builder: (_) => PropertyDetailsPage(property: p))),
+      child: Container(
+        width: 195,
+        margin: const EdgeInsets.only(right: 12, bottom: 4),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(22),
+          boxShadow: [BoxShadow(
+              color: areaColor.withValues(alpha: 0.22),
+              blurRadius: 16, offset: const Offset(0, 6))],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(22),
+          child: Stack(children: [
+            // Gradient background
+            Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft, end: Alignment.bottomRight,
+                  colors: [areaColor, areaColor.withValues(alpha: 0.65)],
+                ),
+              ),
+            ),
+            // Property image overlay
+            if (p.firstImage.isNotEmpty)
+              Positioned.fill(
+                child: Image.network(p.firstImage, fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => const SizedBox()),
+              ),
+            // Dark gradient overlay
+            Positioned.fill(
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter, end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.black.withValues(alpha: 0.10),
+                      Colors.black.withValues(alpha: 0.74),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            // Card content
+            Padding(
+              padding: const EdgeInsets.all(14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Area chip + discount badge
+                  Row(children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(p.area,
+                          style: const TextStyle(color: Colors.white,
+                              fontSize: 10, fontWeight: FontWeight.w700)),
+                    ),
+                    const Spacer(),
+                    if (disc > 0)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFF6D00),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text('$disc% OFF',
+                            style: const TextStyle(color: Colors.white,
+                                fontSize: 10, fontWeight: FontWeight.w900)),
+                      ),
+                  ]),
+                  const Spacer(),
+                  // Property name
+                  Text(p.name,
+                      style: const TextStyle(color: Colors.white, fontSize: 14,
+                          fontWeight: FontWeight.w900, height: 1.2),
+                      maxLines: 2, overflow: TextOverflow.ellipsis),
+                  const SizedBox(height: 8),
+                  // Prices
+                  Row(children: [
+                    Text('EGP $offerPriceInt',
+                        style: const TextStyle(color: Colors.white,
+                            fontSize: 16, fontWeight: FontWeight.w900)),
+                    const SizedBox(width: 6),
+                    Text('${p.price}',
+                        style: const TextStyle(
+                            color: Colors.white60, fontSize: 12,
+                            decoration: TextDecoration.lineThrough,
+                            decorationColor: Colors.white60)),
+                  ]),
+                  const SizedBox(height: 5),
+                  // Time remaining
+                  if (remaining.isNotEmpty)
+                    Row(children: [
+                      const Icon(Icons.timer_rounded,
+                          color: Colors.white70, size: 12),
+                      const SizedBox(width: 4),
+                      Text(remaining,
+                          style: const TextStyle(color: Colors.white70,
+                              fontSize: 11, fontWeight: FontWeight.w600)),
+                    ]),
+                ],
+              ),
+            ),
+          ]),
+        ),
       ),
     );
   }

@@ -64,7 +64,23 @@ class _ProfilePageState extends State<ProfilePage> {
       if (user == null) return;
 
       final db = FirebaseFirestore.instance;
-      final doc = await db.collection('users').doc(user.uid).get();
+      final docRef = db.collection('users').doc(user.uid);
+      var doc = await docRef.get();
+
+      // إذا مفيش document (مثلاً تسجيل Google قديم) — ننشئ واحد
+      if (!doc.exists) {
+        await docRef.set({
+          'uid': user.uid,
+          'name': user.displayName ?? '',
+          'email': user.email ?? '',
+          'phone': user.phoneNumber ?? '',
+          'role': 'guest',
+          'avatar': user.photoURL ?? '',
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+        doc = await docRef.get();
+      }
+
       final data = doc.data() ?? {};
 
       // Role
@@ -416,11 +432,12 @@ class _ProfilePageState extends State<ProfilePage> {
                               await FirebaseFirestore.instance
                                   .collection('users')
                                   .doc(uid)
-                                  .update({
+                                  .set({
+                                'uid': uid,
                                 'name': nameCtrl.text.trim(),
                                 'phone': phoneCtrl.text.trim(),
                                 'email': emailCtrl.text.trim(),
-                              });
+                              }, SetOptions(merge: true));
                             }
                             if (!mounted) return;
                             final nav = Navigator.of(context);

@@ -49,6 +49,12 @@ class PropertyModel {
   final String status; // pending | approved | rejected | needs_edit
   final String ownerEmail;
 
+  // ── Time-limited offer fields ──────────────────────────────
+  final bool     isOfferActive;
+  final DateTime? offerStart;
+  final DateTime? offerEnd;
+  final double?   offerPrice;
+
   const PropertyModel({
     required this.id,
     required this.name,
@@ -91,6 +97,10 @@ class PropertyModel {
     this.approved = false,
     this.status = 'pending',
     this.ownerEmail = '',
+    this.isOfferActive = false,
+    this.offerStart,
+    this.offerEnd,
+    this.offerPrice,
   });
 
   // ── From Firestore ─────────────────────────────────────────
@@ -137,6 +147,10 @@ class PropertyModel {
       approved: d['approved'] ?? false,
       status: d['status'] ?? 'pending',
       ownerEmail: d['ownerEmail'] ?? '',
+      isOfferActive: d['isOfferActive'] ?? false,
+      offerStart: (d['offerStart'] as Timestamp?)?.toDate(),
+      offerEnd:   (d['offerEnd']   as Timestamp?)?.toDate(),
+      offerPrice: (d['offerPrice'] as num?)?.toDouble(),
     );
   }
 
@@ -182,6 +196,10 @@ class PropertyModel {
         'approved': approved,
         'status': status,
         'ownerEmail': ownerEmail,
+        'isOfferActive': isOfferActive,
+        if (offerStart != null) 'offerStart': Timestamp.fromDate(offerStart!),
+        if (offerEnd   != null) 'offerEnd':   Timestamp.fromDate(offerEnd!),
+        if (offerPrice != null) 'offerPrice': offerPrice,
         'updatedAt': FieldValue.serverTimestamp(),
       };
 
@@ -231,4 +249,23 @@ class PropertyModel {
 
   String get formattedPrice =>
       '${price.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]},')} $currency';
+
+  // ── Offer helpers ───────────────────────────────────────────
+
+  /// True when the listing has a valid, currently-running offer.
+  bool get hasActiveOffer {
+    if (!isOfferActive || offerStart == null || offerEnd == null) return false;
+    final now = DateTime.now();
+    return offerStart!.isBefore(now) && offerEnd!.isAfter(now);
+  }
+
+  /// Effective price: offer price when active, otherwise regular price.
+  int get displayPrice =>
+      hasActiveOffer && offerPrice != null ? offerPrice!.toInt() : price;
+
+  /// Whole-number discount percentage (0 when no active offer).
+  int get discountPercent {
+    if (!hasActiveOffer || offerPrice == null || price == 0) return 0;
+    return (((price - offerPrice!) / price) * 100).round();
+  }
 }

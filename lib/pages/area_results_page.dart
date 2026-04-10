@@ -66,6 +66,8 @@ class _Prop {
   final int    price, reviewCount;
   final List<String> images;
   final bool   instant, available;
+  final bool      isOfferActive;
+  final DateTime? offerEnd;
 
   _Prop.fromMap(String docId, Map<String, dynamic> d)
       : id          = docId,
@@ -78,6 +80,8 @@ class _Prop {
         rating      = (d['rating']      ?? 0).toDouble(),
         price       = (d['price']       ?? 0).toInt(),
         reviewCount = (d['reviewCount'] ?? 0).toInt(),
+        isOfferActive = d['isOfferActive'] ?? false,
+        offerEnd      = (d['offerEnd'] as Timestamp?)?.toDate(),
         images      = List<String>.from(d['images'] ?? []),
         instant     = d['instant']      ?? false,
         available   = d['available']    ?? true;
@@ -130,14 +134,23 @@ class _AreaResultsPageState extends State<AreaResultsPage> {
     try {
       final snap = await FirebaseFirestore.instance
           .collection('properties')
-          .where('area', isEqualTo: widget.area)
+          .where('area',      isEqualTo: widget.area)
           .where('available', isEqualTo: true)
           .get();
       if (!mounted) return;
-      setState(() {
-        _all     = snap.docs.map((d) => _Prop.fromMap(d.id, d.data())).toList();
-        _loading = false;
-      });
+      final now = DateTime.now();
+      // Exclude listings that currently have an active time-limited offer
+      // (those appear on the Home Page instead).
+      // Listings whose offer has already expired are shown here again.
+      final filtered = snap.docs
+          .map((d) => _Prop.fromMap(d.id, d.data()))
+          .where((p) {
+            if (!p.isOfferActive) return true;
+            if (p.offerEnd == null) return true;
+            return p.offerEnd!.isBefore(now); // expired → back in region
+          })
+          .toList();
+      setState(() { _all = filtered; _loading = false; });
     } catch (_) {
       if (mounted) setState(() => _loading = false);
     }

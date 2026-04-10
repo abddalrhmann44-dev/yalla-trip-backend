@@ -10,6 +10,9 @@ import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'owner_add_property_page.dart';
+import 'owner_payouts_page.dart';
+import 'host_dashboard_page.dart';
+import 'offer_creation_page.dart';
 import 'home_page.dart';
 import '../services/user_role_service.dart';
 
@@ -216,6 +219,7 @@ class _OwnerDashboardPageState extends State<OwnerDashboardPage>
                   slivers: [
                     _buildSliverHeader(),
                     _buildStatsBar(),
+                    _buildOwnerOptionsSection(),
                     if (_properties.isEmpty)
                       _buildEmptySliver()
                     else ...[
@@ -425,6 +429,124 @@ class _OwnerDashboardPageState extends State<OwnerDashboardPage>
   Widget _divider() => Container(
       width: 1, height: 50,
       color: context.kBorder);
+
+  // ── Owner Options Section ──────────────────────────────────────
+  Widget _buildOwnerOptionsSection() {
+    final isDark = context.isDark;
+    final options = [
+      _OwnerOption(
+        icon: Icons.add_home_work_rounded,
+        title: 'Add New Chalet / Hotel',
+        subtitle: 'Publish a new listing with photos, pricing, and location.',
+        gradient: const [Color(0xFF1565C0), Color(0xFF42A5F5)],
+        onTap: () async {
+          await Navigator.push(context,
+              MaterialPageRoute(builder: (_) => const OwnerAddPropertyPage()));
+          _loadProperties();
+        },
+      ),
+      _OwnerOption(
+        icon: Icons.view_list_rounded,
+        title: 'View My Listings',
+        subtitle: 'Manage all your active and inactive properties.',
+        gradient: const [Color(0xFF00897B), Color(0xFF4DB6AC)],
+        onTap: () {
+          // scroll down to properties list
+          if (_properties.isEmpty) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('No properties yet — add one first!')),
+            );
+          }
+        },
+      ),
+      _OwnerOption(
+        icon: Icons.calendar_month_rounded,
+        title: 'Bookings & Requests',
+        subtitle: 'Track customer booking requests and confirmed reservations.',
+        gradient: const [Color(0xFF5C6BC0), Color(0xFF7986CB)],
+        onTap: () => Navigator.push(context,
+            MaterialPageRoute(builder: (_) => const HostDashboardPage())),
+      ),
+      _OwnerOption(
+        icon: Icons.analytics_rounded,
+        title: 'Financial Reports',
+        subtitle: 'View revenue, payouts, and monthly statements.',
+        gradient: const [Color(0xFFFF6D00), Color(0xFFFFAB40)],
+        onTap: () => Navigator.push(context,
+            MaterialPageRoute(builder: (_) => const OwnerPayoutsPage())),
+      ),
+      _OwnerOption(
+        icon: Icons.local_offer_rounded,
+        title: 'Time-Limited Offers',
+        subtitle: 'Create discount offers with start/end dates.',
+        gradient: const [Color(0xFFAD1457), Color(0xFFE91E63)],
+        onTap: () => Navigator.push(context,
+            MaterialPageRoute(builder: (_) => const OfferCreationPage())),
+      ),
+      _OwnerOption(
+        icon: Icons.support_agent_rounded,
+        title: 'Support & Help',
+        subtitle: 'Reach our support team anytime.',
+        gradient: const [Color(0xFF37474F), Color(0xFF78909C)],
+        onTap: () {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Support coming soon')),
+          );
+        },
+      ),
+    ];
+
+    return SliverToBoxAdapter(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 24, 20, 8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Section header
+            Row(children: [
+              Container(
+                width: 4, height: 22,
+                decoration: BoxDecoration(
+                  color: _kOcean,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Text('Quick Actions',
+                  style: TextStyle(
+                      fontSize: 18, fontWeight: FontWeight.w900,
+                      color: context.kText)),
+            ]),
+            const SizedBox(height: 16),
+
+            // 2-column grid
+            GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: options.length,
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                mainAxisSpacing: 14,
+                crossAxisSpacing: 14,
+                childAspectRatio: 1.05,
+              ),
+              itemBuilder: (_, i) {
+                final o = options[i];
+                return _OwnerOptionCard(
+                  icon: o.icon,
+                  title: o.title,
+                  subtitle: o.subtitle,
+                  gradient: o.gradient,
+                  isDark: isDark,
+                  onTap: o.onTap,
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   // ── Section Title ────────────────────────────────────────────
   Widget _buildSectionTitle(String title) {
@@ -791,5 +913,208 @@ class _OwnerDashboardPageState extends State<OwnerDashboardPage>
           builder: (_) => const OwnerAddPropertyPage()),
     );
     _loadProperties();
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+//  _OwnerOption — data model for each option
+// ══════════════════════════════════════════════════════════════
+class _OwnerOption {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final List<Color> gradient;
+  final VoidCallback onTap;
+
+  const _OwnerOption({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.gradient,
+    required this.onTap,
+  });
+}
+
+// ══════════════════════════════════════════════════════════════
+//  _OwnerOptionCard — reusable premium card widget
+// ══════════════════════════════════════════════════════════════
+class _OwnerOptionCard extends StatefulWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final List<Color> gradient;
+  final bool isDark;
+  final VoidCallback onTap;
+
+  const _OwnerOptionCard({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.gradient,
+    required this.isDark,
+    required this.onTap,
+  });
+
+  @override
+  State<_OwnerOptionCard> createState() => _OwnerOptionCardState();
+}
+
+class _OwnerOptionCardState extends State<_OwnerOptionCard>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+  late final Animation<double> _scaleAnim;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 100));
+    _scaleAnim = Tween<double>(begin: 1.0, end: 0.96).animate(
+        CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
+  }
+
+  @override
+  void dispose() { _ctrl.dispose(); super.dispose(); }
+
+  @override
+  Widget build(BuildContext context) {
+    final primaryColor = widget.gradient.first;
+    final cardBg = widget.isDark
+        ? const Color(0xFF1A2234)
+        : Colors.white;
+    final titleColor = widget.isDark ? Colors.white : const Color(0xFF1A1A2E);
+    final subColor = widget.isDark
+        ? const Color(0xFF9CA3AF)
+        : const Color(0xFF6B7280);
+
+    return GestureDetector(
+      onTapDown: (_) => _ctrl.forward(),
+      onTapUp: (_) {
+        _ctrl.reverse();
+        widget.onTap();
+      },
+      onTapCancel: () => _ctrl.reverse(),
+      child: ScaleTransition(
+        scale: _scaleAnim,
+        child: Container(
+          decoration: BoxDecoration(
+            color: cardBg,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: primaryColor.withValues(alpha: widget.isDark ? 0.15 : 0.12),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: primaryColor.withValues(alpha: widget.isDark ? 0.08 : 0.1),
+                blurRadius: 16,
+                offset: const Offset(0, 6),
+              ),
+              if (!widget.isDark)
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.04),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+            ],
+          ),
+          child: Stack(
+            children: [
+              // Decorative gradient circle — top right
+              Positioned(
+                top: -18, right: -18,
+                child: Container(
+                  width: 64, height: 64,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: LinearGradient(
+                      colors: [
+                        primaryColor.withValues(alpha: 0.12),
+                        primaryColor.withValues(alpha: 0.03),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+
+              // Content
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Icon bubble
+                    Container(
+                      width: 46, height: 46,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: widget.gradient,
+                        ),
+                        borderRadius: BorderRadius.circular(14),
+                        boxShadow: [
+                          BoxShadow(
+                            color: primaryColor.withValues(alpha: 0.35),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Icon(widget.icon, size: 22, color: Colors.white),
+                    ),
+
+                    const SizedBox(height: 14),
+
+                    // Title
+                    Text(
+                      widget.title,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                        color: titleColor,
+                        height: 1.2,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+
+                    const SizedBox(height: 6),
+
+                    // Subtitle
+                    Text(
+                      widget.subtitle,
+                      style: TextStyle(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w500,
+                        color: subColor,
+                        height: 1.35,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+
+                    const Spacer(),
+
+                    // Arrow indicator
+                    Align(
+                      alignment: Alignment.bottomRight,
+                      child: Container(
+                        width: 28, height: 28,
+                        decoration: BoxDecoration(
+                          color: primaryColor.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Icon(Icons.arrow_forward_rounded,
+                            size: 15, color: primaryColor),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }

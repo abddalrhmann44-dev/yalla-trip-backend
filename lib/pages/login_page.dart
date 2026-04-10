@@ -4,6 +4,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'home_page.dart';
 import '../utils/app_strings.dart';
@@ -167,7 +168,36 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
       final ga = await user.authentication;
       final cred = GoogleAuthProvider.credential(
           accessToken: ga.accessToken, idToken: ga.idToken);
-      await _auth.signInWithCredential(cred);
+      final result = await _auth.signInWithCredential(cred);
+
+      // ── إنشاء / تحديث بيانات المستخدم في Firestore ──
+      final fbUser = result.user;
+      if (fbUser != null) {
+        final docRef = FirebaseFirestore.instance
+            .collection('users')
+            .doc(fbUser.uid);
+        final doc = await docRef.get();
+        if (!doc.exists) {
+          // أول مرة — إنشاء document جديد
+          await docRef.set({
+            'uid': fbUser.uid,
+            'name': fbUser.displayName ?? '',
+            'email': fbUser.email ?? '',
+            'phone': fbUser.phoneNumber ?? '',
+            'role': 'guest',
+            'avatar': fbUser.photoURL ?? '',
+            'createdAt': FieldValue.serverTimestamp(),
+          });
+        } else {
+          // تحديث البيانات اللي ممكن تكون اتغيرت في Google
+          await docRef.set({
+            'name': fbUser.displayName ?? doc.data()?['name'] ?? '',
+            'email': fbUser.email ?? doc.data()?['email'] ?? '',
+            'avatar': fbUser.photoURL ?? doc.data()?['avatar'] ?? '',
+          }, SetOptions(merge: true));
+        }
+      }
+
       if (mounted) _goHome();
     } catch (_) {
       _showError('حدث خطأ في تسجيل الدخول بـ Google');
