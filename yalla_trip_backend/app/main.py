@@ -1,4 +1,4 @@
-"""Yalla Trip – FastAPI application entry point."""
+"""Talaa – FastAPI application entry point."""
 
 from __future__ import annotations
 
@@ -27,8 +27,8 @@ async def lifespan(app: FastAPI):
 
 # ── App factory ───────────────────────────────────────────
 app = FastAPI(
-    title="Yalla Trip API",
-    description="Production REST API for the Yalla Trip travel & property booking platform – Egyptian market.",
+    title="Talaa API",
+    description="Production REST API for the Talaa travel & property booking platform – Egyptian market.",
     version="1.0.0",
     docs_url="/docs",
     redoc_url="/redoc",
@@ -116,5 +116,5 @@ async def health_check():
     return {
         "status": "healthy",
         "version": "1.0.0",
-        "service": "Yalla Trip API",
+        "service": "Talaa API",
     }

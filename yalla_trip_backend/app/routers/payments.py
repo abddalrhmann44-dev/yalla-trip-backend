@@ -47,7 +47,7 @@ async def initiate(
         amount=booking.total_price,
         customer_email=user.email or "",
         customer_phone=user.phone or "",
-        description=f"Yalla Trip Booking #{booking.booking_code}",
+        description=f"Talaa Booking #{booking.booking_code}",
     )
 
     if data.get("statusCode") == 200:

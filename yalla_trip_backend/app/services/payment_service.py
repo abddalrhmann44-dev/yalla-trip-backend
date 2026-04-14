@@ -26,7 +26,7 @@ async def initiate_payment(
     amount: float,
     customer_email: str,
     customer_phone: str,
-    description: str = "Yalla Trip Booking",
+    description: str = "Talaa Booking",
 ) -> dict[str, Any]:
     """Create a Fawry charge request and return the response payload.
 

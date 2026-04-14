@@ -10,4 +10,4 @@ async def test_health(guest_client: AsyncClient):
     assert resp.status_code == 200
     data = resp.json()
     assert data["status"] == "healthy"
-    assert data["service"] == "Yalla Trip API"
+    assert data["service"] == "Talaa API"
