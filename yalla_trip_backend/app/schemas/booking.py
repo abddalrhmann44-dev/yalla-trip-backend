@@ -7,7 +7,7 @@ from typing import Optional
 
 from pydantic import BaseModel, Field, model_validator
 
-from app.models.booking import BookingStatus, PaymentStatus
+from app.models.booking import BookingStatus, DepositStatus, PaymentStatus
 from app.schemas.property import PropertyBrief
 from app.schemas.user import UserBrief
 
@@ -39,6 +39,10 @@ class BookingOut(BaseModel):
     check_in: date
     check_out: date
     guests_count: int
+    electricity_fee: float
+    water_fee: float
+    security_deposit: float
+    deposit_status: DepositStatus
     total_price: float
     platform_fee: float
     owner_payout: float

@@ -5,7 +5,7 @@ from __future__ import annotations
 import enum
 from datetime import date, datetime
 
-from sqlalchemy import Date, DateTime, Enum, Float, ForeignKey, Integer, String, func
+from sqlalchemy import Boolean, Date, DateTime, Enum, Float, ForeignKey, Integer, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -22,6 +22,12 @@ class PaymentStatus(str, enum.Enum):
     pending = "pending"
     paid = "paid"
     refunded = "refunded"
+
+
+class DepositStatus(str, enum.Enum):
+    held = "held"
+    refunded = "refunded"
+    deducted = "deducted"
 
 
 class Booking(Base):
@@ -45,6 +51,13 @@ class Booking(Base):
     check_in: Mapped[date] = mapped_column(Date, nullable=False)
     check_out: Mapped[date] = mapped_column(Date, nullable=False)
     guests_count: Mapped[int] = mapped_column(Integer, default=1)
+
+    electricity_fee: Mapped[float] = mapped_column(Float, default=0.0, server_default="0")
+    water_fee: Mapped[float] = mapped_column(Float, default=0.0, server_default="0")
+    security_deposit: Mapped[float] = mapped_column(Float, default=0.0, server_default="0")
+    deposit_status: Mapped[DepositStatus] = mapped_column(
+        Enum(DepositStatus), default=DepositStatus.held, server_default="held"
+    )
 
     total_price: Mapped[float] = mapped_column(Float, nullable=False)
     platform_fee: Mapped[float] = mapped_column(Float, nullable=False)

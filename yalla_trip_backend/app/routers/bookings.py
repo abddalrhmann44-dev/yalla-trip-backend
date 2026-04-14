@@ -15,9 +15,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import get_settings
 from app.database import get_db
 from app.middleware.auth_middleware import get_current_active_user, require_role
-from app.models.booking import Booking, BookingStatus, PaymentStatus
+from app.models.booking import Booking, BookingStatus, DepositStatus, PaymentStatus
 from app.models.notification import NotificationType
-from app.models.property import Property
+from app.models.property import Category, Property
 from app.models.user import User, UserRole
 from app.schemas.booking import BookingCreate, BookingOut
 from app.schemas.common import MessageResponse, PaginatedResponse
@@ -42,36 +42,71 @@ async def _generate_code(db: AsyncSession) -> str:
     raise RuntimeError("Could not generate unique booking code")
 
 
+class _PriceBreakdown:
+    """Result of price calculation."""
+    __slots__ = (
+        "nights_total", "cleaning_fee", "electricity_fee", "water_fee",
+        "security_deposit", "total_price", "platform_fee", "owner_payout",
+    )
+
+    def __init__(self, **kw):
+        for k, v in kw.items():
+            setattr(self, k, v)
+
+
 def _calc_price(
     prop: Property,
     check_in: date,
     check_out: date,
-) -> tuple[float, float, float]:
-    """Return (total_price, platform_fee, owner_payout) with dynamic weekend pricing."""
-    total = 0.0
+) -> _PriceBreakdown:
+    """Calculate full price breakdown including utilities and deposit."""
+    nights_total = 0.0
     day = check_in
     while day < check_out:
         is_weekend = day.weekday() in (4, 5)  # Friday / Saturday (Egypt)
         rate = (prop.weekend_price or prop.price_per_night) if is_weekend else prop.price_per_night
-        total += rate
+        nights_total += rate
         day += timedelta(days=1)
 
-    total += prop.cleaning_fee
+    # Cleaning fee: chalets, villas, beach houses only
+    _has_cleaning = prop.category in (Category.chalet, Category.villa, Category.beach_house)
+    cleaning_fee = (prop.cleaning_fee or 0.0) if _has_cleaning else 0.0
+
+    # Utility fees & security deposit apply to chalets only
+    is_chalet = prop.category == Category.chalet
+    electricity_fee = (prop.electricity_fee or 0.0) if is_chalet else 0.0
+    water_fee = (prop.water_fee or 0.0) if is_chalet else 0.0
+    security_deposit = (prop.security_deposit or 0.0) if is_chalet else 0.0
+
+    # total = nights + cleaning + utilities (deposit is separate / refundable)
+    subtotal = nights_total + cleaning_fee + electricity_fee + water_fee
     fee_pct = settings.PLATFORM_FEE_PERCENT / 100.0
-    platform_fee = round(total * fee_pct, 2)
-    owner_payout = round(total - platform_fee, 2)
-    return round(total, 2), platform_fee, owner_payout
+    platform_fee = round(subtotal * fee_pct, 2)
+    owner_payout = round(subtotal - platform_fee, 2)
+    # total the guest pays = subtotal + deposit
+    total_price = round(subtotal + security_deposit, 2)
+
+    return _PriceBreakdown(
+        nights_total=round(nights_total, 2),
+        cleaning_fee=round(cleaning_fee, 2),
+        electricity_fee=round(electricity_fee, 2),
+        water_fee=round(water_fee, 2),
+        security_deposit=round(security_deposit, 2),
+        total_price=total_price,
+        platform_fee=platform_fee,
+        owner_payout=owner_payout,
+    )
 
 
-async def _check_overlap(
+async def _count_overlapping(
     db: AsyncSession,
     property_id: int,
     check_in: date,
     check_out: date,
     exclude_id: int | None = None,
-) -> bool:
-    """Return True if there is a date conflict with existing active bookings."""
-    stmt = select(Booking.id).where(
+) -> int:
+    """Count how many active bookings overlap with the given date range."""
+    stmt = select(func.count()).select_from(Booking).where(
         Booking.property_id == property_id,
         Booking.status.in_([BookingStatus.pending, BookingStatus.confirmed]),
         Booking.check_in < check_out,
@@ -79,8 +114,26 @@ async def _check_overlap(
     )
     if exclude_id:
         stmt = stmt.where(Booking.id != exclude_id)
-    result = await db.execute(stmt)
-    return result.scalar_one_or_none() is not None
+    return (await db.execute(stmt)).scalar() or 0
+
+
+async def _check_availability(
+    db: AsyncSession,
+    prop: Property,
+    check_in: date,
+    check_out: date,
+    exclude_id: int | None = None,
+) -> bool:
+    """Return True if at least one room/unit is available for the date range.
+
+    - Chalet / Villa (total_rooms=1): blocked if any booking overlaps.
+    - Hotel / Resort (total_rooms=N): blocked only when all N rooms are booked.
+    - Beach / Aqua Park (total_rooms=0): unlimited — always available.
+    """
+    if prop.total_rooms == 0:
+        return True  # unlimited capacity
+    booked = await _count_overlapping(db, prop.id, check_in, check_out, exclude_id)
+    return booked < prop.total_rooms
 
 
 @router.post("", response_model=BookingOut, status_code=status.HTTP_201_CREATED)
@@ -102,14 +155,15 @@ async def create_booking(
             detail=f"الحد الأقصى {prop.max_guests} أشخاص / Max {prop.max_guests} guests",
         )
 
-    # double-booking check
-    if await _check_overlap(db, prop.id, body.check_in, body.check_out):
-        raise HTTPException(
-            status_code=409,
-            detail="التواريخ محجوزة بالفعل / Dates already booked",
-        )
+    # availability check (rooms vs overlapping bookings)
+    if not await _check_availability(db, prop, body.check_in, body.check_out):
+        if prop.total_rooms == 1:
+            detail = "التواريخ محجوزة بالفعل / Dates already booked"
+        else:
+            detail = "جميع الغرف محجوزة في هذه التواريخ / All rooms booked for these dates"
+        raise HTTPException(status_code=409, detail=detail)
 
-    total, platform_fee, owner_payout = _calc_price(prop, body.check_in, body.check_out)
+    price = _calc_price(prop, body.check_in, body.check_out)
     code = await _generate_code(db)
 
     initial_status = (
@@ -124,9 +178,13 @@ async def create_booking(
         check_in=body.check_in,
         check_out=body.check_out,
         guests_count=body.guests_count,
-        total_price=total,
-        platform_fee=platform_fee,
-        owner_payout=owner_payout,
+        electricity_fee=price.electricity_fee,
+        water_fee=price.water_fee,
+        security_deposit=price.security_deposit,
+        deposit_status=DepositStatus.held if price.security_deposit > 0 else DepositStatus.refunded,
+        total_price=price.total_price,
+        platform_fee=price.platform_fee,
+        owner_payout=price.owner_payout,
         status=initial_status,
     )
     db.add(booking)
@@ -289,4 +347,70 @@ async def complete_booking(
         notif_type=NotificationType.booking_completed,
     )
 
+    return BookingOut.model_validate(booking)
+
+
+@router.put("/{booking_id}/deposit/refund", response_model=BookingOut)
+async def refund_deposit(
+    booking_id: int,
+    user: User = Depends(require_role(UserRole.owner, UserRole.admin)),
+    db: AsyncSession = Depends(get_db),
+):
+    """Refund the security deposit back to the guest after checkout."""
+    result = await db.execute(select(Booking).where(Booking.id == booking_id))
+    booking = result.scalar_one_or_none()
+    if booking is None:
+        raise HTTPException(status_code=404, detail="الحجز غير موجود / Booking not found")
+    if booking.owner_id != user.id and user.role != UserRole.admin:
+        raise HTTPException(status_code=403, detail="ليس لديك صلاحية / Not authorized")
+    if booking.status != BookingStatus.completed:
+        raise HTTPException(status_code=400, detail="الحجز لم يكتمل بعد / Booking not completed yet")
+    if booking.deposit_status != DepositStatus.held:
+        raise HTTPException(status_code=400, detail="التأمين تم معالجته بالفعل / Deposit already processed")
+
+    booking.deposit_status = DepositStatus.refunded
+    await db.flush()
+    await db.refresh(booking)
+
+    await create_notification(
+        db, booking.guest_id,
+        title="تم استرداد التأمين",
+        body=f"تم استرداد مبلغ التأمين {booking.security_deposit} ج.م لحجز {booking.booking_code}",
+        notif_type=NotificationType.payment_received,
+    )
+
+    logger.info("deposit_refunded", booking_id=booking.id, amount=booking.security_deposit)
+    return BookingOut.model_validate(booking)
+
+
+@router.put("/{booking_id}/deposit/deduct", response_model=BookingOut)
+async def deduct_deposit(
+    booking_id: int,
+    user: User = Depends(require_role(UserRole.owner, UserRole.admin)),
+    db: AsyncSession = Depends(get_db),
+):
+    """Deduct the security deposit (e.g., property damage) — does not refund to guest."""
+    result = await db.execute(select(Booking).where(Booking.id == booking_id))
+    booking = result.scalar_one_or_none()
+    if booking is None:
+        raise HTTPException(status_code=404, detail="الحجز غير موجود / Booking not found")
+    if booking.owner_id != user.id and user.role != UserRole.admin:
+        raise HTTPException(status_code=403, detail="ليس لديك صلاحية / Not authorized")
+    if booking.status != BookingStatus.completed:
+        raise HTTPException(status_code=400, detail="الحجز لم يكتمل بعد / Booking not completed yet")
+    if booking.deposit_status != DepositStatus.held:
+        raise HTTPException(status_code=400, detail="التأمين تم معالجته بالفعل / Deposit already processed")
+
+    booking.deposit_status = DepositStatus.deducted
+    await db.flush()
+    await db.refresh(booking)
+
+    await create_notification(
+        db, booking.guest_id,
+        title="تم خصم التأمين",
+        body=f"تم خصم مبلغ التأمين {booking.security_deposit} ج.م لحجز {booking.booking_code} بسبب تلفيات",
+        notif_type=NotificationType.payment_received,
+    )
+
+    logger.info("deposit_deducted", booking_id=booking.id, amount=booking.security_deposit)
     return BookingOut.model_validate(booking)

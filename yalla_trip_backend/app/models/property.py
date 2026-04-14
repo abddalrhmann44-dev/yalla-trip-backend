@@ -16,7 +16,7 @@ from sqlalchemy import (
     Text,
     func,
 )
-from sqlalchemy.dialects.postgresql import ARRAY
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -57,6 +57,12 @@ class Property(Base):
     price_per_night: Mapped[float] = mapped_column(Float, nullable=False)
     weekend_price: Mapped[float | None] = mapped_column(Float, nullable=True)
     cleaning_fee: Mapped[float] = mapped_column(Float, default=0.0, server_default="0")
+    electricity_fee: Mapped[float] = mapped_column(Float, default=0.0, server_default="0")
+    water_fee: Mapped[float] = mapped_column(Float, default=0.0, server_default="0")
+    security_deposit: Mapped[float] = mapped_column(Float, default=0.0, server_default="0")
+
+    total_rooms: Mapped[int] = mapped_column(Integer, default=1, server_default="1")
+    closing_time: Mapped[str | None] = mapped_column(String(5), nullable=True)  # HH:MM
 
     bedrooms: Mapped[int] = mapped_column(Integer, default=1)
     bathrooms: Mapped[int] = mapped_column(Integer, default=1)
@@ -67,6 +73,9 @@ class Property(Base):
     )
     amenities: Mapped[list[str] | None] = mapped_column(
         ARRAY(String(100)), nullable=True, default=list
+    )
+    services: Mapped[list[dict] | None] = mapped_column(
+        JSONB, nullable=True, default=list
     )
 
     rating: Mapped[float] = mapped_column(Float, default=0.0, server_default="0")
