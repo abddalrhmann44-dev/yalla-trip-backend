@@ -1,13 +1,13 @@
 // ═══════════════════════════════════════════════════════════════
-//  YALLA TRIP — Bookings Page  (Firebase)
+//  TALAA — Bookings Page  (REST API)
 // ═══════════════════════════════════════════════════════════════
 
 import 'package:flutter/material.dart';
 import '../main.dart' show appSettings;
 import '../utils/app_strings.dart';
 import '../widgets/constants.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import '../models/booking_model.dart';
+import '../services/booking_service.dart';
 
 // Accent colors (same in light & dark)
 const _kOcean  = Color(0xFF1565C0);
@@ -15,48 +15,47 @@ const _kOrange = Color(0xFFFF6D00);
 const _kGreen  = Color(0xFF22C55E);
 const _kRed    = Color(0xFFEF5350);
 
-// ── Model ──────────────────────────────────────────────────────
-class _Booking {
-  final String id, propertyName, area, location, category,
-               checkIn, checkOut, status, payMethod, propertyImage;
-  final int    nights, totalPaid;
-  final double rating;
-
-  _Booking.fromFirestore(String docId, Map<String, dynamic> d)
-      : id            = docId,
-        propertyName  = d['propertyName']  ?? '',
-        area          = d['area']          ?? '',
-        location      = d['location']      ?? '',
-        category      = d['category']      ?? '',
-        checkIn       = d['checkIn']       ?? '',
-        checkOut      = d['checkOut']      ?? '',
-        status        = d['status']        ?? 'upcoming',
-        payMethod     = d['payMethod']     ?? '',
-        propertyImage = d['propertyImage'] ?? '',
-        nights        = (d['nights']       ?? 1).toInt(),
-        totalPaid     = (d['totalPaid']    ?? 0).toInt(),
-        rating        = (d['rating']       ?? 0.0).toDouble();
-
-  String get categoryEmoji {
-    switch (category) {
-      case 'شاليه':     return '🏡';
-      case 'فيلا':      return '🏖️';
-      case 'فندق':      return '🏨';
-      case 'منتجع':     return '🌺';
-      case 'أكوا بارك': return '🌊';
-      case 'بيت شاطئ':  return '🏄';
-      default:          return '🏠';
-    }
+// ── Helpers ────────────────────────────────────────────────────
+String _categoryEmoji(String category) {
+  switch (category) {
+    case 'شاليه':     return '🏡';
+    case 'فيلا':      return '🏖️';
+    case 'فندق':      return '🏨';
+    case 'منتجع':     return '🌺';
+    case 'أكوا بارك': return '🌊';
+    case 'بيت شاطئ':  return '🏄';
+    default:          return '🏠';
   }
+}
 
-  Color get areaColor {
-    if (area == 'عين السخنة')     return const Color(0xFF0288D1);
-    if (area == 'الساحل الشمالي') return const Color(0xFF1976D2);
-    if (area == 'الجونة')         return const Color(0xFFE65100);
-    if (area == 'الغردقة')        return const Color(0xFF00695C);
-    if (area == 'شرم الشيخ')      return const Color(0xFF6A1B9A);
-    if (area == 'رأس سدر')        return const Color(0xFF00897B);
-    return _kOcean;
+Color _areaColor(String area) {
+  if (area == 'عين السخنة')     return const Color(0xFF0288D1);
+  if (area == 'الساحل الشمالي') return const Color(0xFF1976D2);
+  if (area == 'الجونة')         return const Color(0xFFE65100);
+  if (area == 'الغردقة')        return const Color(0xFF00695C);
+  if (area == 'شرم الشيخ')      return const Color(0xFF6A1B9A);
+  if (area == 'رأس سدر')        return const Color(0xFF00897B);
+  return _kOcean;
+}
+
+String _fmtDate(DateTime d) {
+  final dd = d.day.toString().padLeft(2, '0');
+  final mm = d.month.toString().padLeft(2, '0');
+  return '$dd/$mm/${d.year}';
+}
+
+/// Map API status to display group
+String _statusGroup(String status) {
+  switch (status) {
+    case 'pending':
+    case 'confirmed':
+      return 'upcoming';
+    case 'completed':
+      return 'past';
+    case 'cancelled':
+      return 'cancelled';
+    default:
+      return 'upcoming';
   }
 }
 
@@ -72,7 +71,7 @@ class _BookingsPageState extends State<BookingsPage>
     with SingleTickerProviderStateMixin {
 
   late TabController _tabCtrl;
-  List<_Booking> _bookings = [];
+  List<BookingModel> _bookings = [];
   bool _loading = true;
 
   @override
@@ -90,25 +89,16 @@ class _BookingsPageState extends State<BookingsPage>
     appSettings.removeListener(_onLangChange); _tabCtrl.dispose(); super.dispose(); }
 
   Future<void> _loadBookings() async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) { setState(() => _loading = false); return; }
     try {
-      final snap = await FirebaseFirestore.instance
-          .collection('bookings')
-          .where('userId', isEqualTo: uid)
-          .orderBy('createdAt', descending: true)
-          .get();
-      final list = snap.docs
-          .map((d) => _Booking.fromFirestore(d.id, d.data()))
-          .toList();
+      final list = await BookingService.getMyBookings();
       if (mounted) setState(() { _bookings = list; _loading = false; });
     } catch (_) {
       if (mounted) setState(() => _loading = false);
     }
   }
 
-  List<_Booking> _byStatus(String s) =>
-      _bookings.where((b) => b.status == s).toList();
+  List<BookingModel> _byStatus(String s) =>
+      _bookings.where((b) => _statusGroup(b.status) == s).toList();
 
   String _comma(int n) => n.toString().replaceAllMapped(
       RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]},');
@@ -231,9 +221,10 @@ class _BookingsPageState extends State<BookingsPage>
     ));
   }
 
-  Widget _bookingCard(_Booking b) {
-    final isUpcoming  = b.status == 'upcoming';
-    final isCancelled = b.status == 'cancelled';
+  Widget _bookingCard(BookingModel b) {
+    final group = _statusGroup(b.status);
+    final isUpcoming  = group == 'upcoming';
+    final isCancelled = group == 'cancelled';
     return GestureDetector(
       onTap: () => _showDetail(b),
       child: Container(
@@ -255,8 +246,8 @@ class _BookingsPageState extends State<BookingsPage>
                 b.propertyImage.isNotEmpty
                     ? Image.network(b.propertyImage, fit: BoxFit.cover,
                         errorBuilder: (_, __, ___) =>
-                            _gradientBg(b, isCancelled))
-                    : _gradientBg(b, isCancelled),
+                            _gradientBg(b.propertyArea, b.property?.category ?? '', isCancelled))
+                    : _gradientBg(b.propertyArea, b.property?.category ?? '', isCancelled),
                 Container(
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
@@ -290,7 +281,7 @@ class _BookingsPageState extends State<BookingsPage>
                       color: Colors.black.withValues(alpha: 0.45),
                       borderRadius: BorderRadius.circular(20)),
                     child: Text(
-                        '#${b.id.substring(0, 8).toUpperCase()}',
+                        '#${b.bookingCode.isNotEmpty ? b.bookingCode : b.id.toString()}',
                         style: const TextStyle(color: Colors.white,
                             fontSize: 9, fontWeight: FontWeight.w700)),
                   )),
@@ -328,15 +319,15 @@ class _BookingsPageState extends State<BookingsPage>
                     const SizedBox(height: 3),
                     Row(children: [
                       Icon(Icons.location_on_rounded,
-                          size: 11, color: b.areaColor),
+                          size: 11, color: _areaColor(b.propertyArea)),
                       const SizedBox(width: 2),
-                      Text('${b.area} · ${b.location}',
+                      Text(b.propertyArea,
                           style: TextStyle(fontSize: 10,
-                              color: b.areaColor,
+                              color: _areaColor(b.propertyArea),
                               fontWeight: FontWeight.w600)),
                     ]),
                   ])),
-                if (b.rating > 0)
+                if ((b.property?.rating ?? 0) > 0)
                   Container(
                     padding: const EdgeInsets.symmetric(
                         horizontal: 8, vertical: 4),
@@ -346,7 +337,7 @@ class _BookingsPageState extends State<BookingsPage>
                     child: Row(children: [
                       const Icon(Icons.star_rounded,
                           color: Color(0xFFFFC107), size: 13),
-                      Text(' ${b.rating}',
+                      Text(' ${b.property!.rating}',
                           style: TextStyle(fontSize: 12,
                               fontWeight: FontWeight.w800,
                               color: context.kText)),
@@ -357,20 +348,20 @@ class _BookingsPageState extends State<BookingsPage>
               Divider(height: 1, color: context.kBorder),
               const SizedBox(height: 10),
               Row(children: [
-                _infoChip(Icons.login_rounded,  'وصول',   b.checkIn),
+                _infoChip(Icons.login_rounded,  'وصول',   _fmtDate(b.checkIn)),
                 Icon(Icons.arrow_forward_rounded,
                     size: 14, color: context.kSub),
-                _infoChip(Icons.logout_rounded, 'مغادرة', b.checkOut),
+                _infoChip(Icons.logout_rounded, 'مغادرة', _fmtDate(b.checkOut)),
                 const Spacer(),
                 _infoChip(Icons.nights_stay_rounded,
                     'ليالي', '${b.nights}'),
               ]),
               const SizedBox(height: 10),
               Row(children: [
-                Text(b.payMethod, style: TextStyle(
+                Text(b.statusAr, style: TextStyle(
                     fontSize: 11, color: context.kSub)),
                 const Spacer(),
-                Text('EGP ${_comma(b.totalPaid)}',
+                Text('EGP ${_comma(b.totalPrice.toInt())}',
                     style: TextStyle(fontSize: 16,
                         fontWeight: FontWeight.w900, color: context.kText)),
               ]),
@@ -381,15 +372,15 @@ class _BookingsPageState extends State<BookingsPage>
     );
   }
 
-  Widget _gradientBg(_Booking b, bool cancelled) => Container(
+  Widget _gradientBg(String area, String category, bool cancelled) => Container(
     decoration: BoxDecoration(
       gradient: LinearGradient(
         colors: cancelled
             ? [Colors.grey.shade400, Colors.grey.shade300]
-            : [b.areaColor, b.areaColor.withValues(alpha: 0.6)],
+            : [_areaColor(area), _areaColor(area).withValues(alpha: 0.6)],
       ),
     ),
-    child: Center(child: Text(b.categoryEmoji,
+    child: Center(child: Text(_categoryEmoji(category),
         style: TextStyle(fontSize: 48,
             color: cancelled
                 ? Colors.white.withValues(alpha: 0.5) : null))),
@@ -407,7 +398,7 @@ class _BookingsPageState extends State<BookingsPage>
       const SizedBox(width: 10),
     ]);
 
-  void _showDetail(_Booking b) {
+  void _showDetail(BookingModel b) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -421,12 +412,13 @@ class _BookingsPageState extends State<BookingsPage>
 //  DETAIL SHEET
 // ══════════════════════════════════════════════════════════════
 class _DetailSheet extends StatelessWidget {
-  final _Booking b;
+  final BookingModel b;
   final String Function(int) comma;
   const _DetailSheet({required this.b, required this.comma});
 
   @override
   Widget build(BuildContext context) {
+    final ac = _areaColor(b.propertyArea);
     return Container(
       height: MediaQuery.of(context).size.height * 0.82,
       decoration: BoxDecoration(
@@ -451,11 +443,12 @@ class _DetailSheet extends StatelessWidget {
                   : Container(
                       decoration: BoxDecoration(
                         gradient: LinearGradient(colors: [
-                          b.areaColor,
-                          b.areaColor.withValues(alpha: 0.6)
+                          ac,
+                          ac.withValues(alpha: 0.6)
                         ]),
                       ),
-                      child: Center(child: Text(b.categoryEmoji,
+                      child: Center(child: Text(
+                          _categoryEmoji(b.property?.category ?? ''),
                           style: const TextStyle(fontSize: 64))),
                     ),
             ),
@@ -470,9 +463,9 @@ class _DetailSheet extends StatelessWidget {
             const SizedBox(height: 4),
             Row(children: [
               Icon(Icons.location_on_rounded,
-                  size: 13, color: b.areaColor),
-              Text(' ${b.area} · ${b.location}',
-                  style: TextStyle(fontSize: 12, color: b.areaColor,
+                  size: 13, color: ac),
+              Text(' ${b.propertyArea}',
+                  style: TextStyle(fontSize: 12, color: ac,
                       fontWeight: FontWeight.w600)),
             ]),
             const SizedBox(height: 20),
@@ -482,16 +475,16 @@ class _DetailSheet extends StatelessWidget {
                 color: context.kSand, borderRadius: BorderRadius.circular(16)),
               child: Column(children: [
                 _row(context, '📋 كود الحجز',
-                    '#${b.id.substring(0, 8).toUpperCase()}'),
-                _row(context, '📅 تاريخ الوصول',    b.checkIn),
-                _row(context, '🚪 تاريخ المغادرة',  b.checkOut),
+                    '#${b.bookingCode.isNotEmpty ? b.bookingCode : b.id.toString()}'),
+                _row(context, '📅 تاريخ الوصول',    _fmtDate(b.checkIn)),
+                _row(context, '🚪 تاريخ المغادرة',  _fmtDate(b.checkOut)),
                 _row(context, '🌙 عدد الليالي',      '${b.nights} ليالي'),
-                _row(context, '💳 طريقة الدفع',     b.payMethod),
+                _row(context, '💳 حالة الدفع',      b.paymentStatusAr),
                 _row(context, '💰 إجمالي المدفوع',
-                    'EGP ${comma(b.totalPaid)}', highlight: true),
+                    'EGP ${comma(b.totalPrice.toInt())}', highlight: true),
               ]),
             ),
-            if (b.status == 'upcoming') ...[
+            if (_statusGroup(b.status) == 'upcoming') ...[
               const SizedBox(height: 20),
               Container(
                 padding: const EdgeInsets.all(20),

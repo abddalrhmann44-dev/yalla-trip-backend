@@ -9,7 +9,7 @@ import '../main.dart' show appSettings;
 import '../utils/app_strings.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import '../services/auth_service.dart';
 import '../widgets/constants.dart';
 import 'home_page.dart';
 
@@ -107,36 +107,17 @@ class _OtpPageState extends State<OtpPage>
         smsCode: _otpCode,
       );
       final result = await _auth.signInWithCredential(credential);
-      final uid    = result.user!.uid;
 
-      // ── حفظ بيانات المستخدم في Firestore (role = guest دايماً) ──
-      final db  = FirebaseFirestore.instance;
-      final doc = await db.collection('users').doc(uid).get();
-
-      if (!doc.exists) {
-        // تسجيل جديد — إنشاء document بـ role guest
-        await db.collection('users').doc(uid).set({
-          'uid':       uid,
-          'name':      widget.userName.isNotEmpty
-                         ? widget.userName
-                         : (result.user?.displayName ?? ''),
-          'phone':     widget.phoneNumber,
-          'role':      'guest',
-          'createdAt': FieldValue.serverTimestamp(),
-          'updatedAt': FieldValue.serverTimestamp(),
-        });
-      } else {
-        // مستخدم قديم — حدّث الاسم فقط لو موجود
+      // ── Exchange Firebase token for backend JWT ──
+      final fbUser = result.user;
+      if (fbUser != null) {
         if (widget.userName.isNotEmpty) {
-          await db.collection('users').doc(uid).update({
-            'name':      widget.userName,
-            'updatedAt': FieldValue.serverTimestamp(),
-          });
+          await fbUser.updateDisplayName(widget.userName);
         }
-      }
-
-      if (widget.userName.isNotEmpty) {
-        await result.user?.updateDisplayName(widget.userName);
+        final idToken = await fbUser.getIdToken();
+        if (idToken != null) {
+          await AuthService.exchangeFirebaseToken(idToken);
+        }
       }
 
       if (mounted) {

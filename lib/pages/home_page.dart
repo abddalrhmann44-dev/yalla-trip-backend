@@ -7,7 +7,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../main.dart' show appSettings;
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../widgets/constants.dart';
@@ -17,8 +16,8 @@ import '../utils/app_strings.dart';
 import 'bookings_page.dart';
 import 'profile_page.dart';
 import 'property_details_page.dart';
-import '../services/listing_service.dart';
-import '../models/property_model.dart';
+import '../models/property_model_api.dart';
+import '../services/property_service.dart';
 
 // ────────────────────────────────────────────────────────────────
 //  MODELS
@@ -203,7 +202,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   int _navIdx = 0;
   int _catIdx = -1;
   bool _isLoading = true;
-  Map<String, int> _areaCounts = {}; // counts from Firestore
+  Map<String, int> _areaCounts = {}; // counts from API
 
   // ── Filter State ───────────────────────────────────
   String _filterArea = 'الكل';
@@ -263,6 +262,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       if (mounted) setState(() => _isLoading = false);
       _fadeCtrl.forward();
       _loadAreaCounts();
+      _loadOffers();
     });
 
     // Hero auto-scroll every 4s
@@ -294,14 +294,10 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   // ── Load area property counts ───────────────────
   Future<void> _loadAreaCounts() async {
     try {
-      final snap = await FirebaseFirestore.instance
-          .collection('properties')
-          .where('available', isEqualTo: true)
-          .get();
+      final props = await PropertyService.getProperties();
       final counts = <String, int>{};
-      for (final doc in snap.docs) {
-        final area = (doc.data()['area'] ?? '') as String;
-        if (area.isNotEmpty) counts[area] = (counts[area] ?? 0) + 1;
+      for (final p in props) {
+        if (p.area.isNotEmpty) counts[p.area] = (counts[p.area] ?? 0) + 1;
       }
       if (mounted) setState(() => _areaCounts = counts);
     } catch (_) {}
@@ -1420,54 +1416,61 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   //  OFFERS — Live Firebase stream
   // ════════════════════════════════════════════════
 
+  List<PropertyApi>? _featuredOffers;
+  bool _offersLoading = true;
+
+  Future<void> _loadOffers() async {
+    try {
+      final props = await PropertyService.getProperties();
+      final featured = props.where((p) => p.isFeatured).toList();
+      if (mounted) setState(() { _featuredOffers = featured; _offersLoading = false; });
+    } catch (_) {
+      if (mounted) setState(() => _offersLoading = false);
+    }
+  }
+
   Widget _buildOffersSection() {
-    return StreamBuilder<List<PropertyModel>>(
-      stream: ListingService.instance.streamActiveOffers(),
-      builder: (context, snap) {
-        // Loading shimmer
-        if (snap.connectionState == ConnectionState.waiting) {
-          return Padding(
-            padding: const EdgeInsets.fromLTRB(20, 28, 0, 8),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const _ShimmerBox(width: 200, height: 22, radius: 8),
-                const SizedBox(height: 14),
-                Row(children: const [
-                  _ShimmerBox(width: 195, height: 225, radius: 22),
-                  SizedBox(width: 12),
-                  _ShimmerBox(width: 195, height: 225, radius: 22),
-                ]),
-              ],
-            ),
-          );
-        }
-
-        final offers = snap.data ?? [];
-        if (offers.isEmpty) return _buildOffersPlaceholder();
-
-        return Column(
+    if (_offersLoading) {
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(20, 28, 0, 8),
+        child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 26, 20, 14),
-              child: _secTitle(
-                appSettings.arabic ? '🔥 العروض الحصرية' : '🔥 Exclusive Deals',
-                action: '',
-              ),
-            ),
-            SizedBox(
-              height: 225,
-              child: ListView.builder(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                itemCount: offers.length,
-                itemBuilder: (_, i) => _offerCard(offers[i]),
-              ),
-            ),
+            const _ShimmerBox(width: 200, height: 22, radius: 8),
+            const SizedBox(height: 14),
+            Row(children: const [
+              _ShimmerBox(width: 195, height: 225, radius: 22),
+              SizedBox(width: 12),
+              _ShimmerBox(width: 195, height: 225, radius: 22),
+            ]),
           ],
-        );
-      },
+        ),
+      );
+    }
+
+    final offers = _featuredOffers ?? [];
+    if (offers.isEmpty) return _buildOffersPlaceholder();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 26, 20, 14),
+          child: _secTitle(
+            appSettings.arabic ? '🔥 العروض الحصرية' : '🔥 Exclusive Deals',
+            action: '',
+          ),
+        ),
+        SizedBox(
+          height: 225,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            itemCount: offers.length,
+            itemBuilder: (_, i) => _offerCard(offers[i]),
+          ),
+        ),
+      ],
     );
   }
 
@@ -1509,22 +1512,13 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     );
   }
 
-  Widget _offerCard(PropertyModel p) {
-    final areaColor    = p.areaColor;
-    final offerPriceInt = p.offerPrice?.toInt() ?? p.price;
-    final disc          = p.discountPercent;
-    final end           = p.offerEnd;
-    String remaining    = '';
-    if (end != null) {
-      final diff = end.difference(DateTime.now());
-      if (diff.inDays >= 1)       { remaining = 'Ends in ${diff.inDays}d'; }
-      else if (diff.inHours >= 1) { remaining = 'Ends in ${diff.inHours}h'; }
-      else                        { remaining = 'Ends soon'; }
-    }
+  Widget _offerCard(PropertyApi p) {
+    final areaColor     = p.areaColor;
+    final priceInt      = p.pricePerNight.toStringAsFixed(0);
 
     return GestureDetector(
       onTap: () => Navigator.push(context,
-          MaterialPageRoute(builder: (_) => PropertyDetailsPage(property: p))),
+          MaterialPageRoute(builder: (_) => PropertyDetailsPage(propertyApi: p))),
       child: Container(
         width: 195,
         margin: const EdgeInsets.only(right: 12, bottom: 4),
@@ -1586,7 +1580,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                               fontSize: 10, fontWeight: FontWeight.w700)),
                     ),
                     const Spacer(),
-                    if (disc > 0)
+                    if (p.isFeatured)
                       Container(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 8, vertical: 4),
@@ -1594,8 +1588,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                           color: const Color(0xFFFF6D00),
                           borderRadius: BorderRadius.circular(20),
                         ),
-                        child: Text('$disc% OFF',
-                            style: const TextStyle(color: Colors.white,
+                        child: const Text('⭐ مميز',
+                            style: TextStyle(color: Colors.white,
                                 fontSize: 10, fontWeight: FontWeight.w900)),
                       ),
                   ]),
@@ -1608,24 +1602,18 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   const SizedBox(height: 8),
                   // Prices
                   Row(children: [
-                    Text('EGP $offerPriceInt',
+                    Text('EGP $priceInt',
                         style: const TextStyle(color: Colors.white,
                             fontSize: 16, fontWeight: FontWeight.w900)),
-                    const SizedBox(width: 6),
-                    Text('${p.price}',
-                        style: const TextStyle(
-                            color: Colors.white60, fontSize: 12,
-                            decoration: TextDecoration.lineThrough,
-                            decorationColor: Colors.white60)),
                   ]),
                   const SizedBox(height: 5),
-                  // Time remaining
-                  if (remaining.isNotEmpty)
+                  // Rating
+                  if (p.rating > 0)
                     Row(children: [
-                      const Icon(Icons.timer_rounded,
-                          color: Colors.white70, size: 12),
+                      const Icon(Icons.star_rounded,
+                          color: Color(0xFFFFC107), size: 12),
                       const SizedBox(width: 4),
-                      Text(remaining,
+                      Text(p.rating.toStringAsFixed(1),
                           style: const TextStyle(color: Colors.white70,
                               fontSize: 11, fontWeight: FontWeight.w600)),
                     ]),

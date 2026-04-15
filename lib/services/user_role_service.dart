@@ -1,10 +1,10 @@
 // ═══════════════════════════════════════════════════════════════
-//  YALLA TRIP — User Role Service
+//  TALAA — User Role Service  (REST API)
 //  Single source of truth للـ role في الـ app
 // ═══════════════════════════════════════════════════════════════
 
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import '../utils/api_client.dart';
+import 'user_service.dart';
 
 enum UserRole { guest, owner }
 
@@ -12,32 +12,23 @@ class UserRoleService {
   UserRoleService._();
   static final UserRoleService instance = UserRoleService._();
 
-  final _auth = FirebaseAuth.instance;
-  final _db = FirebaseFirestore.instance;
+  static final _api = ApiClient();
 
   // ── Cache بعد أول load ──────────────────────────────────────
   UserRole? _cached;
 
-  // ── احفظ الـ role في Firestore عند التسجيل ─────────────────
+  // ── احفظ الـ role عبر API ─────────────────────────────────────
   Future<void> saveRole(UserRole role) async {
-    final uid = _auth.currentUser?.uid;
-    if (uid == null) return;
-    await _db.collection('users').doc(uid).set({
-      'role': role.name, // 'owner' أو 'guest'
-      'updatedAt': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
+    await _api.put('/users/me/role', {'role': role.name});
     _cached = role;
   }
 
-  // ── اجيب الـ role من Firestore ──────────────────────────────
+  // ── اجيب الـ role من API ──────────────────────────────────────
   Future<UserRole> getRole() async {
     if (_cached != null) return _cached!;
-    final uid = _auth.currentUser?.uid;
-    if (uid == null) return UserRole.guest;
     try {
-      final doc = await _db.collection('users').doc(uid).get();
-      final r = doc.data()?['role'] as String?;
-      _cached = r == 'owner' ? UserRole.owner : UserRole.guest;
+      final profile = await UserService.getProfile();
+      _cached = profile.isOwner ? UserRole.owner : UserRole.guest;
       return _cached!;
     } catch (_) {
       return UserRole.guest;

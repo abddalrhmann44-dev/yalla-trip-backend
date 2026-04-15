@@ -1,13 +1,16 @@
 // ═══════════════════════════════════════════════════════════════
-//  YALLA TRIP — Profile Page
-//  Real Firebase data · Owner toggle inside profile · No fake data
+//  TALAA — Profile Page  (REST API)
+//  Real API data · Owner toggle inside profile
 // ═══════════════════════════════════════════════════════════════
 
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import '../services/user_role_service.dart';
+import '../services/user_service.dart';
+import '../services/property_service.dart';
+import '../services/booking_service.dart';
+import '../utils/api_client.dart';
 import '../widgets/constants.dart';
 import 'owner_add_property_page.dart';
 import 'owner_payouts_page.dart';
@@ -60,89 +63,45 @@ class _ProfilePageState extends State<ProfilePage> {
 
   Future<void> _loadProfile() async {
     try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) return;
+      final profile = await UserService.getProfile();
 
-      final db = FirebaseFirestore.instance;
-      final docRef = db.collection('users').doc(user.uid);
-      var doc = await docRef.get();
+      _name = profile.name;
+      _email = profile.email ?? '';
+      _phone = profile.phone ?? '';
+      _isOwner = profile.isOwner;
 
-      // إذا مفيش document (مثلاً تسجيل Google قديم) — ننشئ واحد
-      if (!doc.exists) {
-        await docRef.set({
-          'uid': user.uid,
-          'name': user.displayName ?? '',
-          'email': user.email ?? '',
-          'phone': user.phoneNumber ?? '',
-          'role': 'guest',
-          'avatar': user.photoURL ?? '',
-          'createdAt': FieldValue.serverTimestamp(),
-        });
-        doc = await docRef.get();
-      }
-
-      final data = doc.data() ?? {};
-
-      // Role
-      final roleStr = data['role'] as String? ?? 'guest';
-      _isOwner = roleStr == 'owner';
-
-      // Basic info
-      _name = data['name'] as String? ?? user.displayName ?? '';
-      _email = data['email'] as String? ?? user.email ?? '';
-      _phone = data['phone'] as String? ?? user.phoneNumber ?? '';
-
-      // Owner stats
       if (_isOwner) {
-        final props = await db
-            .collection('properties')
-            .where('ownerId', isEqualTo: user.uid)
-            .get();
-        _listingsCount = props.docs.length;
+        final props = await PropertyService.getMyProperties();
+        _listingsCount = props.length;
 
-        final bookings = await db
-            .collection('bookings')
-            .where('ownerId', isEqualTo: user.uid)
-            .get();
-        _bookingsCount = bookings.docs.length;
+        final bookings = await BookingService.getOwnerBookings(limit: 200);
+        _bookingsCount = bookings.length;
 
-        int total = 0;
+        double revenue = 0;
         double ratingSum = 0;
         int ratedCount = 0;
-        for (final b in bookings.docs) {
-          final d = b.data();
-          total += ((d['ownerAmount'] ?? 0) as num).toInt();
-          final r = (d['rating'] ?? 0) as num;
-          if (r > 0) {
-            ratingSum += r;
-            ratedCount++;
-          }
+        for (final b in bookings) {
+          revenue += b.ownerPayout;
+          final r = b.property?.rating ?? 0;
+          if (r > 0) { ratingSum += r; ratedCount++; }
         }
-        _totalRevenue = total;
+        _totalRevenue = revenue.toInt();
         _avgRating = ratedCount > 0 ? ratingSum / ratedCount : 0.0;
       } else {
-        // Guest stats
-        final bookings = await db
-            .collection('bookings')
-            .where('userId', isEqualTo: user.uid)
-            .get();
-        _tripsCount = bookings.docs.length;
-
-        int reviews = 0;
-        for (final b in bookings.docs) {
-          if ((b.data()['rating'] ?? 0) > 0) reviews++;
+        final bookings = await BookingService.getMyBookings(limit: 200);
+        _tripsCount = bookings.length;
+        try {
+          final reviewData = await ApiClient().get('/reviews/my/count');
+          _reviewsCount = reviewData['count'] as int? ?? 0;
+        } catch (_) {
+          _reviewsCount = 0;
         }
-        _reviewsCount = reviews;
       }
 
-      if (mounted) {
-        setState(() => _loading = false);
-      }
+      if (mounted) setState(() => _loading = false);
     } catch (e) {
       debugPrint('Profile load error: $e');
-      if (mounted) {
-        setState(() => _loading = false);
-      }
+      if (mounted) setState(() => _loading = false);
     }
   }
 
@@ -427,18 +386,11 @@ class _ProfilePageState extends State<ProfilePage> {
                       : () async {
                           setSheet(() => saving = true);
                           try {
-                            final uid = FirebaseAuth.instance.currentUser?.uid;
-                            if (uid != null) {
-                              await FirebaseFirestore.instance
-                                  .collection('users')
-                                  .doc(uid)
-                                  .set({
-                                'uid': uid,
-                                'name': nameCtrl.text.trim(),
-                                'phone': phoneCtrl.text.trim(),
-                                'email': emailCtrl.text.trim(),
-                              }, SetOptions(merge: true));
-                            }
+                            await UserService.updateProfile({
+                              'name': nameCtrl.text.trim(),
+                              'phone': phoneCtrl.text.trim(),
+                              'email': emailCtrl.text.trim(),
+                            });
                             if (!mounted) return;
                             final nav = Navigator.of(context);
                             setState(() {
@@ -1133,15 +1085,8 @@ class _ProfilePageState extends State<ProfilePage> {
                   onPressed: () async {
                     Navigator.pop(context);
                     try {
-                      final uid = FirebaseAuth.instance.currentUser?.uid;
-                      if (uid != null) {
-                        await FirebaseFirestore.instance
-                            .collection('users')
-                            .doc(uid)
-                            .delete();
-                      }
+                      await UserService.deleteAccount();
                       UserRoleService.instance.clearCache();
-                      // ── disconnect أقوى من signOut — بيلغي الـ OAuth token كلياً ──
                       try {
                         final googleSignIn = GoogleSignIn();
                         await googleSignIn.disconnect();

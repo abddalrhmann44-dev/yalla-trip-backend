@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import '../services/auth_service.dart';
 import 'otp_page.dart';
 import 'home_page.dart';
 import '../utils/app_strings.dart';
@@ -31,7 +31,6 @@ class _RegisterPageState extends State<RegisterPage>
   bool _obscureConf = true;
 
   final _auth = FirebaseAuth.instance;
-  final _firestore = FirebaseFirestore.instance;
 
   late final AnimationController _fadeCtrl = AnimationController(
       vsync: this, duration: const Duration(milliseconds: 700))
@@ -161,17 +160,12 @@ class _RegisterPageState extends State<RegisterPage>
   }
 
   Future<void> _saveUser(String name, String email, String phone) async {
-    final uid = _auth.currentUser?.uid;
-    if (uid == null) return;
-    await _firestore.collection('users').doc(uid).set({
-      'uid': uid,
-      'name': name,
-      'email': email,
-      'phone': phone,
-      'role': 'guest',
-      'createdAt': FieldValue.serverTimestamp(),
-      'avatar': '',
-    });
+    final fbUser = _auth.currentUser;
+    if (fbUser == null) return;
+    final idToken = await fbUser.getIdToken();
+    if (idToken != null) {
+      await AuthService.exchangeFirebaseToken(idToken);
+    }
   }
 
   void _goHome() => Navigator.of(context).pushAndRemoveUntil(

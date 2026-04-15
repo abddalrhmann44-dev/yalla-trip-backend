@@ -1,16 +1,16 @@
 // ═══════════════════════════════════════════════════════════════
-//  YALLA TRIP — Admin Pending Properties Page
+//  TALAA — Admin Pending Properties Page  (REST API)
 //  Admin can: Approve / Reject / Request Edit
-//  Each action updates Firestore → triggers Cloud Function → FCM
 // ═══════════════════════════════════════════════════════════════
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../utils/app_strings.dart';
 import '../widgets/constants.dart';
 import '../main.dart' show appSettings;
+import '../models/property_model_api.dart';
+import '../services/admin_service.dart';
 
 const _kOcean  = Color(0xFF1565C0);
 const _kGreen  = Color(0xFF4CAF50);
@@ -24,7 +24,8 @@ class AdminPendingPage extends StatefulWidget {
 }
 
 class _AdminPendingPageState extends State<AdminPendingPage> {
-  final _db = FirebaseFirestore.instance;
+  List<PropertyApi> _pending = [];
+  bool _loading = true;
 
   void _onLangChange() { if (mounted) setState(() {}); }
 
@@ -32,6 +33,7 @@ class _AdminPendingPageState extends State<AdminPendingPage> {
   void initState() {
     super.initState();
     appSettings.addListener(_onLangChange);
+    _load();
   }
 
   @override
@@ -40,108 +42,67 @@ class _AdminPendingPageState extends State<AdminPendingPage> {
     super.dispose();
   }
 
-  // ══════════════════════════════════════════════════════════
-  //  ADMIN ACTIONS
-  // ══════════════════════════════════════════════════════════
+  Future<void> _load() async {
+    try {
+      final all = await AdminService.getProperties(limit: 100);
+      // Pending = not yet available (awaiting admin approval)
+      final pending = all.where((p) => !p.isAvailable).toList();
+      if (mounted) setState(() { _pending = pending; _loading = false; });
+    } catch (_) {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
 
-  Future<void> _approve(String docId, String propName) async {
+  // ════════════════════════════════════════════════════════
+  //  ADMIN ACTIONS
+  // ════════════════════════════════════════════════════════
+
+  Future<void> _approve(int propId, String propName) async {
     final confirmed = await _confirmDialog(
       S.adminApprove,
       S.adminApproveConfirm,
       _kGreen,
     );
     if (confirmed != true) return;
-
-    await _db.collection('properties').doc(docId).update({
-      'approved': true,
-      'status': 'approved',
-      'updatedAt': FieldValue.serverTimestamp(),
-    });
-
-    // Log notification in Firestore
-    final propDoc = await _db.collection('properties').doc(docId).get();
-    final ownerId = propDoc.data()?['ownerId'] ?? '';
-    if (ownerId.isNotEmpty) {
-      await _db.collection('notifications').add({
-        'userId': ownerId,
-        'ownerId': ownerId,
-        'itemId': docId,
-        'type': 'approved',
-        'title': S.notifPropertyApproved,
-        'body': S.notifApprovedBody(propName),
-        'isRead': false,
-        'seen': false,
-        'createdAt': FieldValue.serverTimestamp(),
-      });
+    try {
+      await AdminService.approveProperty(propId);
+      _load();
+      if (mounted) _snack(S.adminApproved, _kGreen);
+    } catch (_) {
+      if (mounted) _snack('حصل خطأ', _kRed);
     }
-
-    if (mounted) _snack(S.adminApproved, _kGreen);
   }
 
-  Future<void> _reject(String docId, String propName) async {
+  Future<void> _reject(int propId, String propName) async {
     final confirmed = await _confirmDialog(
       S.adminReject,
       S.adminRejectConfirm,
       _kRed,
     );
     if (confirmed != true) return;
-
-    await _db.collection('properties').doc(docId).update({
-      'approved': false,
-      'status': 'rejected',
-      'updatedAt': FieldValue.serverTimestamp(),
-    });
-
-    final propDoc = await _db.collection('properties').doc(docId).get();
-    final ownerId = propDoc.data()?['ownerId'] ?? '';
-    if (ownerId.isNotEmpty) {
-      await _db.collection('notifications').add({
-        'userId': ownerId,
-        'ownerId': ownerId,
-        'itemId': docId,
-        'type': 'rejected',
-        'title': S.notifPropertyRejected,
-        'body': S.notifRejectedBody(propName),
-        'isRead': false,
-        'seen': false,
-        'createdAt': FieldValue.serverTimestamp(),
-      });
+    try {
+      await AdminService.rejectProperty(propId);
+      _load();
+      if (mounted) _snack(S.adminRejected, _kRed);
+    } catch (_) {
+      if (mounted) _snack('حصل خطأ', _kRed);
     }
-
-    if (mounted) _snack(S.adminRejected, _kRed);
   }
 
-  Future<void> _requestEdit(String docId, String propName) async {
+  Future<void> _requestEdit(int propId, String propName) async {
     final confirmed = await _confirmDialog(
       S.adminRequestEdit,
       S.adminEditConfirm,
       _kOrange,
     );
     if (confirmed != true) return;
-
-    await _db.collection('properties').doc(docId).update({
-      'approved': false,
-      'status': 'needs_edit',
-      'updatedAt': FieldValue.serverTimestamp(),
-    });
-
-    final propDoc = await _db.collection('properties').doc(docId).get();
-    final ownerId = propDoc.data()?['ownerId'] ?? '';
-    if (ownerId.isNotEmpty) {
-      await _db.collection('notifications').add({
-        'userId': ownerId,
-        'ownerId': ownerId,
-        'itemId': docId,
-        'type': 'needs_edit',
-        'title': S.notifNeedsEdit,
-        'body': S.notifNeedsEditBody(propName),
-        'isRead': false,
-        'seen': false,
-        'createdAt': FieldValue.serverTimestamp(),
-      });
+    try {
+      await AdminService.needsEditProperty(propId);
+      _load();
+      if (mounted) _snack(S.adminEditRequested, _kOrange);
+    } catch (_) {
+      if (mounted) _snack('حصل خطأ', _kRed);
     }
-
-    if (mounted) _snack(S.adminEditRequested, _kOrange);
   }
 
   // ── Helpers ──────────────────────────────────────────────
@@ -212,44 +173,31 @@ class _AdminPendingPageState extends State<AdminPendingPage> {
                 color: context.kText)),
         centerTitle: true,
       ),
-      body: StreamBuilder<QuerySnapshot>(
-        stream: _db
-            .collection('properties')
-            .where('status', isEqualTo: 'pending')
-            .orderBy('createdAt', descending: true)
-            .snapshots(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(
-                child: CircularProgressIndicator(color: _kOcean));
-          }
-
-          final docs = snapshot.data?.docs ?? [];
-          if (docs.isEmpty) return _emptyState();
-
-          return ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: docs.length,
-            itemBuilder: (_, i) {
-              final doc = docs[i];
-              final data = doc.data() as Map<String, dynamic>;
-              return _propertyCard(doc.id, data);
-            },
-          );
-        },
-      ),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator(color: _kOcean))
+          : _pending.isEmpty
+              ? _emptyState()
+              : RefreshIndicator(
+                  color: _kOcean,
+                  onRefresh: _load,
+                  child: ListView.builder(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: _pending.length,
+                    itemBuilder: (_, i) => _propertyCard(_pending[i]),
+                  ),
+                ),
     );
   }
 
   // ── Property Card ────────────────────────────────────────
-  Widget _propertyCard(String docId, Map<String, dynamic> data) {
-    final name = data['name'] ?? '';
-    final area = data['area'] ?? '';
-    final category = data['category'] ?? '';
-    final ownerName = data['ownerName'] ?? '';
-    final images = List<String>.from(data['images'] ?? []);
-    final createdAt = (data['createdAt'] as Timestamp?)?.toDate();
-    final price = (data['price'] ?? 0).toInt();
+  Widget _propertyCard(PropertyApi p) {
+    final name = p.name;
+    final area = p.area;
+    final category = p.category;
+    final ownerName = p.owner?.name ?? '';
+    final images = p.images;
+    final createdAt = p.createdAt;
+    final price = p.pricePerNight.toInt();
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -339,13 +287,11 @@ class _AdminPendingPageState extends State<AdminPendingPage> {
               ),
             ]),
 
-            if (createdAt != null) ...[
-              const SizedBox(height: 4),
-              Text(
-                  '${S.submittedAt}: ${createdAt.day}/${createdAt.month}/${createdAt.year}',
-                  style: TextStyle(
-                      fontSize: 11, color: context.kSub)),
-            ],
+            const SizedBox(height: 4),
+            Text(
+                '${S.submittedAt}: ${createdAt.day}/${createdAt.month}/${createdAt.year}',
+                style: TextStyle(
+                    fontSize: 11, color: context.kSub)),
 
             const SizedBox(height: 16),
 
@@ -356,7 +302,7 @@ class _AdminPendingPageState extends State<AdminPendingPage> {
                   icon: Icons.check_circle_rounded,
                   label: S.adminApprove,
                   color: _kGreen,
-                  onTap: () => _approve(docId, name),
+                  onTap: () => _approve(p.id, name),
                 ),
               ),
               const SizedBox(width: 8),
@@ -365,7 +311,7 @@ class _AdminPendingPageState extends State<AdminPendingPage> {
                   icon: Icons.cancel_rounded,
                   label: S.adminReject,
                   color: _kRed,
-                  onTap: () => _reject(docId, name),
+                  onTap: () => _reject(p.id, name),
                 ),
               ),
               const SizedBox(width: 8),
@@ -374,7 +320,7 @@ class _AdminPendingPageState extends State<AdminPendingPage> {
                   icon: Icons.edit_note_rounded,
                   label: S.adminRequestEdit,
                   color: _kOrange,
-                  onTap: () => _requestEdit(docId, name),
+                  onTap: () => _requestEdit(p.id, name),
                 ),
               ),
             ]),

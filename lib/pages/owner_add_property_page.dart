@@ -1,20 +1,16 @@
 // ═══════════════════════════════════════════════════════════════
-//  YALLA TRIP — Owner Add Property Page
-//  Firebase Storage (images) + Firestore (data)
+//  TALAA — Owner Add Property Page  (REST API)
 //  ✅ Step validation — لا يعدي step إلا لو ملّى الإجباري
 //  ✅ الاختياريات (شاطئ/جيم/بسين) مع badge "موصى به"
 // ═══════════════════════════════════════════════════════════════
 
 import 'dart:io';
 import '../services/user_role_service.dart';
+import '../services/property_service.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import '../widgets/constants.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_storage/firebase_storage.dart';
-import '../models/property_model.dart';
 import 'home_page.dart';
 
 const _kOcean  = Color(0xFF1565C0);
@@ -385,104 +381,46 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
 
   void _removeImage(int idx) => setState(() => _pickedFiles.removeAt(idx));
 
-  Future<List<String>> _uploadImages(String docId) async {
-    final urls = <String>[];
-    final storage = FirebaseStorage.instance;
-    for (int i = 0; i < _pickedFiles.length; i++) {
-      final file = File(_pickedFiles[i].path);
-      final ref = storage.ref('properties/$docId/img_$i.jpg');
-      await ref.putFile(file);
-      final url = await ref.getDownloadURL();
-      urls.add(url);
-    }
-    return urls;
-  }
-
-  Future<Map<String, String>> _uploadIdentityImages(String ownerId) async {
-    if (_idFrontImage == null || _idBackImage == null) {
-      throw Exception('identity_images_required');
-    }
-    final storage = FirebaseStorage.instance;
-    final frontRef = storage.ref('owner_identity/$ownerId/id_front.jpg');
-    final backRef = storage.ref('owner_identity/$ownerId/id_back.jpg');
-    await frontRef.putFile(File(_idFrontImage!.path));
-    await backRef.putFile(File(_idBackImage!.path));
-    final frontUrl = await frontRef.getDownloadURL();
-    final backUrl = await backRef.getDownloadURL();
-    return {'front': frontUrl, 'back': backUrl};
-  }
-
   // ── Publish ─────────────────────────────────────────────────
   Future<void> _publish() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
-
     setState(() => _isPublishing = true);
     try {
-      final db = FirebaseFirestore.instance;
-      final docRef = db.collection('properties').doc();
+      // Build request payload matching PropertyCreate schema
+      final payload = <String, dynamic>{
+        'name': _nameCtrl.text.trim(),
+        'description': _descCtrl.text.trim().isNotEmpty
+            ? _descCtrl.text.trim()
+            : null,
+        'area': _selLocation ?? '',
+        'category': _selType?.key ?? '',
+        'price_per_night': int.tryParse(_priceCtrl.text) ?? 0,
+        'weekend_price': int.tryParse(_weekendCtrl.text),
+        'cleaning_fee': int.tryParse(_cleaningCtrl.text) ?? 0,
+        'bedrooms': _bedrooms,
+        'bathrooms': _bathrooms,
+        'max_guests': _guests,
+        'total_rooms': _selType?.key == 'فندق' ? _hotelRooms : 0,
+        'amenities': _amenities
+            .where((a) => a.selected)
+            .map((a) => a.label)
+            .toList(),
+        'instant_booking': _bookingMode == 'instant',
+      };
 
-      setState(() => _uploadingImages = true);
-      final imageUrls = await _uploadImages(docRef.id);
-      final identityUrls = await _uploadIdentityImages(user.uid);
-      setState(() => _uploadingImages = false);
+      // Create property via API
+      final created = await PropertyService.createProperty(payload);
 
-      final data = PropertyModel(
-        id: docRef.id,
-        name: _nameCtrl.text.trim(),
-        area: _selLocation ?? '',
-        location: _villageCtrl.text.trim(),
-        address: _addressCtrl.text.trim(),
-        description: _descCtrl.text.trim(),
-        category: _selType?.key ?? '',
-        ownerId: user.uid,
-        ownerName: user.displayName ?? 'مالك',
-        ownerEmail: user.email ?? '',
-        approved: false,
-        status: 'pending',
-        price: int.tryParse(_priceCtrl.text) ?? 0,
-        weekendPrice: int.tryParse(_weekendCtrl.text) ?? 0,
-        cleaningFee: int.tryParse(_cleaningCtrl.text) ?? 0,
-        rating: 0.0,
-        reviewCount: 0,
-        bedrooms: _bedrooms,
-        beds: _beds,
-        bathrooms: _bathrooms,
-        maxGuests: _guests,
-        images: imageUrls,
-        amenities:
-            _amenities.where((a) => a.selected).map((a) => a.label).toList(),
-        facilities:
-            _facilities.where((f) => f.selected).map((f) => f.label).toList(),
-        nearby: _nearby.where((n) => n.selected).map((n) => n.label).toList(),
-        instant: _bookingMode == 'instant',
-        online: true,
-        featured: false,
-        available: true,
-        autoConfirm: _autoConfirm,
-        requireId: _requireId,
-        minNights: _minNights,
-        maxNights: _maxNights,
-        totalRooms: _selType?.key == 'فندق' ? _hotelRooms : 0,
-        availableRooms: _selType?.key == 'فندق' ? _hotelRooms : 0,
-        blockedDates: const [],
-        bookingMode: _bookingMode,
-        currency: 'EGP',
-        checkinTime: _checkin,
-        checkoutTime: _checkout,
-        createdAt: DateTime.now(),
-      );
-
-      await docRef.set(data.toFirestore());
-      await db.collection('users').doc(user.uid).set({
-        'identityVerified': true,
-        'idFrontUrl': identityUrls['front'] ?? '',
-        'idBackUrl': identityUrls['back'] ?? '',
-      }, SetOptions(merge: true));
+      // Upload images if any
+      if (_pickedFiles.isNotEmpty) {
+        setState(() => _uploadingImages = true);
+        final files = _pickedFiles.map((xf) => File(xf.path)).toList();
+        await PropertyService.uploadImages(created.id, files);
+        setState(() => _uploadingImages = false);
+      }
 
       if (!mounted) return;
       setState(() => _isPublishing = false);
-      _showSuccessDialog(docRef.id);
+      _showSuccessDialog(created.id.toString());
     } catch (e) {
       setState(() {
         _isPublishing = false;
@@ -518,7 +456,7 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
                     fontSize: 22, fontWeight: FontWeight.w900, color: context.kText)),
             const SizedBox(height: 8),
             Text(
-                'عقارك دلوقتي ظاهر على Yalla Trip\nكود العقار: ${docId.substring(0, 8).toUpperCase()}',
+                'عقارك دلوقتي ظاهر على Talaa\nكود العقار: #$docId',
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 13, color: context.kSub)),
             const SizedBox(height: 24),

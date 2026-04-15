@@ -7,71 +7,14 @@ import 'package:flutter/material.dart';
 import '../main.dart' show appSettings;
 import '../utils/app_strings.dart';
 import '../widgets/constants.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'property_details_page.dart';
-import '../models/property_model.dart';
+import '../models/property_model_api.dart';
+import '../services/property_service.dart';
 
 // ── Colors (theme-dependent ones come from AppThemeX) ─────────
 const _kOcean  = Color(0xFF1565C0);
 const _kOrange = Color(0xFFFF6D00);
 const _kGreen  = Color(0xFF4CAF50);
-
-// ── Model ─────────────────────────────────────────────────────
-class _Property {
-  final String  id, name, location, area, category;
-  final double  rating;
-  final int     price, reviewCount;
-  final List<String> images;
-  final bool    instant, online, featured, available;
-  final String  ownerId, ownerName;
-
-  _Property.fromFirestore(String docId, Map<String, dynamic> d)
-      : id          = docId,
-        name        = d['name']        ?? '',
-        location    = d['location']    ?? '',
-        area        = d['area']        ?? '',
-        category    = d['category']    ?? '',
-        rating      = (d['rating']     ?? 0).toDouble(),
-        price       = (d['price']      ?? 0).toInt(),
-        reviewCount = (d['reviewCount'] ?? 0).toInt(),
-        images      = List<String>.from(d['images'] ?? []),
-        instant     = d['instant']     ?? false,
-        online      = d['online']      ?? false,
-        featured    = d['featured']    ?? false,
-        available   = d['available']   ?? true,
-        ownerId     = d['ownerId']     ?? '',
-        ownerName   = d['ownerName']   ?? '';
-
-  String get imagePath => images.isNotEmpty ? images.first : '';
-
-  // emoji based on category
-  String get emoji {
-    switch (category) {
-      case 'شاليه':      return '🏡';
-      case 'فيلا':       return '🏖️';
-      case 'فندق':       return '🏨';
-      case 'منتجع':      return '🌺';
-      case 'أكوا بارك':  return '🌊';
-      case 'بيت شاطئ':   return '🏄';
-      default:           return '🏠';
-    }
-  }
-
-  // color based on area
-  Color get color {
-    switch (area) {
-      case 'عين السخنة':     return const Color(0xFF0288D1);
-      case 'الساحل الشمالي': return const Color(0xFF1976D2);
-      case 'الجونة':         return const Color(0xFFE65100);
-      case 'الغردقة':        return const Color(0xFF00695C);
-      case 'شرم الشيخ':      return const Color(0xFF6A1B9A);
-      case 'رأس سدر':        return const Color(0xFF00897B);
-      default:               return const Color(0xFF1565C0);
-    }
-  }
-
-  String get firstImage => images.isNotEmpty ? images.first : '';
-}
 
 // ── Static Data ───────────────────────────────────────────────
 final List<Map<String, dynamic>> _kAreas = [
@@ -103,9 +46,8 @@ class ExplorePage extends StatefulWidget {
 class _ExplorePageState extends State<ExplorePage>
     with SingleTickerProviderStateMixin {
 
-  // ── Firestore ───────────────────────────────────────────────
-  final _db = FirebaseFirestore.instance;
-  List<_Property> _allProperties = [];
+  // ── Data ───────────────────────────────────────────────
+  List<PropertyApi> _allProperties = [];
   bool _dbLoading = true;
 
   // ── Search & Filter ─────────────────────────────────────────
@@ -160,19 +102,10 @@ class _ExplorePageState extends State<ExplorePage>
     super.dispose();
   }
 
-  // ── Load from Firestore ─────────────────────────────────────
+  // ── Load from API ─────────────────────────────────
   Future<void> _loadProperties() async {
     try {
-      final snap = await _db
-          .collection('properties')
-          .where('available', isEqualTo: true)
-          .orderBy('createdAt', descending: true)
-          .get();
-
-      final props = snap.docs
-          .map((d) => _Property.fromFirestore(d.id, d.data()))
-          .toList();
-
+      final props = await PropertyService.getProperties();
       if (mounted) { setState(() {
         _allProperties = props;
         _dbLoading     = false;
@@ -184,67 +117,30 @@ class _ExplorePageState extends State<ExplorePage>
 
   Future<void> _refreshProperties() => _loadProperties();
 
-  // ── Convert local _Property to PropertyModel ────────────────
-  PropertyModel _toModel(_Property p) => PropertyModel(
-    id:           p.id,
-    name:         p.name,
-    area:         p.area,
-    location:     p.location,
-    address:      '',
-    description:  '',
-    category:     p.category,
-    ownerId:      p.ownerId,
-    ownerName:    p.ownerName,
-    price:        p.price,
-    weekendPrice: 0,
-    cleaningFee:  0,
-    rating:       p.rating,
-    reviewCount:  p.reviewCount,
-    bedrooms:     1,
-    beds:         1,
-    bathrooms:    1,
-    maxGuests:    4,
-    images:       p.images,
-    amenities:    [],
-    facilities:   [],
-    nearby:       [],
-    instant:      p.instant,
-    online:       p.online,
-    featured:     p.featured,
-    available:    p.available,
-    autoConfirm:  true,
-    requireId:    false,
-    minNights:    1,
-    maxNights:    30,
-    bookingMode:  'instant',
-    currency:     'EGP',
-    createdAt:    DateTime.now(),
-  );
-
   // ── Filtered list ───────────────────────────────────────────
-  List<_Property> get _filtered {
+  List<PropertyApi> get _filtered {
     return _allProperties.where((p) {
       final matchQ    = _query.isEmpty ||
           p.name.toLowerCase().contains(_query) ||
           p.area.toLowerCase().contains(_query) ||
-          p.location.toLowerCase().contains(_query);
+          p.description.toLowerCase().contains(_query);
       final matchArea = _selArea == S.all || p.area == _selArea;
       final matchCat  = _selCat  == S.all || p.category == _selCat;
-      final matchPrice   = p.price  <= _maxPrice;
+      final matchPrice   = p.pricePerNight <= _maxPrice;
       final matchRating  = p.rating >= _minRating;
-      final matchInstant = !_instantOnly || p.instant;
-      final matchOnline  = !_onlineOnly  || p.online;
+      final matchInstant = !_instantOnly || p.instantBooking;
+      final matchOnline  = !_onlineOnly  || p.instantBooking;
       return matchQ && matchArea && matchCat && matchPrice &&
              matchRating && matchInstant && matchOnline;
     }).toList();
   }
 
-  List<_Property> get _trending => _allProperties
+  List<PropertyApi> get _trending => _allProperties
       .where((p) => p.reviewCount > 100).toList()
     ..sort((a, b) => b.reviewCount.compareTo(a.reviewCount));
 
-  List<_Property> get _todayDeals => _allProperties
-      .where((p) => p.featured).toList();
+  List<PropertyApi> get _todayDeals => _allProperties
+      .where((p) => p.isFeatured).toList();
 
   String _comma(int n) => n.toString().replaceAllMapped(
       RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]},');
@@ -587,7 +483,7 @@ class _ExplorePageState extends State<ExplorePage>
     );
   }
 
-  Widget _buildList(List<_Property> props) {
+  Widget _buildList(List<PropertyApi> props) {
     return ListView.builder(
       padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
       physics: const BouncingScrollPhysics(),
@@ -596,7 +492,7 @@ class _ExplorePageState extends State<ExplorePage>
     );
   }
 
-  Widget _buildGrid(List<_Property> props) {
+  Widget _buildGrid(List<PropertyApi> props) {
     return GridView.builder(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
       physics: const BouncingScrollPhysics(),
@@ -789,7 +685,7 @@ class _ExplorePageState extends State<ExplorePage>
     );
   }
 
-  Widget _trendingCard(_Property p, int rank) {
+  Widget _trendingCard(PropertyApi p, int rank) {
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
       padding: const EdgeInsets.all(14),
@@ -817,10 +713,10 @@ class _ExplorePageState extends State<ExplorePage>
           width: 68, height: 68,
           decoration: BoxDecoration(
             gradient: LinearGradient(
-                colors: [p.color, p.color.withValues(alpha: 0.6)]),
+                colors: [p.areaColor, p.areaColor.withValues(alpha: 0.6)]),
             borderRadius: BorderRadius.circular(14),
           ),
-          child: Center(child: Text(p.emoji,
+          child: Center(child: Text(p.categoryEmoji,
               style: const TextStyle(fontSize: 30))),
         ),
         const SizedBox(width: 12),
@@ -832,10 +728,10 @@ class _ExplorePageState extends State<ExplorePage>
               maxLines: 1, overflow: TextOverflow.ellipsis),
           const SizedBox(height: 3),
           Row(children: [
-            Icon(Icons.location_on_rounded, size: 11, color: p.color),
+            Icon(Icons.location_on_rounded, size: 11, color: p.areaColor),
             const SizedBox(width: 2),
-            Text('${p.area} · ${p.location}',
-                style: TextStyle(fontSize: 10, color: p.color,
+            Text(p.area,
+                style: TextStyle(fontSize: 10, color: p.areaColor,
                     fontWeight: FontWeight.w600)),
           ]),
           const SizedBox(height: 5),
@@ -850,7 +746,7 @@ class _ExplorePageState extends State<ExplorePage>
           ]),
         ])),
         Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-          Text('${S.egp} ${_comma(p.price)}',
+          Text('${S.egp} ${_comma(p.pricePerNight.toInt())}',
               style: TextStyle(fontSize: 15,
                   fontWeight: FontWeight.w900, color: context.kText)),
           Text('/${S.night}', style: TextStyle(fontSize: 10, color: context.kSub)),
@@ -858,7 +754,7 @@ class _ExplorePageState extends State<ExplorePage>
           GestureDetector(
             onTap: () => Navigator.push(context, MaterialPageRoute(
                 builder: (_) => PropertyDetailsPage(
-                  property: _toModel(p),
+                  propertyApi: p,
                 ))),
             child: Container(
               padding: const EdgeInsets.symmetric(
@@ -926,7 +822,7 @@ class _ExplorePageState extends State<ExplorePage>
   }
 
   // ── Property Cards ────────────────────────────────────────
-  Widget _propListCard(_Property p) {
+  Widget _propListCard(PropertyApi p) {
     final fav = _favs.contains(p.name);
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
@@ -942,20 +838,20 @@ class _ExplorePageState extends State<ExplorePage>
           child: SizedBox(
             height: 140,
             child: Stack(fit: StackFit.expand, children: [
-              // ── صورة حقيقية ──────────────────────────
-              p.imagePath.isNotEmpty
-                ? Image.network(p.imagePath, fit: BoxFit.cover,
+              // ── صورة حقيقية ──────────────────────
+              p.firstImage.isNotEmpty
+                ? Image.network(p.firstImage, fit: BoxFit.cover,
                     errorBuilder: (_, __, ___) => Container(
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
-                          colors: [p.color, p.color.withValues(alpha: 0.55)])),
-                      child: Center(child: Text(p.emoji,
+                          colors: [p.areaColor, p.areaColor.withValues(alpha: 0.55)])),
+                      child: Center(child: Text(p.categoryEmoji,
                           style: const TextStyle(fontSize: 60)))))
                 : Container(
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
-                        colors: [p.color, p.color.withValues(alpha: 0.55)])),
-                    child: Center(child: Text(p.emoji,
+                        colors: [p.areaColor, p.areaColor.withValues(alpha: 0.55)])),
+                    child: Center(child: Text(p.categoryEmoji,
                         style: const TextStyle(fontSize: 60)))),
               // Fav
               PositionedDirectional(top: 10, end: 10,
@@ -1005,7 +901,7 @@ class _ExplorePageState extends State<ExplorePage>
                             fontSize: 11, fontWeight: FontWeight.w700)),
                   ]),
                 )),
-              if (p.instant)
+              if (p.instantBooking)
                 PositionedDirectional(bottom: 8, end: 10,
                   child: Container(
                     padding: const EdgeInsets.symmetric(
@@ -1037,13 +933,13 @@ class _ExplorePageState extends State<ExplorePage>
                   maxLines: 1, overflow: TextOverflow.ellipsis),
               const SizedBox(height: 4),
               Row(children: [
-                Icon(Icons.location_on_rounded, size: 12, color: p.color),
+                Icon(Icons.location_on_rounded, size: 12, color: p.areaColor),
                 const SizedBox(width: 2),
-                Text('${p.area} · ${p.location}',
-                    style: TextStyle(fontSize: 11, color: p.color,
+                Text(p.area,
+                    style: TextStyle(fontSize: 11, color: p.areaColor,
                         fontWeight: FontWeight.w600)),
               ]),
-              if (p.online) ...[
+              if (p.instantBooking) ...[
                 const SizedBox(height: 4),
                 Row(children: [
                   const Icon(Icons.circle, size: 7, color: _kGreen),
@@ -1056,7 +952,7 @@ class _ExplorePageState extends State<ExplorePage>
             ])),
             Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
               RichText(text: TextSpan(children: [
-                TextSpan(text: '${S.egp} ${_comma(p.price)}',
+                TextSpan(text: '${S.egp} ${_comma(p.pricePerNight.toInt())}',
                     style: TextStyle(fontSize: 16,
                         fontWeight: FontWeight.w900, color: context.kText)),
                 TextSpan(text: '/${S.night}',
@@ -1066,7 +962,7 @@ class _ExplorePageState extends State<ExplorePage>
               GestureDetector(
                 onTap: () => Navigator.push(context,
                     MaterialPageRoute(builder: (_) => PropertyDetailsPage(
-                      property: _toModel(p),
+                      propertyApi: p,
                     ))),
                 child: Container(
                   padding: const EdgeInsets.symmetric(
@@ -1091,12 +987,12 @@ class _ExplorePageState extends State<ExplorePage>
     );
   }
 
-  Widget _propGridCard(_Property p) {
+  Widget _propGridCard(PropertyApi p) {
     final fav = _favs.contains(p.name);
     return GestureDetector(
       onTap: () => Navigator.push(context,
           MaterialPageRoute(builder: (_) => PropertyDetailsPage(
-            property: _toModel(p),
+            propertyApi: p,
           ))),
       child: Container(
         decoration: BoxDecoration(
@@ -1111,19 +1007,19 @@ class _ExplorePageState extends State<ExplorePage>
               height: 100,
               child: Stack(fit: StackFit.expand, children: [
                 // ── صورة حقيقية ──────────────────────
-                p.imagePath.isNotEmpty
-                  ? Image.network(p.imagePath, fit: BoxFit.cover,
+                p.firstImage.isNotEmpty
+                  ? Image.network(p.firstImage, fit: BoxFit.cover,
                       errorBuilder: (_, __, ___) => Container(
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
-                            colors: [p.color, p.color.withValues(alpha: 0.55)])),
-                        child: Center(child: Text(p.emoji,
+                            colors: [p.areaColor, p.areaColor.withValues(alpha: 0.55)])),
+                        child: Center(child: Text(p.categoryEmoji,
                             style: const TextStyle(fontSize: 42)))))
                   : Container(
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
-                          colors: [p.color, p.color.withValues(alpha: 0.55)])),
-                      child: Center(child: Text(p.emoji,
+                          colors: [p.areaColor, p.areaColor.withValues(alpha: 0.55)])),
+                      child: Center(child: Text(p.categoryEmoji,
                           style: const TextStyle(fontSize: 42)))),
                 PositionedDirectional(top: 6, end: 6,
                   child: GestureDetector(
@@ -1152,11 +1048,11 @@ class _ExplorePageState extends State<ExplorePage>
                   maxLines: 2, overflow: TextOverflow.ellipsis),
               const SizedBox(height: 3),
               Text(p.area, style: TextStyle(
-                  fontSize: 9, color: p.color, fontWeight: FontWeight.w600)),
+                  fontSize: 9, color: p.areaColor, fontWeight: FontWeight.w600)),
               const SizedBox(height: 5),
               Row(mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                Text('${S.egp} ${_comma(p.price)}',
+                Text('${S.egp} ${_comma(p.pricePerNight.toInt())}',
                     style: TextStyle(fontSize: 12,
                         fontWeight: FontWeight.w900, color: context.kText)),
                 Row(children: [

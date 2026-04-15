@@ -158,6 +158,20 @@ async def list_properties(
     )
 
 
+@router.get("/mine", response_model=list[PropertyOut])
+async def my_properties(
+    user: User = Depends(require_role(UserRole.owner, UserRole.admin)),
+    db: AsyncSession = Depends(get_db),
+):
+    """Return ALL properties owned by the current user (incl. unavailable)."""
+    result = await db.execute(
+        select(Property)
+        .where(Property.owner_id == user.id)
+        .order_by(Property.created_at.desc())
+    )
+    return [PropertyOut.model_validate(p) for p in result.scalars().all()]
+
+
 @router.get("/{property_id}", response_model=PropertyOut)
 async def get_property(property_id: int, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Property).where(Property.id == property_id))

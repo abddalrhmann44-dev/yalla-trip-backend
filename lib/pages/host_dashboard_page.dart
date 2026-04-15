@@ -1,7 +1,9 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../models/booking_model.dart';
+import '../models/property_model_api.dart';
+import '../services/booking_service.dart';
+import '../services/property_service.dart';
 import 'chat_page.dart';
 import 'owner_add_property_page.dart';
 
@@ -153,178 +155,126 @@ class _HostBookingsCalendarTab extends StatefulWidget {
 
 class _HostBookingsCalendarTabState extends State<_HostBookingsCalendarTab> {
   DateTime _month = DateTime(DateTime.now().year, DateTime.now().month);
-  final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
-  final _discountCtrl = TextEditingController();
+  List<BookingModel> _bookings = [];
+  bool _loading = true;
 
   @override
-  void dispose() {
-    _discountCtrl.dispose();
-    super.dispose();
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final list = await BookingService.getOwnerBookings(limit: 200);
+      if (mounted) setState(() { _bookings = list; _loading = false; });
+    } catch (_) {
+      if (mounted) setState(() => _loading = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    if (uid.isEmpty) {
-      return const Center(child: Text('No owner session'));
+    if (_loading) {
+      return const Center(child: CircularProgressIndicator(color: _pri));
     }
-    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: FirebaseFirestore.instance
-          .collection('bookings')
-          .where('ownerId', isEqualTo: uid)
-          .snapshots(),
-      builder: (context, snap) {
-        final bookedKeys = <String>{};
-        if (snap.hasData) {
-          for (final d in snap.data!.docs) {
-            final data = d.data();
-            final inS = (data['checkIn'] ?? '').toString();
-            final outS = (data['checkOut'] ?? '').toString();
-            final inDt = _parseDmy(inS);
-            final outDt = _parseDmy(outS);
-            if (inDt == null || outDt == null) {
-              continue;
-            }
-            var day = DateTime(inDt.year, inDt.month, inDt.day);
-            final last = DateTime(outDt.year, outDt.month, outDt.day);
-            while (day.isBefore(last)) {
-              bookedKeys.add(_key(day));
-              day = day.add(const Duration(days: 1));
-            }
-          }
-        }
-        final first = DateTime(_month.year, _month.month, 1);
-        final days = DateUtils.getDaysInMonth(_month.year, _month.month);
-        final startWeekday = first.weekday % 7;
-        return ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: _card,
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Row(
-                children: [
-                  IconButton(
-                    onPressed: () => setState(() {
-                      _month = DateTime(_month.year, _month.month - 1);
-                    }),
-                    icon: const Icon(Icons.chevron_left_rounded, color: _txt),
-                  ),
-                  Expanded(
-                    child: Text(
-                      '${_month.year}-${_month.month.toString().padLeft(2, '0')}',
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        color: _txt,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 16,
-                      ),
-                    ),
-                  ),
-                  IconButton(
-                    onPressed: () => setState(() {
-                      _month = DateTime(_month.year, _month.month + 1);
-                    }),
-                    icon: const Icon(Icons.chevron_right_rounded, color: _txt),
-                  ),
-                ],
-              ),
+    final bookedKeys = <String>{};
+    for (final b in _bookings) {
+      if (b.isCancelled) continue;
+      var day = DateTime(b.checkIn.year, b.checkIn.month, b.checkIn.day);
+      final last = DateTime(b.checkOut.year, b.checkOut.month, b.checkOut.day);
+      while (day.isBefore(last)) {
+        bookedKeys.add(_key(day));
+        day = day.add(const Duration(days: 1));
+      }
+    }
+    final days = DateUtils.getDaysInMonth(_month.year, _month.month);
+    final startWeekday = DateTime(_month.year, _month.month, 1).weekday % 7;
+    return RefreshIndicator(
+      color: _pri,
+      onRefresh: _load,
+      child: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: _card,
+              borderRadius: BorderRadius.circular(14),
             ),
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: _card,
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: GridView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: startWeekday + days,
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 7,
-                  mainAxisSpacing: 6,
-                  crossAxisSpacing: 6,
+            child: Row(
+              children: [
+                IconButton(
+                  onPressed: () => setState(() {
+                    _month = DateTime(_month.year, _month.month - 1);
+                  }),
+                  icon: const Icon(Icons.chevron_left_rounded, color: _txt),
                 ),
-                itemBuilder: (_, i) {
-                  if (i < startWeekday) {
-                    return const SizedBox.shrink();
-                  }
-                  final dayNum = i - startWeekday + 1;
-                  final date = DateTime(_month.year, _month.month, dayNum);
-                  final isBooked = bookedKeys.contains(_key(date));
-                  return Container(
-                    decoration: BoxDecoration(
-                      color: isBooked
-                          ? _danger.withValues(alpha: 0.24)
-                          : _ok.withValues(alpha: 0.18),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Center(
-                      child: Text(
-                        '$dayNum',
-                        style: const TextStyle(
-                            color: _txt, fontWeight: FontWeight.w700),
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-            const SizedBox(height: 12),
-            _legendRow(),
-            const SizedBox(height: 14),
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                  color: _card, borderRadius: BorderRadius.circular(14)),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('Add Discount Offer',
-                      style:
-                          TextStyle(color: _txt, fontWeight: FontWeight.w800)),
-                  const SizedBox(height: 10),
-                  TextField(
-                    controller: _discountCtrl,
-                    keyboardType: TextInputType.number,
-                    style: const TextStyle(color: _txt),
-                    decoration: const InputDecoration(
-                      hintText: 'Discount % for selected month',
-                      hintStyle: TextStyle(color: _sub),
+                Expanded(
+                  child: Text(
+                    '${_month.year}-${_month.month.toString().padLeft(2, '0')}',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: _txt,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 16,
                     ),
                   ),
-                  const SizedBox(height: 10),
-                  ElevatedButton(
-                    onPressed: () async {
-                      final v = int.tryParse(_discountCtrl.text.trim());
-                      if (v == null || v <= 0) {
-                        return;
-                      }
-                      await FirebaseFirestore.instance
-                          .collection('owner_offers')
-                          .add({
-                        'ownerId': uid,
-                        'month': '${_month.year}-${_month.month}',
-                        'discount': v,
-                        'createdAt': FieldValue.serverTimestamp(),
-                      });
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Offer saved')),
-                        );
-                      }
-                    },
-                    child: const Text('Save Offer'),
-                  ),
-                ],
-              ),
+                ),
+                IconButton(
+                  onPressed: () => setState(() {
+                    _month = DateTime(_month.year, _month.month + 1);
+                  }),
+                  icon: const Icon(Icons.chevron_right_rounded, color: _txt),
+                ),
+              ],
             ),
-          ],
-        );
-      },
+          ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: _card,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: startWeekday + days,
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 7,
+                mainAxisSpacing: 6,
+                crossAxisSpacing: 6,
+              ),
+              itemBuilder: (_, i) {
+                if (i < startWeekday) {
+                  return const SizedBox.shrink();
+                }
+                final dayNum = i - startWeekday + 1;
+                final date = DateTime(_month.year, _month.month, dayNum);
+                final isBooked = bookedKeys.contains(_key(date));
+                return Container(
+                  decoration: BoxDecoration(
+                    color: isBooked
+                        ? _danger.withValues(alpha: 0.24)
+                        : _ok.withValues(alpha: 0.18),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Center(
+                    child: Text(
+                      '$dayNum',
+                      style: const TextStyle(
+                          color: _txt, fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 12),
+          _legendRow(),
+        ],
+      ),
     );
   }
 
@@ -335,20 +285,6 @@ class _HostBookingsCalendarTabState extends State<_HostBookingsCalendarTab> {
           _LegendDot(color: _ok, label: 'Available'),
         ],
       );
-
-  DateTime? _parseDmy(String s) {
-    final p = s.split('/');
-    if (p.length != 3) {
-      return null;
-    }
-    final d = int.tryParse(p[0]);
-    final m = int.tryParse(p[1]);
-    final y = int.tryParse(p[2]);
-    if (d == null || m == null || y == null) {
-      return null;
-    }
-    return DateTime(y, m, d);
-  }
 
   String _key(DateTime d) =>
       '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
@@ -374,165 +310,182 @@ class _LegendDot extends StatelessWidget {
   }
 }
 
-class _HostChatsTab extends StatelessWidget {
+class _HostChatsTab extends StatefulWidget {
   const _HostChatsTab();
+  @override State<_HostChatsTab> createState() => _HostChatsTabState();
+}
+
+class _HostChatsTabState extends State<_HostChatsTab> {
+  List<BookingModel> _bookings = [];
+  bool _loading = true;
+
+  @override
+  void initState() { super.initState(); _load(); }
+
+  Future<void> _load() async {
+    try {
+      final list = await BookingService.getOwnerBookings(limit: 200);
+      if (mounted) setState(() { _bookings = list; _loading = false; });
+    } catch (_) {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
-    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: FirebaseFirestore.instance
-          .collection('bookings')
-          .where('ownerId', isEqualTo: uid)
-          .orderBy('createdAt', descending: true)
-          .snapshots(),
-      builder: (context, snap) {
-        if (!snap.hasData) {
-          return const Center(child: CircularProgressIndicator(color: _pri));
-        }
-        final docs = snap.data!.docs;
-        if (docs.isEmpty) {
-          return const Center(
-              child: Text('No customer chats', style: TextStyle(color: _sub)));
-        }
-        return ListView.builder(
-          padding: const EdgeInsets.all(16),
-          itemCount: docs.length,
-          itemBuilder: (_, i) {
-            final d = docs[i].data();
-            final guest = (d['userName'] ?? 'Guest').toString();
-            final property = (d['propertyName'] ?? 'Property').toString();
-            final price = (d['totalPaid'] ?? 0).toString();
-            return Container(
-              margin: const EdgeInsets.only(bottom: 10),
-              decoration: BoxDecoration(
-                  color: _card, borderRadius: BorderRadius.circular(12)),
-              child: ListTile(
-                leading: const CircleAvatar(
-                    backgroundColor: _pri,
-                    child: Icon(Icons.person, color: Colors.white)),
-                title: Text(guest,
-                    style: const TextStyle(
-                        color: _txt, fontWeight: FontWeight.w700)),
-                subtitle: Text('$property • EGP $price',
-                    style: const TextStyle(color: _sub)),
-                trailing: const Icon(Icons.chevron_right, color: _sub),
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => ChatPage(
-                        ownerName: guest,
-                        propertyName: property,
-                        propertyEmoji: '💬',
-                        currentPrice: price,
-                      ),
+    if (_loading) {
+      return const Center(child: CircularProgressIndicator(color: _pri));
+    }
+    if (_bookings.isEmpty) {
+      return const Center(
+          child: Text('No customer chats', style: TextStyle(color: _sub)));
+    }
+    return RefreshIndicator(
+      color: _pri,
+      onRefresh: _load,
+      child: ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: _bookings.length,
+        itemBuilder: (_, i) {
+          final b = _bookings[i];
+          final guest = b.guest?.name ?? 'Guest';
+          final property = b.propertyName;
+          final price = b.totalPrice.toInt().toString();
+          return Container(
+            margin: const EdgeInsets.only(bottom: 10),
+            decoration: BoxDecoration(
+                color: _card, borderRadius: BorderRadius.circular(12)),
+            child: ListTile(
+              leading: const CircleAvatar(
+                  backgroundColor: _pri,
+                  child: Icon(Icons.person, color: Colors.white)),
+              title: Text(guest,
+                  style: const TextStyle(
+                      color: _txt, fontWeight: FontWeight.w700)),
+              subtitle: Text('$property • EGP $price',
+                  style: const TextStyle(color: _sub)),
+              trailing: const Icon(Icons.chevron_right, color: _sub),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => ChatPage(
+                      ownerName: guest,
+                      propertyName: property,
+                      propertyEmoji: '💬',
+                      currentPrice: price,
                     ),
-                  );
-                },
-              ),
-            );
-          },
-        );
-      },
+                  ),
+                );
+              },
+            ),
+          );
+        },
+      ),
     );
   }
 }
 
-class _HostDailyBookingsTab extends StatelessWidget {
+class _HostDailyBookingsTab extends StatefulWidget {
   const _HostDailyBookingsTab();
+  @override State<_HostDailyBookingsTab> createState() =>
+      _HostDailyBookingsTabState();
+}
+
+class _HostDailyBookingsTabState extends State<_HostDailyBookingsTab> {
+  List<BookingModel> _today = [];
+  bool _loading = true;
+
+  @override
+  void initState() { super.initState(); _load(); }
+
+  Future<void> _load() async {
+    try {
+      final all = await BookingService.getOwnerBookings(limit: 200);
+      final now = DateTime.now();
+      final todayDate = DateTime(now.year, now.month, now.day);
+      final filtered = all.where((b) {
+        final ci = DateTime(b.checkIn.year, b.checkIn.month, b.checkIn.day);
+        return ci == todayDate;
+      }).toList();
+      if (mounted) setState(() { _today = filtered; _loading = false; });
+    } catch (_) {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
-    final now = DateTime.now();
-    final todayKey = '${now.day}/${now.month}/${now.year}';
-    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: FirebaseFirestore.instance
-          .collection('bookings')
-          .where('ownerId', isEqualTo: uid)
-          .where('checkIn', isEqualTo: todayKey)
-          .snapshots(),
-      builder: (context, snap) {
-        if (!snap.hasData) {
-          return const Center(child: CircularProgressIndicator(color: _pri));
-        }
-        final list = snap.data!.docs;
-        if (list.isEmpty) {
-          return const Center(
-            child: Text('No bookings for today', style: TextStyle(color: _sub)),
-          );
-        }
-        return ListView.builder(
-          padding: const EdgeInsets.all(16),
-          itemCount: list.length,
-          itemBuilder: (_, i) {
-            final d = list[i].data();
-            final status = (d['status'] ?? 'pending').toString();
-            return Container(
-              margin: const EdgeInsets.only(bottom: 10),
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                  color: _card, borderRadius: BorderRadius.circular(12)),
-              child: Column(
-                children: [
+    if (_loading) {
+      return const Center(child: CircularProgressIndicator(color: _pri));
+    }
+    if (_today.isEmpty) {
+      return const Center(
+        child: Text('No bookings for today', style: TextStyle(color: _sub)),
+      );
+    }
+    return RefreshIndicator(
+      color: _pri,
+      onRefresh: _load,
+      child: ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: _today.length,
+        itemBuilder: (_, i) {
+          final b = _today[i];
+          return Container(
+            margin: const EdgeInsets.only(bottom: 10),
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+                color: _card, borderRadius: BorderRadius.circular(12)),
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    _statusPill(b.status),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(b.propertyName,
+                              style: const TextStyle(
+                                  color: _txt, fontWeight: FontWeight.w700)),
+                          Text('Guest: ${b.guest?.name ?? ''}',
+                              style: const TextStyle(color: _sub)),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                if (!b.isCancelled) ...[
+                  const SizedBox(height: 10),
                   Row(
                     children: [
-                      _statusPill(status),
-                      const SizedBox(width: 10),
                       Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text((d['propertyName'] ?? '').toString(),
-                                style: const TextStyle(
-                                    color: _txt, fontWeight: FontWeight.w700)),
-                            Text('Guest: ${(d['userName'] ?? '').toString()}',
-                                style: const TextStyle(color: _sub)),
-                          ],
+                        child: OutlinedButton(
+                          onPressed: () => _rejectBooking(b.id),
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: _danger),
+                          ),
+                          child: const Text('Reject',
+                              style: TextStyle(color: _danger)),
                         ),
                       ),
                     ],
                   ),
-                  if (status != 'cancelled') ...[
-                    const SizedBox(height: 10),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton(
-                            onPressed: () => _rejectBooking(
-                              bookingId: list[i].id,
-                              userId: (d['userId'] ?? '').toString(),
-                              propertyName:
-                                  (d['propertyName'] ?? '').toString(),
-                            ),
-                            style: OutlinedButton.styleFrom(
-                              side: const BorderSide(color: _danger),
-                            ),
-                            child: const Text('Reject',
-                                style: TextStyle(color: _danger)),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
                 ],
-              ),
-            );
-          },
-        );
-      },
+              ],
+            ),
+          );
+        },
+      ),
     );
   }
 
   Widget _statusPill(String s) {
     Color c = _warn;
-    if (s == 'upcoming' || s == 'confirmed') {
-      c = _ok;
-    }
-    if (s == 'cancelled') {
-      c = _danger;
-    }
+    if (s == 'confirmed') c = _ok;
+    if (s == 'cancelled') c = _danger;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
@@ -544,121 +497,110 @@ class _HostDailyBookingsTab extends StatelessWidget {
     );
   }
 
-  Future<void> _rejectBooking({
-    required String bookingId,
-    required String userId,
-    required String propertyName,
-  }) async {
-    await FirebaseFirestore.instance
-        .collection('bookings')
-        .doc(bookingId)
-        .update({
-      'status': 'cancelled',
-      'ownerDecisionAt': FieldValue.serverTimestamp(),
-    });
-    if (userId.isNotEmpty) {
-      await FirebaseFirestore.instance.collection('notifications').add({
-        'userId': userId,
-        'type': 'booking_rejected',
-        'title': 'تم رفض الحجز',
-        'body': 'تم رفض الحجز من قبل المالك: $propertyName',
-        'isRead': false,
-        'createdAt': FieldValue.serverTimestamp(),
-      });
-    }
+  Future<void> _rejectBooking(int bookingId) async {
+    try {
+      await BookingService.cancelBooking(bookingId);
+      _load();
+    } catch (_) {}
   }
 }
 
-class _HostPropertyManagerTab extends StatelessWidget {
+class _HostPropertyManagerTab extends StatefulWidget {
   const _HostPropertyManagerTab();
+  @override State<_HostPropertyManagerTab> createState() =>
+      _HostPropertyManagerTabState();
+}
+
+class _HostPropertyManagerTabState extends State<_HostPropertyManagerTab> {
+  List<PropertyApi> _props = [];
+  bool _loading = true;
+
+  @override
+  void initState() { super.initState(); _load(); }
+
+  Future<void> _load() async {
+    try {
+      final list = await PropertyService.getMyProperties();
+      if (mounted) setState(() { _props = list; _loading = false; });
+    } catch (_) {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
-    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: FirebaseFirestore.instance
-          .collection('properties')
-          .where('ownerId', isEqualTo: uid)
-          .orderBy('createdAt', descending: true)
-          .snapshots(),
-      builder: (context, snap) {
-        if (!snap.hasData) {
-          return const Center(child: CircularProgressIndicator(color: _pri));
-        }
-        final list = snap.data!.docs;
-        return ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            ElevatedButton.icon(
-              onPressed: () {
-                Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (_) => const OwnerAddPropertyPage()));
-              },
-              icon: const Icon(Icons.add_business_rounded),
-              label: const Text('Add New Property'),
-            ),
-            const SizedBox(height: 12),
-            ...list.map((doc) {
-              final d = doc.data();
-              final name = (d['name'] ?? '').toString();
-              final available = (d['available'] ?? true) == true;
-              final price = (d['price'] ?? 0) as num;
-              return Container(
-                margin: const EdgeInsets.only(bottom: 10),
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                    color: _card, borderRadius: BorderRadius.circular(12)),
-                child: Column(
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(name,
-                              style: const TextStyle(
-                                  color: _txt, fontWeight: FontWeight.w700)),
-                        ),
-                        Switch(
-                          value: available,
-                          onChanged: (v) async {
-                            await FirebaseFirestore.instance
-                                .collection('properties')
-                                .doc(doc.id)
-                                .update({
-                              'available': v,
-                            });
-                          },
-                        ),
-                      ],
-                    ),
-                    Row(
-                      children: [
-                        const Text('Price:', style: TextStyle(color: _sub)),
-                        const SizedBox(width: 8),
-                        Text('EGP ${price.toInt()}',
+    if (_loading) {
+      return const Center(child: CircularProgressIndicator(color: _pri));
+    }
+    return RefreshIndicator(
+      color: _pri,
+      onRefresh: _load,
+      child: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          ElevatedButton.icon(
+            onPressed: () async {
+              await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => const OwnerAddPropertyPage()));
+              _load();
+            },
+            icon: const Icon(Icons.add_business_rounded),
+            label: const Text('Add New Property'),
+          ),
+          const SizedBox(height: 12),
+          ..._props.map((p) {
+            return Container(
+              margin: const EdgeInsets.only(bottom: 10),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                  color: _card, borderRadius: BorderRadius.circular(12)),
+              child: Column(
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(p.name,
                             style: const TextStyle(
                                 color: _txt, fontWeight: FontWeight.w700)),
-                        const Spacer(),
-                        TextButton(
-                          onPressed: () =>
-                              _openPriceEditor(context, doc.id, price.toInt()),
-                          child: const Text('Edit Price'),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              );
-            }),
-          ],
-        );
-      },
+                      ),
+                      Switch(
+                        value: p.isAvailable,
+                        onChanged: (v) async {
+                          await PropertyService.updateProperty(
+                              p.id, {'is_available': v});
+                          _load();
+                        },
+                      ),
+                    ],
+                  ),
+                  Row(
+                    children: [
+                      const Text('Price:', style: TextStyle(color: _sub)),
+                      const SizedBox(width: 8),
+                      Text('EGP ${p.pricePerNight.toInt()}',
+                          style: const TextStyle(
+                              color: _txt, fontWeight: FontWeight.w700)),
+                      const Spacer(),
+                      TextButton(
+                        onPressed: () =>
+                            _openPriceEditor(context, p.id, p.pricePerNight.toInt()),
+                        child: const Text('Edit Price'),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          }),
+        ],
+      ),
     );
   }
 
   Future<void> _openPriceEditor(
-      BuildContext context, String id, int current) async {
+      BuildContext context, int id, int current) async {
     final c = TextEditingController(text: '$current');
     await showDialog<void>(
       context: context,
@@ -676,16 +618,11 @@ class _HostPropertyManagerTab extends StatelessWidget {
           ElevatedButton(
             onPressed: () async {
               final n = int.tryParse(c.text.trim());
-              if (n == null || n <= 0) {
-                return;
-              }
-              await FirebaseFirestore.instance
-                  .collection('properties')
-                  .doc(id)
-                  .update({'price': n});
-              if (context.mounted) {
-                Navigator.pop(context);
-              }
+              if (n == null || n <= 0) return;
+              await PropertyService.updateProperty(
+                  id, {'price_per_night': n});
+              if (context.mounted) Navigator.pop(context);
+              _load();
             },
             child: const Text('Save'),
           ),

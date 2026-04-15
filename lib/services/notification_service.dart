@@ -6,11 +6,10 @@
 
 import 'dart:convert';
 import 'dart:io';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import '../utils/api_client.dart';
 
 // ── Top-level background handler (must be top-level function) ──
 @pragma('vm:entry-point')
@@ -32,8 +31,8 @@ class NotificationService {
 
   // ── Android notification channel ──────────────────────────
   static const _androidChannel = AndroidNotificationChannel(
-    'yalla_trip_channel',
-    'Yalla Trip Notifications',
+    'talaa_channel',
+    'Talaa Notifications',
     description: 'Notifications for bookings, approvals, and updates',
     importance: Importance.high,
     playSound: true,
@@ -140,20 +139,11 @@ class NotificationService {
   }
 
   Future<void> _saveToken(String token) async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
-
     try {
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .set({
-        'fcmToken': token,
-        'tokenUpdatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
-      debugPrint('[FCM] Token saved for user: ${user.uid}');
+      await ApiClient().put('/users/me/fcm-token', {'fcm_token': token});
+      debugPrint('[FCM] Token saved via API');
     } catch (e) {
-      debugPrint('[FCM] Error saving token: $e');
+      debugPrint('[FCM] Error saving token via API: $e');
     }
   }
 

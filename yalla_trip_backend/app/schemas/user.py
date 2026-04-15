@@ -66,3 +66,11 @@ class FirebaseTokenRequest(BaseModel):
 
 class RefreshTokenRequest(BaseModel):
     refresh_token: str
+
+
+class RoleChangeRequest(BaseModel):
+    role: UserRole
+
+
+class FcmTokenRequest(BaseModel):
+    fcm_token: str

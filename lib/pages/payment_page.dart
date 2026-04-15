@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
-//  YALLA TRIP — Payment Page  v2
+//  TALAA — Payment Page  v2
 //  إلكتروني بس: فيزا · ميزة · فوري Pay · فودافون كاش · اتصالات كاش
 //  Escrow model: held → released 24h after check-in → paid to owner
 //  Commission: 8% platform, 92% owner
@@ -10,14 +10,14 @@ import '../main.dart' show appSettings;
 import '../utils/app_strings.dart';
 import '../widgets/constants.dart';
 import 'package:flutter/services.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import '../models/property_model.dart';
+import '../models/property_model_api.dart';
+import '../services/booking_service.dart';
+import '../utils/api_client.dart';
+import '../utils/error_handler.dart';
 import 'home_page.dart';
 
 const _kOcean = Color(0xFF1565C0);
 const _kGreen = Color(0xFF22C55E);
-const double _kPlatformCut = 0.08; // 8%
 
 // ── Payment Method ─────────────────────────────────────────────
 class _PayMethod {
@@ -50,7 +50,7 @@ List<_PayMethod> get _kMethods => [
 //  PAGE
 // ══════════════════════════════════════════════════════════════
 class PaymentPage extends StatefulWidget {
-  final PropertyModel property;
+  final PropertyApi property;
   final String checkIn, checkOut, guestNote;
   final int nights, guests, baseAmount, cleaningFee, totalAmount;
 
@@ -95,9 +95,7 @@ class _PaymentPageState extends State<PaymentPage> {
     super.dispose();
   }
 
-  PropertyModel get p => widget.property;
-  int get _platformFee => (widget.totalAmount * _kPlatformCut).round();
-  int get _ownerNet => widget.totalAmount - _platformFee;
+  PropertyApi get p => widget.property;
 
   // ─────────────────────────────────────────────────────────────
   @override
@@ -181,7 +179,7 @@ class _PaymentPageState extends State<PaymentPage> {
                 child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('حجزك محمي بضمان Yalla Trip 🛡️',
+                Text('حجزك محمي بضمان Talaa 🛡️',
                     style: TextStyle(
                         color: Colors.white,
                         fontSize: 13,
@@ -291,7 +289,7 @@ class _PaymentPageState extends State<PaymentPage> {
             )),
           ]),
           Divider(height: 18, color: context.kBorder),
-          _row('${p.price.toInt()} × ${widget.nights} ليالي',
+          _row('${p.pricePerNight.toStringAsFixed(0)} × ${widget.nights} ليالي',
               '${widget.baseAmount} جنيه'),
           if (widget.cleaningFee > 0)
             _row(S.cleaningFee, '${widget.cleaningFee} جنيه'),
@@ -452,7 +450,7 @@ class _PaymentPageState extends State<PaymentPage> {
         'bg': const Color(0xFFFFF3E0),
         'steps': [
           'افتح تطبيق فوري أو اذهب لأقرب نقطة فوري',
-          'اختر "دفع الفواتير" ← "Yalla Trip"',
+          'اختر "دفع الفواتير" ← "Talaa"',
           'أدخل رقم الطلب اللي هيوصلك على هاتفك',
           'ادفع ${widget.totalAmount} جنيه واحتفظ بالإيصال',
         ],
@@ -465,7 +463,7 @@ class _PaymentPageState extends State<PaymentPage> {
         'steps': [
           'افتح تطبيق فودافون كاش أو اضغط *9#',
           'اختر "الدفع والسداد"',
-          'ابحث عن "Yalla Trip" في قائمة التجار',
+          'ابحث عن "Talaa" في قائمة التجار',
           'أدخل ${widget.totalAmount} جنيه وأكّد برقمك السري',
         ],
       },
@@ -477,7 +475,7 @@ class _PaymentPageState extends State<PaymentPage> {
         'steps': [
           'افتح تطبيق اتصالات كاش',
           'اختر "ادفع فاتورة"',
-          'ابحث عن "Yalla Trip"',
+          'ابحث عن "Talaa"',
           'أدخل ${widget.totalAmount} جنيه وأكّد',
         ],
       },
@@ -591,7 +589,7 @@ class _PaymentPageState extends State<PaymentPage> {
       );
 
   // ═══════════════════════════════════════
-  //  PAY — Save booking + payout to Firestore
+  //  PAY — Create booking via REST API
   // ═══════════════════════════════════════
   Future<void> _pay() async {
     if (_sel == null) return;
@@ -608,155 +606,32 @@ class _PaymentPageState extends State<PaymentPage> {
 
     setState(() => _loading = true);
     try {
-      final user = FirebaseAuth.instance.currentUser;
-      final uid = user?.uid ?? '';
-      final db = FirebaseFirestore.instance;
-
-      // ── Parse check-in date ──────────────────────────
+      // ── Parse check-in / check-out to DateTime ─────
       final parts = widget.checkIn.split('/');
       final checkInDt = DateTime(
           int.parse(parts[2]), int.parse(parts[1]), int.parse(parts[0]));
-      final checkOutParts = widget.checkOut.split('/');
-      final checkOutDt = DateTime(int.parse(checkOutParts[2]),
-          int.parse(checkOutParts[1]), int.parse(checkOutParts[0]));
-      // Airbnb rule: release 24h after check-in
-      final payoutRelease = checkInDt.add(const Duration(hours: 24));
-      final bookingRef = db.collection('bookings').doc();
-      final payoutRef = db.collection('payouts').doc();
-      final propertyRef = db.collection('properties').doc(p.id);
+      final coParts = widget.checkOut.split('/');
+      final checkOutDt = DateTime(
+          int.parse(coParts[2]), int.parse(coParts[1]), int.parse(coParts[0]));
 
-      await db.runTransaction((tx) async {
-        final propSnap = await tx.get(propertyRef);
-        if (!propSnap.exists) {
-          throw Exception('property_not_found');
-        }
-        final propData = propSnap.data() as Map<String, dynamic>;
-        final category = (propData['category'] ?? '').toString();
-
-        if (category == 'شاليه') {
-          final blocked =
-              List<String>.from(propData['blockedDates'] ?? const []);
-          final requested = _dateKeysBetween(checkInDt, checkOutDt);
-          final overlaps = requested.any(blocked.contains);
-          if (overlaps) throw Exception('date_already_booked');
-          tx.update(propertyRef, {
-            'blockedDates': [...blocked, ...requested]
-          });
-        } else if (category == 'فندق') {
-          final rooms = (propData['availableRooms'] ?? 0) as num;
-          if (rooms <= 0) throw Exception('no_rooms_available');
-          tx.update(propertyRef, {
-            'availableRooms': rooms.toInt() - 1,
-            'available': rooms.toInt() - 1 > 0,
-          });
-        }
-
-        tx.set(bookingRef, {
-          'userId': uid,
-          'userName': user?.displayName ?? '',
-          'propertyId': p.id,
-          'propertyName': p.name,
-          'ownerId': p.ownerId,
-          'area': p.area,
-          'location': p.location,
-          'category': p.category,
-          'propertyImage': p.images.isNotEmpty ? p.images[0] : '',
-          'checkIn': widget.checkIn,
-          'checkOut': widget.checkOut,
-          'nights': widget.nights,
-          'guests': widget.guests,
-          'guestNote': widget.guestNote,
-          'baseAmount': widget.baseAmount,
-          'cleaningFee': widget.cleaningFee,
-          'totalPaid': widget.totalAmount,
-          'platformFee': _platformFee,
-          'ownerAmount': _ownerNet,
-          'payMethod': _methodLabel(),
-          'status': 'upcoming',
-          'payoutStatus': 'held',
-          'payoutRelease': Timestamp.fromDate(payoutRelease),
-          'rating': 0.0,
-          'createdAt': FieldValue.serverTimestamp(),
-        });
-
-        tx.set(payoutRef, {
-          'bookingId': bookingRef.id,
-          'ownerId': p.ownerId,
-          'propertyId': p.id,
-          'propertyName': p.name,
-          'guestName': user?.displayName ?? '',
-          'checkIn': widget.checkIn,
-          'checkOut': widget.checkOut,
-          'totalCollected': widget.totalAmount,
-          'platformFee': _platformFee,
-          'commissionPct': 8,
-          'ownerAmount': _ownerNet,
-          'status': 'held',
-          'payoutRelease': Timestamp.fromDate(payoutRelease),
-          'createdAt': FieldValue.serverTimestamp(),
-        });
-      });
-
-      // ── Notify owner ──────────────────────────────────
-      await db.collection('notifications').add({
-        'userId': p.ownerId,
-        'type': 'booking_confirmed',
-        'title': 'حجز جديد! 🎉',
-        'body': 'تم حجز ${p.name} · ${widget.checkIn} ← ${widget.checkOut}',
-        'bookingId': bookingRef.id,
-        'isRead': false,
-        'createdAt': FieldValue.serverTimestamp(),
-      });
+      await BookingService.createBooking(
+        propertyId: p.id,
+        checkIn: checkInDt,
+        checkOut: checkOutDt,
+        guestsCount: widget.guests,
+      );
 
       HapticFeedback.heavyImpact();
       if (mounted) _showSuccess();
-    } catch (e) {
-      final msg = e.toString();
-      if (msg.contains('date_already_booked')) {
-        _snack('هذا الشاليه محجوز بالفعل في التواريخ المختارة', isError: true);
-      } else if (msg.contains('no_rooms_available')) {
-        _snack('لا توجد غرف متاحة الآن في هذا الفندق', isError: true);
-      } else {
-        _snack('حدث خطأ، حاول مرة أخرى', isError: true);
-      }
+    } on ApiException catch (e) {
+      _snack(ErrorHandler.getMessage(e), isError: true);
+    } catch (_) {
+      _snack('حدث خطأ، حاول مرة أخرى', isError: true);
     } finally {
       if (mounted) setState(() => _loading = false);
     }
   }
 
-  List<String> _dateKeysBetween(DateTime start, DateTime end) {
-    final keys = <String>[];
-    var d = DateTime(start.year, start.month, start.day);
-    final last = DateTime(end.year, end.month, end.day);
-    while (d.isBefore(last)) {
-      keys.add(_dayKey(d));
-      d = d.add(const Duration(days: 1));
-    }
-    return keys;
-  }
-
-  String _dayKey(DateTime d) {
-    final mm = d.month.toString().padLeft(2, '0');
-    final dd = d.day.toString().padLeft(2, '0');
-    return '${d.year}-$mm-$dd';
-  }
-
-  String _methodLabel() {
-    switch (_sel) {
-      case 'visa':
-        return S.visaMaster;
-      case 'meeza':
-        return S.meeza;
-      case 'fawry':
-        return S.fawry;
-      case 'vodafone':
-        return S.vodafone;
-      case 'etisalat':
-        return 'اتصالات كاش';
-      default:
-        return '';
-    }
-  }
 
   void _snack(String msg, {bool isError = false}) {
     if (!mounted) return;

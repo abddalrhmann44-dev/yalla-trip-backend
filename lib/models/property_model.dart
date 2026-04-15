@@ -1,6 +1,6 @@
 // ═══════════════════════════════════════════════════════════════
-//  YALLA TRIP — Property Model
-//  Single source of truth for all property data
+//  TALAA — Property Model (Firestore legacy)
+//  For new backend API, use PropertyApi in property_model_api.dart
 // ═══════════════════════════════════════════════════════════════
 
 import 'package:cloud_firestore/cloud_firestore.dart';

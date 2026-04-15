@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
-//  YALLA TRIP — Owner Dashboard Page
+//  TALAA — Owner Dashboard Page  (REST API)
 //  Premium host dashboard — Airbnb / Booking.com quality
 // ═══════════════════════════════════════════════════════════════
 
@@ -8,7 +8,8 @@ import '../main.dart' show appSettings;
 import '../widgets/constants.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import '../models/property_model_api.dart';
+import '../services/property_service.dart';
 import 'owner_add_property_page.dart';
 import 'owner_payouts_page.dart';
 import 'host_dashboard_page.dart';
@@ -21,61 +22,6 @@ const _kOcean  = Color(0xFF1565C0);
 const _kOrange = Color(0xFFFF6D00);
 const _kGreen  = Color(0xFF22C55E);
 
-// ── Property Model ──────────────────────────────────────────────
-class _Property {
-  final String   id, name, area, location, category, ownerId;
-  final int      price;
-  final double   rating;
-  final int      reviewCount;
-  final List<String> images;
-  final bool     available, instant, featured;
-  final DateTime createdAt;
-
-  _Property.fromFirestore(String docId, Map<String, dynamic> d)
-      : id          = docId,
-        name        = d['name']        ?? '',
-        area        = d['area']        ?? '',
-        location    = d['location']    ?? '',
-        category    = d['category']    ?? '',
-        ownerId     = d['ownerId']     ?? '',
-        price       = (d['price']      ?? 0).toInt(),
-        rating      = (d['rating']     ?? 0.0).toDouble(),
-        reviewCount = (d['reviewCount'] ?? 0).toInt(),
-        images      = List<String>.from(d['images'] ?? []),
-        available   = d['available']   ?? true,
-        instant     = d['instant']     ?? false,
-        featured    = d['featured']    ?? false,
-        createdAt   = (d['createdAt'] as dynamic)?.toDate() ?? DateTime.now();
-
-  String get firstImage => images.isNotEmpty ? images.first : '';
-
-  String get categoryEmoji {
-    switch (category) {
-      case 'شاليه':     return '🏡';
-      case 'فيلا':      return '🏖️';
-      case 'فندق':      return '🏨';
-      case 'منتجع':     return '🌺';
-      case 'أكوا بارك': return '🌊';
-      case 'بيت شاطئ':  return '🏄';
-      default:          return '🏠';
-    }
-  }
-
-  Color get areaColor {
-    if (area == 'عين السخنة')     return const Color(0xFF0288D1);
-    if (area == 'الساحل الشمالي') return const Color(0xFF1976D2);
-    if (area == 'الجونة')         return const Color(0xFFE65100);
-    if (area == 'الغردقة')        return const Color(0xFF00695C);
-    if (area == 'شرم الشيخ')      return const Color(0xFF6A1B9A);
-    if (area == 'رأس سدر')        return const Color(0xFF00897B);
-    return const Color(0xFF1565C0);
-  }
-
-  String get formattedPrice =>
-      price.toString().replaceAllMapped(
-          RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-          (m) => '${m[1]},');
-}
 
 // ══════════════════════════════════════════════════════════════
 //  OWNER DASHBOARD PAGE
@@ -89,7 +35,7 @@ class OwnerDashboardPage extends StatefulWidget {
 class _OwnerDashboardPageState extends State<OwnerDashboardPage>
     with TickerProviderStateMixin {
 
-  List<_Property> _properties = [];
+  List<PropertyApi> _properties = [];
   bool _loading = true;
   late AnimationController _fadeCtrl;
   late Animation<double>   _fadeAnim;
@@ -127,16 +73,8 @@ class _OwnerDashboardPageState extends State<OwnerDashboardPage>
   }
 
   Future<void> _loadProperties() async {
-    if (user == null) { setState(() => _loading = false); return; }
     try {
-      final snap = await FirebaseFirestore.instance
-          .collection('properties')
-          .where('ownerId', isEqualTo: user!.uid)
-          .orderBy('createdAt', descending: true)
-          .get();
-      final list = snap.docs
-          .map((d) => _Property.fromFirestore(d.id, d.data()))
-          .toList();
+      final list = await PropertyService.getMyProperties();
       if (mounted) {
         setState(() { _properties = list; _loading = false; });
         _fadeCtrl.forward();
@@ -146,15 +84,13 @@ class _OwnerDashboardPageState extends State<OwnerDashboardPage>
     }
   }
 
-  Future<void> _toggleAvailability(_Property p) async {
-    await FirebaseFirestore.instance
-        .collection('properties')
-        .doc(p.id)
-        .update({'available': !p.available});
+  Future<void> _toggleAvailability(PropertyApi p) async {
+    await PropertyService.updateProperty(
+        p.id, {'is_available': !p.isAvailable});
     _loadProperties();
   }
 
-  Future<void> _deleteProperty(_Property p) async {
+  Future<void> _deleteProperty(PropertyApi p) async {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
@@ -182,14 +118,13 @@ class _OwnerDashboardPageState extends State<OwnerDashboardPage>
       ),
     );
     if (confirm != true) return;
-    await FirebaseFirestore.instance
-        .collection('properties').doc(p.id).delete();
+    await PropertyService.deleteProperty(p.id);
     _loadProperties();
   }
 
   // ── Stats ────────────────────────────────────────────────────
   int get _activeCount =>
-      _properties.where((p) => p.available).length;
+      _properties.where((p) => p.isAvailable).length;
   double get _avgRating {
     final rated = _properties.where((p) => p.rating > 0);
     if (rated.isEmpty) return 0;
@@ -579,7 +514,7 @@ class _OwnerDashboardPageState extends State<OwnerDashboardPage>
   }
 
   // ── Property Card ────────────────────────────────────────────
-  Widget _propertyCard(_Property p) {
+  Widget _propertyCard(PropertyApi p) {
     return Container(
       margin: const EdgeInsets.fromLTRB(20, 0, 20, 16),
       decoration: BoxDecoration(
@@ -627,10 +562,10 @@ class _OwnerDashboardPageState extends State<OwnerDashboardPage>
                     padding: const EdgeInsets.symmetric(
                         horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
-                      color: p.available ? _kGreen : Colors.grey.shade500,
+                      color: p.isAvailable ? _kGreen : Colors.grey.shade500,
                       borderRadius: BorderRadius.circular(20),
                       boxShadow: [BoxShadow(
-                          color: (p.available ? _kGreen : Colors.grey)
+                          color: (p.isAvailable ? _kGreen : Colors.grey)
                               .withValues(alpha: 0.4),
                           blurRadius: 8, offset: const Offset(0, 3))],
                     ),
@@ -643,7 +578,7 @@ class _OwnerDashboardPageState extends State<OwnerDashboardPage>
                             shape: BoxShape.circle),
                       ),
                       const SizedBox(width: 5),
-                      Text(p.available ? 'مفعّل' : 'موقوف',
+                      Text(p.isAvailable ? 'مفعّل' : 'موقوف',
                           style: const TextStyle(
                               color: Colors.white, fontSize: 11,
                               fontWeight: FontWeight.w800)),
@@ -654,9 +589,9 @@ class _OwnerDashboardPageState extends State<OwnerDashboardPage>
               // ── Badges ──
               Positioned(top: 12, right: 12,
                 child: Row(children: [
-                  if (p.featured)
+                  if (p.isFeatured)
                     _badge('⭐ مميز', _kOrange),
-                  if (p.instant) ...[
+                  if (p.instantBooking) ...[
                     const SizedBox(width: 6),
                     _badge('⚡ فوري', _kOcean),
                   ],
@@ -722,9 +657,7 @@ class _OwnerDashboardPageState extends State<OwnerDashboardPage>
                     Icon(Icons.location_on_rounded,
                         size: 13, color: p.areaColor),
                     const SizedBox(width: 2),
-                    Text(p.location.isNotEmpty
-                        ? '${p.area} · ${p.location}'
-                        : p.area,
+                    Text(p.area,
                         style: TextStyle(fontSize: 12,
                             color: p.areaColor,
                             fontWeight: FontWeight.w600)),
@@ -790,7 +723,7 @@ class _OwnerDashboardPageState extends State<OwnerDashboardPage>
     );
   }
 
-  Widget _imgPlaceholder(_Property p) => Container(
+  Widget _imgPlaceholder(PropertyApi p) => Container(
     decoration: BoxDecoration(
       gradient: LinearGradient(
         colors: [p.areaColor, p.areaColor.withValues(alpha: 0.6)],

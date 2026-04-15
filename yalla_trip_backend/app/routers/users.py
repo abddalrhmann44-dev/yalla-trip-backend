@@ -10,7 +10,7 @@ from app.database import get_db
 from app.middleware.auth_middleware import get_current_active_user
 from app.models.user import User
 from app.schemas.common import MessageResponse
-from app.schemas.user import UserOut, UserUpdate
+from app.schemas.user import FcmTokenRequest, RoleChangeRequest, UserOut, UserUpdate
 from app.services.s3_service import upload_image
 
 logger = structlog.get_logger(__name__)
@@ -52,6 +52,34 @@ async def upload_avatar(
     await db.flush()
     await db.refresh(user)
     return UserOut.model_validate(user)
+
+
+@router.put("/me/role", response_model=UserOut)
+async def change_role(
+    body: RoleChangeRequest,
+    user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    user.role = body.role
+    await db.flush()
+    await db.refresh(user)
+    logger.info("user_role_changed", user_id=user.id, new_role=body.role.value)
+    return UserOut.model_validate(user)
+
+
+@router.put("/me/fcm-token", response_model=MessageResponse)
+async def update_fcm_token(
+    body: FcmTokenRequest,
+    user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    user.fcm_token = body.fcm_token
+    await db.flush()
+    logger.info("fcm_token_updated", user_id=user.id)
+    return MessageResponse(
+        message="FCM token updated",
+        message_ar="تم تحديث التوكن",
+    )
 
 
 @router.delete("/me", response_model=MessageResponse)

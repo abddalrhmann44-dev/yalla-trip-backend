@@ -35,6 +35,7 @@ class User(Base):
         Enum(UserRole), default=UserRole.guest, server_default="guest"
     )
     avatar_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    fcm_token: Mapped[str | None] = mapped_column(String(512), nullable=True)
     is_verified: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
 

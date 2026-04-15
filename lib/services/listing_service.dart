@@ -1,7 +1,7 @@
 // ═══════════════════════════════════════════════════════════════
-//  YALLA TRIP — Listing Service
+//  TALAA — Listing Service (Firestore legacy)
+//  For new backend API, use PropertyService in property_service.dart
 //  Region-based filtering + Time-limited offer management
-//  Uses existing `properties` Firestore collection.
 // ═══════════════════════════════════════════════════════════════
 
 import 'package:cloud_firestore/cloud_firestore.dart';

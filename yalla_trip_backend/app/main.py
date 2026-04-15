@@ -11,7 +11,7 @@ from fastapi.responses import ORJSONResponse
 
 from app.config import get_settings
 from app.middleware.cors_middleware import add_cors
-from app.routers import auth, users, properties, bookings, reviews, payments, admin
+from app.routers import auth, users, properties, bookings, reviews, payments, admin, notifications, offers
 
 logger = structlog.get_logger(__name__)
 settings = get_settings()
@@ -108,6 +108,8 @@ app.include_router(bookings.router)
 app.include_router(reviews.router)
 app.include_router(payments.router)
 app.include_router(admin.router)
+app.include_router(notifications.router)
+app.include_router(offers.router)
 
 
 # ── Health check ──────────────────────────────────────────

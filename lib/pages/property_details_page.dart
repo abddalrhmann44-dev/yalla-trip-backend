@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
-//  YALLA TRIP — Property Details Page
+//  TALAA — Property Details Page
 //  Full details, gallery, reviews, book CTA → BookingFlowPage
 // ═══════════════════════════════════════════════════════════════
 
@@ -7,15 +7,20 @@ import 'package:flutter/material.dart';
 import '../main.dart' show appSettings;
 import '../utils/app_strings.dart';
 import '../widgets/constants.dart';
-import '../models/property_model.dart';
+import '../models/property_model_api.dart';
+import '../services/property_service.dart';
+import '../utils/api_client.dart';
+import '../utils/error_handler.dart';
 import 'booking_flow_page.dart';
 
 const _kOcean  = Color(0xFF1565C0);
 const _kOrange = Color(0xFFFF6D00);
 
 class PropertyDetailsPage extends StatefulWidget {
-  final PropertyModel property;
-  const PropertyDetailsPage({super.key, required this.property});
+  final int? propertyId;
+  final PropertyApi? propertyApi;
+  const PropertyDetailsPage({super.key, this.propertyId, this.propertyApi})
+      : assert(propertyId != null || propertyApi != null);
 
   @override
   State<PropertyDetailsPage> createState() => _PropertyDetailsPageState();
@@ -25,9 +30,36 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
   int  _imgIndex   = 0;
   bool _isFav      = false;
   bool _descExpand = false;
+  bool _loading    = true;
+  String? _error;
+  PropertyApi? _prop;
   final PageController _imgCtrl = PageController();
 
-  PropertyModel get p => widget.property;
+  PropertyApi get p => _prop!;
+
+  @override
+  void initState() {
+    super.initState();
+    appSettings.addListener(_onLangChange);
+    if (widget.propertyApi != null) {
+      _prop = widget.propertyApi;
+      _loading = false;
+    } else {
+      _loadProperty();
+    }
+  }
+
+  Future<void> _loadProperty() async {
+    try {
+      final prop = await PropertyService.getProperty(widget.propertyId!);
+      if (!mounted) return;
+      setState(() { _prop = prop; _loading = false; });
+    } on ApiException catch (e) {
+      if (mounted) setState(() { _error = ErrorHandler.getMessage(e); _loading = false; });
+    } catch (_) {
+      if (mounted) setState(() { _error = 'حدث خطأ غير متوقع'; _loading = false; });
+    }
+  }
 
   void _onLangChange() { if (mounted) setState(() {}); }
 
@@ -40,6 +72,21 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
   // ═══════════════════════════════════════
   @override
   Widget build(BuildContext context) {
+    if (_loading) {
+      return Scaffold(
+        backgroundColor: context.kSand,
+        appBar: AppBar(backgroundColor: _kOcean, elevation: 0),
+        body: const Center(child: CircularProgressIndicator(color: _kOcean)),
+      );
+    }
+    if (_error != null || _prop == null) {
+      return Scaffold(
+        backgroundColor: context.kSand,
+        appBar: AppBar(backgroundColor: _kOcean, elevation: 0),
+        body: Center(child: Text(_error ?? 'العقار غير موجود',
+            style: TextStyle(fontSize: 16, color: context.kSub))),
+      );
+    }
     return Scaffold(
       backgroundColor: context.kSand,
       body: Stack(children: [
@@ -187,7 +234,7 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
                       const SizedBox(width: 8),
                       _badge('📍', p.area,
                           Color(0xFFF3F4F6), context.kSub),
-                      if (p.featured) ...[
+                      if (p.isFeatured) ...[
                         const SizedBox(width: 8),
                         _badge('⭐', S.featured,
                             const Color(0xFFFFF8E1), const Color(0xFFF59E0B)),
@@ -207,7 +254,7 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
                           size: 15, color: _kOrange),
                       const SizedBox(width: 4),
                       Expanded(child: Text(
-                        p.address.isNotEmpty ? p.address : p.location,
+                        p.area,
                         style: TextStyle(
                             fontSize: 13, color: context.kSub),
                       )),
@@ -238,10 +285,10 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
                         ]),
                       ),
                       const SizedBox(width: 10),
-                      if (p.instant)
+                      if (p.instantBooking)
                         _infoBadge(Icons.bolt_rounded,
                             S.instantBooking, const Color(0xFF22C55E)),
-                      if (!p.instant)
+                      if (!p.instantBooking)
                         _infoBadge(Icons.schedule_rounded,
                             S.needsApproval, context.kSub),
                     ]),
@@ -261,9 +308,9 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
                   _divV(),
                   _stat('🛁', '${p.bathrooms}', S.bathrooms),
                   _divV(),
-                  _stat('👥', '${p.guests}', S.maxGuests),
+                  _stat('👥', '${p.maxGuests}', S.maxGuests),
                   _divV(),
-                  _stat('🌙', '${p.minNights}+', S.nights),
+                  _stat('🌙', '1+', S.nights),
                 ]),
               ),
 
@@ -315,25 +362,22 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
               if (p.amenities.isNotEmpty)
                 _section('✨ المرافق والخدمات', _chipGrid(p.amenities)),
 
-              // ── Facilities ───────────────────────────
-              if (p.facilities.isNotEmpty)
-                _section('🏊 المنشآت', _chipGrid(p.facilities)),
-
-              // ── Nearby ───────────────────────────────
-              if (p.nearby.isNotEmpty)
-                _section('📍 المناطق القريبة', _chipGrid(p.nearby)),
+              // ── Services ────────────────────────────
+              if (p.services.isNotEmpty)
+                _section('🏊 الخدمات', _servicesGrid()),
 
               // ── Pricing breakdown ────────────────────
               _section('💰 التسعير', _pricingCard()),
 
-              // ── Check-in rules ───────────────────────
+              // ── Check-in / closing time ───────────────
               _section('🕐 مواعيد الوصول', _checkInCard()),
 
               // ── Reviews placeholder ──────────────────
               _section('⭐ التقييمات', _reviewsSection()),
 
               // ── Owner info ───────────────────────────
-              _section('🏠 المضيف', _ownerCard()),
+              if (p.owner != null)
+                _section('🏠 المضيف', _ownerCard()),
 
               const SizedBox(height: 120),
             ],
@@ -356,7 +400,7 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
             child: Row(children: [
               // Price
               Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text('${p.price.toInt()} جنيه',
+                Text('${p.pricePerNight.toStringAsFixed(0)} جنيه',
                     style: TextStyle(
                       fontSize: 22, fontWeight: FontWeight.w900,
                       color: _kOcean,
@@ -369,9 +413,9 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
               SizedBox(
                 height: 52,
                 child: ElevatedButton(
-                  onPressed: p.available ? _startBooking : null,
+                  onPressed: p.isAvailable ? _startBooking : null,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: p.available ? _kOcean : Colors.grey,
+                    backgroundColor: p.isAvailable ? _kOcean : Colors.grey,
                     foregroundColor: Colors.white,
                     elevation: 0,
                     padding: const EdgeInsets.symmetric(horizontal: 32),
@@ -379,7 +423,7 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
                         borderRadius: BorderRadius.circular(16)),
                   ),
                   child: Text(
-                    p.available ? 'احجز الآن 🏖️' : 'غير متاح',
+                    p.isAvailable ? 'احجز الآن 🏖️' : 'غير متاح',
                     style: const TextStyle(
                         fontSize: 15, fontWeight: FontWeight.w900),
                   ),
@@ -394,7 +438,7 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
 
   void _startBooking() {
     Navigator.push(context, MaterialPageRoute(
-      builder: (_) => BookingFlowPage(property: p),
+      builder: (_) => BookingFlowPage(propertyApi: p),
     ));
   }
 
@@ -464,21 +508,44 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
     )).toList(),
   );
 
+  Widget _servicesGrid() => Wrap(
+    spacing: 8, runSpacing: 8,
+    children: p.services.map((s) => Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+      decoration: BoxDecoration(
+        color: s.isFree ? const Color(0xFF22C55E).withValues(alpha: 0.08)
+                        : _kOrange.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+            color: s.isFree ? const Color(0xFF22C55E).withValues(alpha: 0.3)
+                            : _kOrange.withValues(alpha: 0.3)),
+      ),
+      child: Text('${s.name} ${s.displayPrice}',
+          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600,
+              color: s.isFree ? const Color(0xFF22C55E) : _kOrange)),
+    )).toList(),
+  );
+
   Widget _pricingCard() => Column(children: [
     _priceRow('السعر الأساسي / ليلة',
-        '${p.price.toInt()} جنيه'),
-    if (p.weekendPrice > 0)
+        '${p.pricePerNight.toStringAsFixed(0)} جنيه'),
+    if ((p.weekendPrice ?? 0) > 0)
       _priceRow('سعر نهاية الأسبوع',
-          '${p.weekendPrice.toInt()} جنيه'),
+          '${p.weekendPrice!.toStringAsFixed(0)} جنيه'),
     if (p.cleaningFee > 0)
       _priceRow(S.cleaningFee,
-          '${p.cleaningFee.toInt()} جنيه'),
+          '${p.cleaningFee.toStringAsFixed(0)} جنيه'),
+    if (p.electricityFee > 0)
+      _priceRow('رسوم الكهرباء',
+          '${p.electricityFee.toStringAsFixed(0)} جنيه'),
+    if (p.waterFee > 0)
+      _priceRow('رسوم المياه',
+          '${p.waterFee.toStringAsFixed(0)} جنيه'),
+    if (p.securityDeposit > 0)
+      _priceRow('تأمين (مسترد)',
+          '${p.securityDeposit.toStringAsFixed(0)} جنيه'),
     Divider(color: context.kBorder, height: 24),
-    _priceRow('الحد الأدنى للإقامة',
-        '${p.minNights} ليالي', bold: true),
-    if (p.maxNights > 0)
-      _priceRow('الحد الأقصى للإقامة',
-          '${p.maxNights} ليالي'),
+    _priceRow('الحد الأدنى للإقامة', '1 ليلة', bold: true),
   ]);
 
   Widget _priceRow(String label, String val, {bool bold = false}) =>
@@ -498,11 +565,11 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
 
   Widget _checkInCard() => Row(children: [
     Expanded(child: _timeCard('تسجيل الوصول',
-        p.checkinTime.isNotEmpty ? p.checkinTime : '14:00',
+        '14:00',
         Icons.login_rounded, const Color(0xFF22C55E))),
     const SizedBox(width: 12),
-    Expanded(child: _timeCard('تسجيل المغادرة',
-        p.checkoutTime.isNotEmpty ? p.checkoutTime : '12:00',
+    Expanded(child: _timeCard('وقت الإغلاق',
+        p.closingTime ?? '22:00',
         Icons.logout_rounded, _kOrange)),
   ]);
 
@@ -553,39 +620,42 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
     ]);
   }
 
-  Widget _ownerCard() => Row(children: [
-    Container(
-      width: 54, height: 54,
-      decoration: BoxDecoration(
-        color: _kOcean.withValues(alpha: 0.1),
-        shape: BoxShape.circle,
+  Widget _ownerCard() {
+    final ownerName = p.owner?.name ?? 'المالك';
+    return Row(children: [
+      Container(
+        width: 54, height: 54,
+        decoration: BoxDecoration(
+          color: _kOcean.withValues(alpha: 0.1),
+          shape: BoxShape.circle,
+        ),
+        child: Center(child: Text(
+          ownerName.isNotEmpty ? ownerName[0].toUpperCase() : 'م',
+          style: const TextStyle(fontSize: 22,
+              fontWeight: FontWeight.w900, color: _kOcean),
+        )),
       ),
-      child: Center(child: Text(
-        p.ownerName.isNotEmpty ? p.ownerName[0].toUpperCase() : 'م',
-        style: const TextStyle(fontSize: 22,
-            fontWeight: FontWeight.w900, color: _kOcean),
+      const SizedBox(width: 14),
+      Expanded(child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(ownerName,
+              style: TextStyle(fontSize: 15,
+                  fontWeight: FontWeight.w800, color: context.kText)),
+          Text('مضيف في Talaa',
+              style: TextStyle(fontSize: 12, color: context.kSub)),
+        ],
       )),
-    ),
-    const SizedBox(width: 14),
-    Expanded(child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(p.ownerName.isNotEmpty ? p.ownerName : 'المالك',
-            style: TextStyle(fontSize: 15,
-                fontWeight: FontWeight.w800, color: context.kText)),
-        Text('مضيف في Yalla Trip',
-            style: TextStyle(fontSize: 12, color: context.kSub)),
-      ],
-    )),
-    Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
-      decoration: BoxDecoration(
-        border: Border.all(color: _kOcean),
-        borderRadius: BorderRadius.circular(12),
+      Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+        decoration: BoxDecoration(
+          border: Border.all(color: _kOcean),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: const Text('تواصل',
+            style: TextStyle(fontSize: 13,
+                fontWeight: FontWeight.w700, color: _kOcean)),
       ),
-      child: const Text('تواصل',
-          style: TextStyle(fontSize: 13,
-              fontWeight: FontWeight.w700, color: _kOcean)),
-    ),
-  ]);
+    ]);
+  }
 }

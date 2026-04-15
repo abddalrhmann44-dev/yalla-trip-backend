@@ -40,6 +40,13 @@ class Category(str, enum.Enum):
     beach_house = "بيت شاطئ"
 
 
+class PropertyStatus(str, enum.Enum):
+    pending = "pending"
+    approved = "approved"
+    rejected = "rejected"
+    needs_edit = "needs_edit"
+
+
 class Property(Base):
     __tablename__ = "properties"
 
@@ -81,9 +88,19 @@ class Property(Base):
     rating: Mapped[float] = mapped_column(Float, default=0.0, server_default="0")
     review_count: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
 
+    status: Mapped[PropertyStatus] = mapped_column(
+        Enum(PropertyStatus), default=PropertyStatus.pending, server_default="pending"
+    )
+    admin_note: Mapped[str | None] = mapped_column(Text, nullable=True)
+
     is_available: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
     is_featured: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     instant_booking: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+
+    # ── Offers ──────────────────────────────────────────────
+    offer_price: Mapped[float | None] = mapped_column(Float, nullable=True)
+    offer_start: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    offer_end: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     latitude: Mapped[float | None] = mapped_column(Float, nullable=True)
     longitude: Mapped[float | None] = mapped_column(Float, nullable=True)

@@ -12,12 +12,18 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.middleware.auth_middleware import require_role
 from app.models.booking import Booking, BookingStatus, PaymentStatus
-from app.models.property import Property
+from pydantic import BaseModel
+
+from app.models.property import Property, PropertyStatus
 from app.models.review import Review
 from app.models.user import User, UserRole
 from app.schemas.common import MessageResponse, PaginatedResponse
 from app.schemas.property import PropertyOut
 from app.schemas.user import UserOut
+
+
+class _AdminNote(BaseModel):
+    note: str | None = None
 
 logger = structlog.get_logger(__name__)
 router = APIRouter(prefix="/admin", tags=["Admin"])
@@ -105,10 +111,52 @@ async def approve_property(
     prop = result.scalar_one_or_none()
     if prop is None:
         raise HTTPException(status_code=404, detail="العقار غير موجود / Property not found")
+    prop.status = PropertyStatus.approved
     prop.is_available = True
+    prop.admin_note = None
     await db.flush()
     await db.refresh(prop)
     logger.info("admin_approved_property", property_id=property_id)
+    return PropertyOut.model_validate(prop)
+
+
+@router.put("/properties/{property_id}/reject", response_model=PropertyOut)
+async def reject_property(
+    property_id: int,
+    body: _AdminNote | None = None,
+    _: User = Depends(_admin_only),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(select(Property).where(Property.id == property_id))
+    prop = result.scalar_one_or_none()
+    if prop is None:
+        raise HTTPException(status_code=404, detail="العقار غير موجود / Property not found")
+    prop.status = PropertyStatus.rejected
+    prop.is_available = False
+    prop.admin_note = body.note if body else None
+    await db.flush()
+    await db.refresh(prop)
+    logger.info("admin_rejected_property", property_id=property_id)
+    return PropertyOut.model_validate(prop)
+
+
+@router.put("/properties/{property_id}/needs-edit", response_model=PropertyOut)
+async def needs_edit_property(
+    property_id: int,
+    body: _AdminNote | None = None,
+    _: User = Depends(_admin_only),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(select(Property).where(Property.id == property_id))
+    prop = result.scalar_one_or_none()
+    if prop is None:
+        raise HTTPException(status_code=404, detail="العقار غير موجود / Property not found")
+    prop.status = PropertyStatus.needs_edit
+    prop.is_available = False
+    prop.admin_note = body.note if body else None
+    await db.flush()
+    await db.refresh(prop)
+    logger.info("admin_needs_edit_property", property_id=property_id)
     return PropertyOut.model_validate(prop)
 
 

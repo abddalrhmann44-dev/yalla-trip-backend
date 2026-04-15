@@ -7,9 +7,11 @@ import '../main.dart' show appSettings;
 import '../utils/app_strings.dart';
 import '../widgets/constants.dart';
 import 'package:flutter/services.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'property_details_page.dart';
-import '../models/property_model.dart';
+import '../models/property_model_api.dart';
+import '../services/property_service.dart';
+import '../utils/api_client.dart';
+
 
 Color _areaColor(String area) {
   switch (area) {
@@ -60,34 +62,6 @@ const _kCatColors = {
   'بيت شاطئ':   Color(0xFF0097A7),
 };
 
-class _Prop {
-  final String id, name, area, category, location, ownerId, ownerName;
-  final double rating;
-  final int    price, reviewCount;
-  final List<String> images;
-  final bool   instant, available;
-  final bool      isOfferActive;
-  final DateTime? offerEnd;
-
-  _Prop.fromMap(String docId, Map<String, dynamic> d)
-      : id          = docId,
-        name        = d['name']         ?? '',
-        area        = d['area']         ?? '',
-        category    = d['category']     ?? '',
-        location    = d['location']     ?? '',
-        ownerId     = d['ownerId']      ?? '',
-        ownerName   = d['ownerName']    ?? '',
-        rating      = (d['rating']      ?? 0).toDouble(),
-        price       = (d['price']       ?? 0).toInt(),
-        reviewCount = (d['reviewCount'] ?? 0).toInt(),
-        isOfferActive = d['isOfferActive'] ?? false,
-        offerEnd      = (d['offerEnd'] as Timestamp?)?.toDate(),
-        images      = List<String>.from(d['images'] ?? []),
-        instant     = d['instant']      ?? false,
-        available   = d['available']    ?? true;
-
-  String get firstImage => images.isNotEmpty ? images.first : '';
-}
 
 class AreaResultsPage extends StatefulWidget {
   final String  area;
@@ -97,7 +71,7 @@ class AreaResultsPage extends StatefulWidget {
 }
 
 class _AreaResultsPageState extends State<AreaResultsPage> {
-  List<_Prop> _all = [];
+  List<PropertyApi> _all = [];
   bool   _loading  = true;
   String _selKey   = 'الكل';
 
@@ -132,35 +106,21 @@ class _AreaResultsPageState extends State<AreaResultsPage> {
 
   Future<void> _load() async {
     try {
-      final snap = await FirebaseFirestore.instance
-          .collection('properties')
-          .where('area',      isEqualTo: widget.area)
-          .where('available', isEqualTo: true)
-          .get();
+      final props = await PropertyService.getByArea(widget.area);
       if (!mounted) return;
-      final now = DateTime.now();
-      // Exclude listings that currently have an active time-limited offer
-      // (those appear on the Home Page instead).
-      // Listings whose offer has already expired are shown here again.
-      final filtered = snap.docs
-          .map((d) => _Prop.fromMap(d.id, d.data()))
-          .where((p) {
-            if (!p.isOfferActive) return true;
-            if (p.offerEnd == null) return true;
-            return p.offerEnd!.isBefore(now); // expired → back in region
-          })
-          .toList();
-      setState(() { _all = filtered; _loading = false; });
+      setState(() { _all = props; _loading = false; });
+    } on ApiException catch (_) {
+      if (mounted) setState(() => _loading = false);
     } catch (_) {
       if (mounted) setState(() => _loading = false);
     }
   }
 
-  List<_Prop> get _filtered =>
+  List<PropertyApi> get _filtered =>
       _selKey == 'الكل' ? _all : _all.where((p) => p.category == _selKey).toList();
 
-  Map<String, List<_Prop>> get _grouped {
-    final map = <String, List<_Prop>>{};
+  Map<String, List<PropertyApi>> get _grouped {
+    final map = <String, List<PropertyApi>>{};
     for (final p in _all) { map.putIfAbsent(p.category, () => []).add(p); }
     return map;
   }
@@ -312,7 +272,7 @@ class _AreaResultsPageState extends State<AreaResultsPage> {
     );
   }
 
-  Widget _buildSection(String catKey, List<_Prop> props) {
+  Widget _buildSection(String catKey, List<PropertyApi> props) {
     final col         = _kCatColors[catKey] ?? _color;
     final icon        = _catIcon(catKey);
     final displayName = catKey == 'الكل' ? S.all : S.catName(catKey);
@@ -378,7 +338,7 @@ class _AreaResultsPageState extends State<AreaResultsPage> {
     );
   }
 
-  Widget _buildHCard(_Prop p, Color col) {
+  Widget _buildHCard(PropertyApi p, Color col) {
     final newLabel  = appSettings.arabic ? 'جديد' : 'New';
     final perNight  = appSettings.arabic ? 'جنيه/ليلة' : 'EGP/night';
     final fastLabel = appSettings.arabic ? 'فوري' : 'Instant';
@@ -407,7 +367,7 @@ class _AreaResultsPageState extends State<AreaResultsPage> {
                             errorBuilder: (_, __, ___) => _imgFallback(col))
                         : _imgFallback(col),
                   ),
-                  if (p.instant)
+                  if (p.instantBooking)
                     PositionedDirectional(top: 8, start: 8,
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -442,7 +402,7 @@ class _AreaResultsPageState extends State<AreaResultsPage> {
                     ]),
                     const SizedBox(height: 5),
                     RichText(text: TextSpan(children: [
-                      TextSpan(text: '${p.price} ',
+                      TextSpan(text: '${p.pricePerNight.toStringAsFixed(0)} ',
                           style: TextStyle(fontSize: 14,
                               fontWeight: FontWeight.w900, color: col)),
                       TextSpan(text: perNight,
@@ -459,7 +419,7 @@ class _AreaResultsPageState extends State<AreaResultsPage> {
     );
   }
 
-  Widget _buildGrid(List<_Prop> props) {
+  Widget _buildGrid(List<PropertyApi> props) {
     final screenW = MediaQuery.of(context).size.width;
     final columns = screenW > 600 ? 3 : 2;
     return RefreshIndicator(
@@ -477,7 +437,7 @@ class _AreaResultsPageState extends State<AreaResultsPage> {
     );
   }
 
-  Widget _buildGridCard(_Prop p) {
+  Widget _buildGridCard(PropertyApi p) {
     final col       = _areaColor(p.area);
     final newLabel  = appSettings.arabic ? 'جديد' : 'New';
     final perNight  = appSettings.arabic ? 'جنيه/ليلة' : 'EGP/night';
@@ -505,7 +465,7 @@ class _AreaResultsPageState extends State<AreaResultsPage> {
                             errorBuilder: (_, __, ___) => _imgFallback(col))
                         : _imgFallback(col),
                   ),
-                  if (p.instant)
+                  if (p.instantBooking)
                     PositionedDirectional(top: 8, start: 8,
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
@@ -538,12 +498,12 @@ class _AreaResultsPageState extends State<AreaResultsPage> {
                           style: TextStyle(fontSize: 9, color: context.kSub,
                               fontWeight: FontWeight.w600)),
                       const Spacer(),
-                      if (p.location.isNotEmpty)
-                        Flexible(child: Text(p.location, maxLines: 1,
+                      if (p.area.isNotEmpty)
+                        Flexible(child: Text(p.area, maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(fontSize: 9, color: context.kSub))),
                     ]),
-                    Text('${p.price} $perNight',
+                    Text('${p.pricePerNight.toStringAsFixed(0)} $perNight',
                         style: TextStyle(fontSize: 11,
                             fontWeight: FontWeight.w900, color: col)),
                   ],
@@ -569,28 +529,9 @@ class _AreaResultsPageState extends State<AreaResultsPage> {
     ),
   );
 
-  void _open(_Prop p) {
+  void _open(PropertyApi p) {
     Navigator.push(context, MaterialPageRoute(
-      builder: (_) => PropertyDetailsPage(
-        property: PropertyModel(
-          id: p.id, name: p.name, area: p.area,
-          location: p.location, address: '', description: '',
-          category: p.category, ownerId: p.ownerId,
-          ownerName: p.ownerName, price: p.price,
-          weekendPrice: p.price, cleaningFee: 0,
-          rating: p.rating, reviewCount: p.reviewCount,
-          bedrooms: 0, beds: 0, bathrooms: 0, maxGuests: 0,
-          images: p.images, amenities: const [],
-          facilities: const [], nearby: const [],
-          instant: p.instant, online: false,
-          featured: false, available: p.available,
-          autoConfirm: false, requireId: false,
-          minNights: 1, maxNights: 30,
-          bookingMode: 'instant', currency: 'EGP',
-          checkinTime: '14:00', checkoutTime: '12:00',
-          createdAt: DateTime.now(),
-        ),
-      ),
+      builder: (_) => PropertyDetailsPage(propertyId: p.id),
     ));
   }
 

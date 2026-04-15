@@ -1,11 +1,11 @@
 // ═══════════════════════════════════════════════════════════════
-//  YALLA TRIP — Login Page  (Clean Minimal White — matches Welcome)
+//  TALAA — Login Page  (REST API)
 // ═══════════════════════════════════════════════════════════════
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import '../services/auth_service.dart';
 import 'home_page.dart';
 import '../utils/app_strings.dart';
 import 'otp_page.dart';
@@ -170,31 +170,12 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
           accessToken: ga.accessToken, idToken: ga.idToken);
       final result = await _auth.signInWithCredential(cred);
 
-      // ── إنشاء / تحديث بيانات المستخدم في Firestore ──
+      // ── Exchange Firebase token for backend JWT ──
       final fbUser = result.user;
       if (fbUser != null) {
-        final docRef = FirebaseFirestore.instance
-            .collection('users')
-            .doc(fbUser.uid);
-        final doc = await docRef.get();
-        if (!doc.exists) {
-          // أول مرة — إنشاء document جديد
-          await docRef.set({
-            'uid': fbUser.uid,
-            'name': fbUser.displayName ?? '',
-            'email': fbUser.email ?? '',
-            'phone': fbUser.phoneNumber ?? '',
-            'role': 'guest',
-            'avatar': fbUser.photoURL ?? '',
-            'createdAt': FieldValue.serverTimestamp(),
-          });
-        } else {
-          // تحديث البيانات اللي ممكن تكون اتغيرت في Google
-          await docRef.set({
-            'name': fbUser.displayName ?? doc.data()?['name'] ?? '',
-            'email': fbUser.email ?? doc.data()?['email'] ?? '',
-            'avatar': fbUser.photoURL ?? doc.data()?['avatar'] ?? '',
-          }, SetOptions(merge: true));
+        final idToken = await fbUser.getIdToken();
+        if (idToken != null) {
+          await AuthService.exchangeFirebaseToken(idToken);
         }
       }
 

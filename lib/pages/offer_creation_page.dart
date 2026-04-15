@@ -5,8 +5,9 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../services/listing_service.dart';
-import '../models/property_model.dart';
+import '../models/property_model_api.dart';
+import '../services/offer_service.dart';
+import '../services/property_service.dart';
 import '../widgets/constants.dart';
 
 const _kOcean  = Color(0xFF1565C0);
@@ -21,16 +22,17 @@ class OfferCreationPage extends StatefulWidget {
 }
 
 class _OfferCreationPageState extends State<OfferCreationPage> {
-  List<PropertyModel> _properties = [];
+  List<PropertyApi> _properties = [];
   bool _loadingProps = true;
 
-  PropertyModel? _selected;
+  PropertyApi? _selected;
   final _priceCtrl = TextEditingController();
   DateTime? _startDate;
   TimeOfDay? _startTime;
   DateTime? _endDate;
   TimeOfDay? _endTime;
   bool _saving = false;
+  List<OfferItem> _activeOffers = [];
 
   // ── Computed ───────────────────────────────────────────────
   DateTime? get _offerStart {
@@ -51,21 +53,21 @@ class _OfferCreationPageState extends State<OfferCreationPage> {
     if (_selected == null) return false;
     final p = _offerPrice;
     if (p == null || p <= 0) return false;
-    if (p >= _selected!.price) return false;
+    if (p >= _selected!.pricePerNight) return false;
     if (_offerStart == null || _offerEnd == null) return false;
     if (!_offerEnd!.isAfter(_offerStart!)) return false;
     if (_offerEnd!.isBefore(DateTime.now())) return false;
     return true;
   }
 
-  List<PropertyModel> get _activeOfferProps =>
-      _properties.where((p) => p.isOfferActive).toList();
+  List<OfferItem> get _activeOfferItems => _activeOffers.where((o) => o.isActive).toList();
 
   // ── Lifecycle ─────────────────────────────────────────────
   @override
   void initState() {
     super.initState();
-    ListingService.instance.expireStaleOffers().then((_) => _loadProps());
+    _loadProps();
+    _loadOffers();
   }
 
   @override
@@ -76,8 +78,19 @@ class _OfferCreationPageState extends State<OfferCreationPage> {
 
   // ── Data ──────────────────────────────────────────────────
   Future<void> _loadProps() async {
-    final list = await ListingService.instance.getOwnerProperties();
-    if (mounted) setState(() { _properties = list; _loadingProps = false; });
+    try {
+      final list = await PropertyService.getMyProperties();
+      if (mounted) setState(() { _properties = list; _loadingProps = false; });
+    } catch (_) {
+      if (mounted) setState(() => _loadingProps = false);
+    }
+  }
+
+  Future<void> _loadOffers() async {
+    try {
+      final offers = await OfferService.getMyOffers();
+      if (mounted) setState(() => _activeOffers = offers);
+    } catch (_) {}
   }
 
   // ── Date / time pickers ──────────────────────────────────
@@ -135,11 +148,11 @@ class _OfferCreationPageState extends State<OfferCreationPage> {
     if (!_canSave) return;
     setState(() => _saving = true);
     try {
-      await ListingService.instance.setOffer(
+      await OfferService.createOffer(
         propertyId: _selected!.id,
         offerPrice: _offerPrice!,
         offerStart: _offerStart!,
-        offerEnd:   _offerEnd!,
+        offerEnd: _offerEnd!,
       );
       if (!mounted) return;
       _showSnack('✅ Offer activated successfully!', _kGreen);
@@ -150,6 +163,7 @@ class _OfferCreationPageState extends State<OfferCreationPage> {
         _startTime = _endTime = null;
       });
       await _loadProps();
+      await _loadOffers();
     } catch (e) {
       if (mounted) _showSnack('Error: $e', _kRed);
     } finally {
@@ -157,14 +171,14 @@ class _OfferCreationPageState extends State<OfferCreationPage> {
     }
   }
 
-  Future<void> _cancelOffer(PropertyModel p) async {
+  Future<void> _cancelOffer(OfferItem o) async {
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Text('Cancel Offer?',
             style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
-        content: Text('Remove the active offer from "${p.name}"?',
+        content: Text('Remove the active offer from "${o.propertyName}"?',
             style: TextStyle(color: context.kSub)),
         actions: [
           TextButton(
@@ -185,9 +199,13 @@ class _OfferCreationPageState extends State<OfferCreationPage> {
       ),
     );
     if (ok != true) return;
-    await ListingService.instance.cancelOffer(p.id);
-    _showSnack('Offer removed from "${p.name}"', _kOrange);
-    await _loadProps();
+    try {
+      await OfferService.cancelOffer(o.propertyId);
+      _showSnack('Offer removed from "${o.propertyName}"', _kOrange);
+      await _loadOffers();
+    } catch (e) {
+      if (mounted) _showSnack('Error: $e', _kRed);
+    }
   }
 
   void _showSnack(String msg, Color color) {
@@ -309,14 +327,14 @@ class _OfferCreationPageState extends State<OfferCreationPage> {
         ],
 
         // ② Active Offers section
-        if (_activeOfferProps.isNotEmpty) ...[
+        if (_activeOfferItems.isNotEmpty) ...[
           Divider(color: context.kBorder),
           const SizedBox(height: 20),
           _sectionHeader(
-              'Your Active Offers (${_activeOfferProps.length})',
+              'Your Active Offers (${_activeOfferItems.length})',
               Icons.local_offer_rounded, _kOrange),
           const SizedBox(height: 14),
-          ..._activeOfferProps.map(_buildActiveOfferTile),
+          ..._activeOfferItems.map(_buildActiveOfferTile),
         ],
       ]),
     );
@@ -347,7 +365,7 @@ class _OfferCreationPageState extends State<OfferCreationPage> {
         _fieldLabel(Icons.home_work_rounded, 'Select Property'),
         const SizedBox(height: 10),
         DropdownButtonHideUnderline(
-          child: DropdownButton<PropertyModel>(
+          child: DropdownButton<PropertyApi>(
             value: _selected,
             isExpanded: true,
             hint: Text('Choose a property…',
@@ -359,7 +377,7 @@ class _OfferCreationPageState extends State<OfferCreationPage> {
               _priceCtrl.clear();
             }),
             items: _properties.map((p) {
-              return DropdownMenuItem<PropertyModel>(
+              return DropdownMenuItem<PropertyApi>(
                 value: p,
                 child: Row(children: [
                   Container(
@@ -380,21 +398,20 @@ class _OfferCreationPageState extends State<OfferCreationPage> {
                           style: TextStyle(fontSize: 13,
                               fontWeight: FontWeight.w700,
                               color: context.kText)),
-                      Text('${p.area} · EGP ${p.price}/night',
+                      Text('${p.area} · EGP ${p.pricePerNight.toInt()}/night',
                           style: TextStyle(fontSize: 11, color: context.kSub)),
                     ],
                   )),
-                  if (p.isOfferActive)
+                  if (_activeOffers.any((o) => o.propertyId == p.id && o.isActive))
                     Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 7, vertical: 3),
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
-                        color: _kOrange,
-                        borderRadius: BorderRadius.circular(8),
+                        color: _kOrange.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: _kOrange.withValues(alpha: 0.3)),
                       ),
-                      child: const Text('OFFER',
-                          style: TextStyle(color: Colors.white,
-                              fontSize: 9, fontWeight: FontWeight.w900)),
+                      child: const Text('OFFER', style: TextStyle(
+                          color: _kOrange, fontSize: 9, fontWeight: FontWeight.w800)),
                     ),
                 ]),
               );
@@ -408,20 +425,19 @@ class _OfferCreationPageState extends State<OfferCreationPage> {
           Row(children: [
             Icon(Icons.info_outline_rounded, size: 13, color: context.kSub),
             const SizedBox(width: 5),
-            Text('Current price: EGP ${_selected!.price} / night',
+            Text('Current price: EGP ${_selected!.pricePerNight.toInt()} / night',
                 style: TextStyle(fontSize: 12, color: context.kSub)),
-            if (_selected!.isOfferActive) ...[
+            if (_activeOffers.any((o) => o.propertyId == _selected!.id && o.isActive)) ...[
               const Spacer(),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
                   color: _kOrange.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                      color: _kOrange.withValues(alpha: 0.3)),
+                  border: Border.all(color: _kOrange.withValues(alpha: 0.3)),
                 ),
-                child: Text('Has active offer',
-                    style: const TextStyle(color: _kOrange,
+                child: const Text('Has active offer',
+                    style: TextStyle(color: _kOrange,
                         fontSize: 11, fontWeight: FontWeight.w700)),
               ),
             ],
@@ -463,11 +479,11 @@ class _OfferCreationPageState extends State<OfferCreationPage> {
         ),
         if (_selected != null && _offerPrice != null) ...[
           const SizedBox(height: 8),
-          if (_offerPrice! >= _selected!.price)
+          if (_offerPrice! >= _selected!.pricePerNight)
             Row(children: [
               const Icon(Icons.warning_rounded, color: _kRed, size: 14),
               const SizedBox(width: 5),
-              Text('Offer price must be lower than EGP ${_selected!.price}',
+              Text('Offer price must be lower than EGP ${_selected!.pricePerNight.toInt()}',
                   style: const TextStyle(color: _kRed, fontSize: 12,
                       fontWeight: FontWeight.w600)),
             ])
@@ -477,7 +493,7 @@ class _OfferCreationPageState extends State<OfferCreationPage> {
                   color: _kGreen, size: 14),
               const SizedBox(width: 5),
               Text(
-                'Save ${((((_selected!.price - _offerPrice!) / _selected!.price) * 100).round())}% discount',
+                'Save ${((((_selected!.pricePerNight - _offerPrice!) / _selected!.pricePerNight) * 100).round())}% discount',
                 style: const TextStyle(color: _kGreen, fontSize: 12,
                     fontWeight: FontWeight.w700),
               ),
@@ -604,7 +620,7 @@ class _OfferCreationPageState extends State<OfferCreationPage> {
   Widget _buildPreviewCard() {
     final p      = _selected!;
     final price  = _offerPrice!.toInt();
-    final disc   = (((p.price - price) / p.price) * 100).round();
+    final disc   = (((p.pricePerNight - price) / p.pricePerNight) * 100).round();
     final dur    = _formatDuration(_offerEnd!.difference(_offerStart!));
 
     return Container(
@@ -664,7 +680,7 @@ class _OfferCreationPageState extends State<OfferCreationPage> {
             Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               const Text('Was',
                   style: TextStyle(color: Colors.white54, fontSize: 11)),
-              Text('EGP ${p.price}',
+              Text('EGP ${p.pricePerNight.toInt()}',
                   style: const TextStyle(
                       color: Colors.white54, fontSize: 15,
                       decoration: TextDecoration.lineThrough,
@@ -717,74 +733,70 @@ class _OfferCreationPageState extends State<OfferCreationPage> {
   }
 
   // ── Active offer tile ───────────────────────────────────
-  Widget _buildActiveOfferTile(PropertyModel p) {
-    final now    = DateTime.now();
-    final end    = p.offerEnd;
-    final remain = end != null ? end.difference(now) : Duration.zero;
-    final isValid = end != null && end.isAfter(now);
-
+  Widget _buildActiveOfferTile(OfferItem o) {
+    final remain = o.offerEnd.difference(DateTime.now());
+    final isValid = remain.isNegative == false;
+    final tileColor = isValid ? _kOrange : _kRed;
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: context.kCard,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: isValid
-            ? _kOrange.withValues(alpha: 0.3)
-            : _kRed.withValues(alpha: 0.3)),
+        border: Border.all(color: tileColor.withValues(alpha: 0.3)),
         boxShadow: [BoxShadow(
             color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10, offset: const Offset(0, 3))],
       ),
       child: Row(children: [
-        // Icon
         Container(
           width: 46, height: 46,
           decoration: BoxDecoration(
-            color: (isValid ? _kOrange : _kRed).withValues(alpha: 0.1),
+            color: tileColor.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(13),
           ),
-          child: Center(child: Text(p.categoryEmoji,
-              style: const TextStyle(fontSize: 22))),
+          child: Center(child: Icon(
+              isValid ? Icons.local_offer_rounded : Icons.timer_off_rounded,
+              color: tileColor, size: 22)),
         ),
         const SizedBox(width: 12),
-        // Info
         Expanded(child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(p.name, style: TextStyle(fontSize: 14,
+            Text(o.propertyName, style: TextStyle(fontSize: 14,
                 fontWeight: FontWeight.w800, color: context.kText),
                 maxLines: 1, overflow: TextOverflow.ellipsis),
             const SizedBox(height: 3),
             Row(children: [
-              Text('EGP ${p.offerPrice?.toInt() ?? '—'}',
-                  style: const TextStyle(color: _kGreen, fontSize: 13,
+              Text('EGP ${o.originalPrice.toInt()}',
+                  style: const TextStyle(color: Colors.grey, fontSize: 12,
+                      decoration: TextDecoration.lineThrough)),
+              const SizedBox(width: 6),
+              Text('EGP ${o.offerPrice.toInt()}',
+                  style: TextStyle(color: _kGreen, fontSize: 13,
                       fontWeight: FontWeight.w700)),
-              Text('  was EGP ${p.price}',
-                  style: TextStyle(color: context.kSub, fontSize: 11,
-                      decoration: TextDecoration.lineThrough,
-                      decorationColor: context.kSub)),
+              const SizedBox(width: 6),
+              Text('-${o.discountPercent}%',
+                  style: TextStyle(color: tileColor, fontSize: 11,
+                      fontWeight: FontWeight.w800)),
             ]),
             const SizedBox(height: 3),
             Row(children: [
               Icon(isValid ? Icons.timer_rounded : Icons.timer_off_rounded,
-                  size: 11,
-                  color: isValid ? _kOrange : _kRed),
+                  size: 11, color: tileColor),
               const SizedBox(width: 3),
               Text(
                 isValid
                     ? 'Ends in ${_formatDuration(remain)}'
-                    : 'Expired — will be cleaned up',
-                style: TextStyle(
-                    fontSize: 11, fontWeight: FontWeight.w600,
-                    color: isValid ? _kOrange : _kRed),
+                    : 'Expired',
+                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600,
+                    color: tileColor),
               ),
             ]),
           ],
         )),
-        // Cancel button
         GestureDetector(
-          onTap: () => _cancelOffer(p),
+          onTap: () => _cancelOffer(o),
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(

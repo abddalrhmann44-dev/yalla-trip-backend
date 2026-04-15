@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
-//  YALLA TRIP — Owner Payouts Page
+//  TALAA — Owner Payouts Page  (REST API)
 //  المالك يشوف مستحقاته — Airbnb payout model
 //  held → released 24h after check-in → paid (3-5 business days)
 // ═══════════════════════════════════════════════════════════════
@@ -8,8 +8,8 @@ import 'package:flutter/material.dart';
 import '../main.dart' show appSettings;
 import '../utils/app_strings.dart';
 import '../widgets/constants.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import '../models/booking_model.dart';
+import '../services/booking_service.dart';
 
 // Accent colors (same in light & dark)
 const _kOcean  = Color(0xFF1565C0);
@@ -17,58 +17,48 @@ const _kOrange = Color(0xFFFF6D00);
 const _kGreen  = Color(0xFF22C55E);
 const _kRed    = Color(0xFFEF5350);
 
-// ── Payout Model ───────────────────────────────────────────────
-class _Payout {
-  final String id, bookingId, propertyName, guestName,
-               checkIn, checkOut, status;
-  final int    totalCollected, platformFee, ownerAmount, commissionPct;
-  final DateTime payoutRelease, createdAt;
+// ── Payout helpers (derived from BookingModel) ─────────────
+String _fmtDate(DateTime d) {
+  final dd = d.day.toString().padLeft(2, '0');
+  final mm = d.month.toString().padLeft(2, '0');
+  return '$dd/$mm/${d.year}';
+}
 
-  _Payout.fromFirestore(String docId, Map<String, dynamic> d)
-      : id             = docId,
-        bookingId      = d['bookingId']      ?? '',
-        propertyName   = d['propertyName']   ?? '',
-        guestName      = d['guestName']      ?? '',
-        checkIn        = d['checkIn']        ?? '',
-        checkOut       = d['checkOut']       ?? '',
-        status         = d['status']         ?? 'held',
-        totalCollected = (d['totalCollected'] ?? 0).toInt(),
-        platformFee    = (d['platformFee']    ?? 0).toInt(),
-        ownerAmount    = (d['ownerAmount']    ?? 0).toInt(),
-        commissionPct  = (d['commissionPct']  ?? 8).toInt(),
-        payoutRelease  = (d['payoutRelease'] as Timestamp?)
-            ?.toDate() ?? DateTime.now(),
-        createdAt      = (d['createdAt'] as Timestamp?)
-            ?.toDate() ?? DateTime.now();
-
-  Color get statusColor {
-    switch (status) {
-      case 'paid':       return _kGreen;
-      case 'processing': return _kOrange;
-      default:           return const Color(0xFF6B7280);
-    }
+/// Map booking status to payout status.
+String _payoutStatus(BookingModel b) {
+  if (b.isCompleted) return 'paid';
+  if (b.isConfirmed) {
+    final release = b.checkIn.add(const Duration(hours: 24));
+    return DateTime.now().isAfter(release) ? 'processing' : 'held';
   }
+  return 'held';
+}
 
-  IconData get statusIcon {
-    switch (status) {
-      case 'paid':       return Icons.check_circle_rounded;
-      case 'processing': return Icons.pending_rounded;
-      default:           return Icons.lock_clock_rounded;
-    }
+Color _payoutStatusColor(String status) {
+  switch (status) {
+    case 'paid':       return _kGreen;
+    case 'processing': return _kOrange;
+    default:           return const Color(0xFF6B7280);
   }
+}
 
-  String get statusAr {
-    switch (status) {
-      case 'paid': return S.paid;
-      case 'processing': return S.processing;
-      default:
-        final now  = DateTime.now();
-        final diff = payoutRelease.difference(now);
-        if (diff.isNegative || diff.inSeconds == 0) { return S.readyToPay; }
-        if (diff.inDays > 0) { return 'بعد ${diff.inDays} يوم ⏳'; }
-        return 'بعد ${diff.inHours} ساعة ⏳';
-    }
+IconData _payoutStatusIcon(String status) {
+  switch (status) {
+    case 'paid':       return Icons.check_circle_rounded;
+    case 'processing': return Icons.pending_rounded;
+    default:           return Icons.lock_clock_rounded;
   }
+}
+
+String _payoutStatusAr(BookingModel b) {
+  final st = _payoutStatus(b);
+  if (st == 'paid') return S.paid;
+  if (st == 'processing') return S.processing;
+  final release = b.checkIn.add(const Duration(hours: 24));
+  final diff = release.difference(DateTime.now());
+  if (diff.isNegative || diff.inSeconds == 0) return S.readyToPay;
+  if (diff.inDays > 0) return 'بعد ${diff.inDays} يوم ⏳';
+  return 'بعد ${diff.inHours} ساعة ⏳';
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -83,8 +73,7 @@ class OwnerPayoutsPage extends StatefulWidget {
 class _OwnerPayoutsPageState extends State<OwnerPayoutsPage>
     with SingleTickerProviderStateMixin {
 
-  final _uid = FirebaseAuth.instance.currentUser?.uid ?? '';
-  List<_Payout> _all = [];
+  List<BookingModel> _all = [];
   bool _loading = true;
   late TabController _tabs;
 
@@ -104,40 +93,38 @@ class _OwnerPayoutsPageState extends State<OwnerPayoutsPage>
 
   Future<void> _load() async {
     try {
-      final snap = await FirebaseFirestore.instance
-          .collection('payouts')
-          .where('ownerId', isEqualTo: _uid)
-          .orderBy('createdAt', descending: true)
-          .get();
-      setState(() {
-        _all = snap.docs
-            .map((d) => _Payout.fromFirestore(d.id, d.data()))
-            .toList();
-        _loading = false;
-      });
+      // Get all owner bookings that have financial data
+      final list = await BookingService.getOwnerBookings();
+      // Only show bookings with confirmed/completed status (have payout implications)
+      final relevant = list.where((b) =>
+          b.isConfirmed || b.isCompleted).toList();
+      if (mounted) setState(() { _all = relevant; _loading = false; });
     } catch (_) {
-      setState(() => _loading = false);
+      if (mounted) setState(() => _loading = false);
     }
   }
 
   // Totals
   int get _totalPaid =>
-      _all.where((p) => p.status == 'paid')
-          .fold(0, (s, p) => s + p.ownerAmount);
+      _all.where((b) => _payoutStatus(b) == 'paid')
+          .fold(0, (s, b) => s + b.ownerPayout.toInt());
   int get _totalPending =>
-      _all.where((p) => p.status != 'paid')
-          .fold(0, (s, p) => s + p.ownerAmount);
+      _all.where((b) => _payoutStatus(b) != 'paid')
+          .fold(0, (s, b) => s + b.ownerPayout.toInt());
   int get _totalCollected =>
-      _all.fold(0, (s, p) => s + p.totalCollected);
+      _all.fold(0, (s, b) => s + b.totalPrice.toInt());
   int get _totalCommission =>
-      _all.fold(0, (s, p) => s + p.platformFee);
+      _all.fold(0, (s, b) => s + b.platformFee.toInt());
 
-  List<_Payout> _filter(String tab) {
+  List<BookingModel> _filter(String tab) {
     switch (tab) {
-      case 'pending': return _all.where((p) =>
-          p.status == 'held' || p.status == 'processing').toList();
-      case 'paid':    return _all.where((p) => p.status == 'paid').toList();
-      default:        return _all;
+      case 'pending': return _all.where((b) {
+          final st = _payoutStatus(b);
+          return st == 'held' || st == 'processing';
+        }).toList();
+      case 'paid': return _all.where((b) =>
+          _payoutStatus(b) == 'paid').toList();
+      default: return _all;
     }
   }
 
@@ -290,88 +277,94 @@ class _OwnerPayoutsPageState extends State<OwnerPayoutsPage>
     );
   }
 
-  Widget _card(_Payout p) => Container(
-    margin: const EdgeInsets.only(bottom: 12),
-    padding: const EdgeInsets.all(16),
-    decoration: BoxDecoration(
-      color: context.kCard,
-      borderRadius: BorderRadius.circular(18),
-      border: Border.all(color: context.kBorder),
-      boxShadow: [BoxShadow(
-          color: Colors.black.withValues(alpha: 0.04),
-          blurRadius: 8, offset: const Offset(0, 2))],
-    ),
-    child: Column(crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-      // Header
-      Row(children: [
-        Expanded(child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _card(BookingModel b) {
+    final st = _payoutStatus(b);
+    final sc = _payoutStatusColor(st);
+    final si = _payoutStatusIcon(st);
+    final sa = _payoutStatusAr(b);
+    final release = b.checkIn.add(const Duration(hours: 24));
+    final guestName = b.guest?.name ?? '';
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: context.kCard,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: context.kBorder),
+        boxShadow: [BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 8, offset: const Offset(0, 2))],
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(p.propertyName,
-                maxLines: 1, overflow: TextOverflow.ellipsis,
-                style: TextStyle(fontSize: 14,
-                    fontWeight: FontWeight.w900, color: context.kText)),
-            const SizedBox(height: 2),
-            Text('${p.checkIn}  →  ${p.checkOut}',
-                style: TextStyle(fontSize: 12, color: context.kSub)),
-            if (p.guestName.isNotEmpty)
-              Text('الضيف: ${p.guestName}',
-                  style: TextStyle(fontSize: 11, color: context.kSub)),
+        // Header
+        Row(children: [
+          Expanded(child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(b.propertyName,
+                  maxLines: 1, overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 14,
+                      fontWeight: FontWeight.w900, color: context.kText)),
+              const SizedBox(height: 2),
+              Text('${_fmtDate(b.checkIn)}  →  ${_fmtDate(b.checkOut)}',
+                  style: TextStyle(fontSize: 12, color: context.kSub)),
+              if (guestName.isNotEmpty)
+                Text('الضيف: $guestName',
+                    style: TextStyle(fontSize: 11, color: context.kSub)),
+            ],
+          )),
+          Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+            Text('${b.ownerPayout.toInt()} جنيه',
+                style: TextStyle(fontSize: 20,
+                    fontWeight: FontWeight.w900, color: _kOcean)),
+            Text('نصيبك الصافي',
+                style: TextStyle(fontSize: 10, color: context.kSub)),
+          ]),
+        ]),
+        Divider(height: 18, color: context.kBorder),
+
+        // Breakdown
+        _bRow('إجمالي الحجز', '${b.totalPrice.toInt()} جنيه',
+            Colors.grey.shade600),
+        _bRow('عمولة المنصة (8%)',
+            '- ${b.platformFee.toInt()} جنيه', _kRed),
+        _bRow('نصيبك الصافي',
+            '${b.ownerPayout.toInt()} جنيه', _kGreen, bold: true),
+        Divider(height: 14, color: context.kBorder),
+
+        // Status + release date
+        Row(children: [
+          Container(
+            padding: const EdgeInsets.symmetric(
+                horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(
+              color: sc.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                  color: sc.withValues(alpha: 0.3)),
+            ),
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              Icon(si, size: 13, color: sc),
+              const SizedBox(width: 5),
+              Text(sa, style: TextStyle(
+                  fontSize: 12, fontWeight: FontWeight.w700,
+                  color: sc)),
+            ]),
+          ),
+          const Spacer(),
+          if (st == 'held') ...[
+            Icon(Icons.schedule_rounded, size: 12, color: context.kSub),
+            const SizedBox(width: 4),
+            Text(
+              'إصدار: ${release.day}/${release.month}/${release.year}',
+              style: TextStyle(fontSize: 11, color: context.kSub),
+            ),
           ],
-        )),
-        Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-          Text('${p.ownerAmount} جنيه',
-              style: TextStyle(fontSize: 20,
-                  fontWeight: FontWeight.w900, color: _kOcean)),
-          Text('نصيبك الصافي',
-              style: TextStyle(fontSize: 10, color: context.kSub)),
         ]),
       ]),
-      Divider(height: 18, color: context.kBorder),
-
-      // Breakdown
-      _bRow('إجمالي الحجز', '${p.totalCollected} جنيه',
-          Colors.grey.shade600),
-      _bRow('عمولة المنصة (${p.commissionPct}%)',
-          '- ${p.platformFee} جنيه', _kRed),
-      _bRow('نصيبك الصافي',
-          '${p.ownerAmount} جنيه', _kGreen, bold: true),
-      Divider(height: 14, color: context.kBorder),
-
-      // Status + release date
-      Row(children: [
-        Container(
-          padding: const EdgeInsets.symmetric(
-              horizontal: 10, vertical: 5),
-          decoration: BoxDecoration(
-            color: p.statusColor.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-                color: p.statusColor.withValues(alpha: 0.3)),
-          ),
-          child: Row(mainAxisSize: MainAxisSize.min, children: [
-            Icon(p.statusIcon, size: 13, color: p.statusColor),
-            const SizedBox(width: 5),
-            Text(p.statusAr, style: TextStyle(
-                fontSize: 12, fontWeight: FontWeight.w700,
-                color: p.statusColor)),
-          ]),
-        ),
-        const Spacer(),
-        if (p.status == 'held') ...[
-          Icon(Icons.schedule_rounded, size: 12, color: context.kSub),
-          const SizedBox(width: 4),
-          Text(
-            'إصدار: ${p.payoutRelease.day}/'
-            '${p.payoutRelease.month}/'
-            '${p.payoutRelease.year}',
-            style: TextStyle(fontSize: 11, color: context.kSub),
-          ),
-        ],
-      ]),
-    ]),
-  );
+    );
+  }
 
   Widget _bRow(String l, String v, Color vc, {bool bold = false}) =>
     Padding(

@@ -7,7 +7,7 @@ from typing import List, Optional
 
 from pydantic import BaseModel, Field, model_validator
 
-from app.models.property import Area, Category
+from app.models.property import Area, Category, PropertyStatus
 from app.schemas.user import UserBrief
 
 
@@ -202,9 +202,14 @@ class PropertyOut(BaseModel):
     services: Optional[List[PropertyService]] = []
     rating: float
     review_count: int
+    status: PropertyStatus = PropertyStatus.pending
+    admin_note: Optional[str] = None
     is_available: bool
     is_featured: bool
     instant_booking: bool
+    offer_price: Optional[float] = None
+    offer_start: Optional[datetime] = None
+    offer_end: Optional[datetime] = None
     latitude: Optional[float] = None
     longitude: Optional[float] = None
     created_at: datetime

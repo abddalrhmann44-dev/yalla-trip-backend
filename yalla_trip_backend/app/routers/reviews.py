@@ -95,6 +95,19 @@ async def create_review(
     return ReviewOut.model_validate(review)
 
 
+@router.get("/my/count")
+async def my_review_count(
+    user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    count = (
+        await db.execute(
+            select(func.count(Review.id)).where(Review.reviewer_id == user.id)
+        )
+    ).scalar() or 0
+    return {"count": count}
+
+
 @router.get("/property/{property_id}", response_model=PaginatedResponse[ReviewOut])
 async def property_reviews(
     property_id: int,

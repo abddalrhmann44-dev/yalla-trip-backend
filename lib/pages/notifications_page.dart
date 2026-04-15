@@ -1,35 +1,42 @@
 // ═══════════════════════════════════════════════════════════════
-//  YALLA TRIP — Notifications Page
-//  Firebase real-time notifications from 'notifications' collection
+//  TALAA — Notifications Page  (REST API)
 // ═══════════════════════════════════════════════════════════════
 
 import 'package:flutter/material.dart';
 import '../main.dart' show appSettings;
+import '../services/notification_api_service.dart';
 import '../utils/app_strings.dart';
 import '../widgets/constants.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 
 // Accent colors (same in light & dark)
 const _kOcean  = Color(0xFF1565C0);
 const _kOrange = Color(0xFFFF6D00);
 const _kGreen  = Color(0xFF22C55E);
 
-// ── Notification Model ─────────────────────────────────────────
+// ── Notification UI wrapper ────────────────────────────────────────
 class _Notif {
-  final String id, type, title, body, bookingId;
+  final int    id;
+  final String type, title, body;
   final bool   isRead;
   final DateTime createdAt;
 
-  _Notif.fromFirestore(String docId, Map<String, dynamic> d)
-      : id        = docId,
-        type      = d['type']      ?? 'info',
-        title     = d['title']     ?? '',
-        body      = d['body']      ?? '',
-        bookingId = d['bookingId'] ?? '',
-        isRead    = d['isRead']    ?? false,
-        createdAt = (d['createdAt'] as Timestamp?)?.toDate()
-            ?? DateTime.now();
+  _Notif({
+    required this.id,
+    required this.type,
+    required this.title,
+    required this.body,
+    this.isRead = false,
+    DateTime? createdAt,
+  }) : createdAt = createdAt ?? DateTime.now();
+
+  factory _Notif.fromApi(NotificationItem item) => _Notif(
+    id: item.id,
+    type: item.type,
+    title: item.title,
+    body: item.body,
+    isRead: item.isRead,
+    createdAt: item.createdAt,
+  );
 
   IconData get icon {
     switch (type) {
@@ -76,8 +83,6 @@ class NotificationsPage extends StatefulWidget {
 
 class _NotificationsPageState extends State<NotificationsPage> {
 
-  final _db  = FirebaseFirestore.instance;
-  final _uid = FirebaseAuth.instance.currentUser?.uid ?? '';
 
   List<_Notif> _notifs  = [];
   bool         _loading = true;
@@ -93,72 +98,18 @@ class _NotificationsPageState extends State<NotificationsPage> {
   }
 
   Future<void> _loadNotifs() async {
-    if (_uid.isEmpty) {
-      setState(() { _loading = false; _notifs = _demoNotifs(); });
-      return;
-    }
+    setState(() => _loading = true);
     try {
-      final snap = await _db
-          .collection('notifications')
-          .where('userId', isEqualTo: _uid)
-          .orderBy('createdAt', descending: true)
-          .limit(50)
-          .get();
-
-      final list = snap.docs
-          .map((d) => _Notif.fromFirestore(d.id, d.data()))
-          .toList();
-
-      // If no real notifications, show demos
-      setState(() {
-        _notifs  = list.isEmpty ? _demoNotifs() : list;
-        _loading = false;
-      });
+      final items = await NotificationApiService.getNotifications();
+      if (mounted) {
+        setState(() {
+          _notifs = items.map((e) => _Notif.fromApi(e)).toList();
+          _loading = false;
+        });
+      }
     } catch (_) {
-      setState(() { _notifs = _demoNotifs(); _loading = false; });
+      if (mounted) setState(() => _loading = false);
     }
-  }
-
-  // Demo notifications for empty state / guests
-  List<_Notif> _demoNotifs() {
-    final now = DateTime.now();
-    return [
-      _Notif.fromFirestore('d1', {
-        'type': 'booking_confirmed',
-        'title': 'تم تأكيد حجزك 🎉',
-        'body': 'تم تأكيد حجزك في شاليه البحر الأزرق بعين السخنة',
-        'isRead': false,
-        'createdAt': Timestamp.fromDate(now.subtract(const Duration(minutes: 5))),
-      }),
-      _Notif.fromFirestore('d2', {
-        'type': 'booking_reminder',
-        'title': 'تذكير: رحلتك بعد 3 أيام ⏰',
-        'body': 'لا تنسى رحلتك للجونة يوم الجمعة القادم',
-        'isRead': false,
-        'createdAt': Timestamp.fromDate(now.subtract(const Duration(hours: 2))),
-      }),
-      _Notif.fromFirestore('d3', {
-        'type': 'promo',
-        'title': 'عرض حصري! 🏷️ خصم 20%',
-        'body': 'احجز خلال 48 ساعة واستمتع بخصم 20% على الساحل الشمالي',
-        'isRead': true,
-        'createdAt': Timestamp.fromDate(now.subtract(const Duration(days: 1))),
-      }),
-      _Notif.fromFirestore('d4', {
-        'type': 'new_review',
-        'title': 'تقييم جديد ⭐',
-        'body': 'أضاف أحمد تقييماً 5 نجوم لإقامته في شاليهك',
-        'isRead': true,
-        'createdAt': Timestamp.fromDate(now.subtract(const Duration(days: 3))),
-      }),
-      _Notif.fromFirestore('d5', {
-        'type': 'payment_received',
-        'title': 'استلمنا دفعتك ✅',
-        'body': 'تم استلام مبلغ 3500 جنيه بنجاح عبر فوري',
-        'isRead': true,
-        'createdAt': Timestamp.fromDate(now.subtract(const Duration(days: 5))),
-      }),
-    ];
   }
 
   int get _unreadCount =>
@@ -166,43 +117,30 @@ class _NotificationsPageState extends State<NotificationsPage> {
 
   Future<void> _markAllRead() async {
     setState(() {
-      _notifs = _notifs.map((n) => _Notif.fromFirestore(n.id, {
-        'type': n.type, 'title': n.title, 'body': n.body,
-        'bookingId': n.bookingId, 'isRead': true,
-        'createdAt': Timestamp.fromDate(n.createdAt),
-      })).toList();
+      _notifs = _notifs.map((n) => _Notif(
+        id: n.id, type: n.type, title: n.title, body: n.body,
+        isRead: true, createdAt: n.createdAt,
+      )).toList();
     });
-    if (_uid.isEmpty) return;
-    final batch = _db.batch();
-    for (final n in _notifs.where((x) => !x.isRead)) {
-      batch.update(_db.collection('notifications').doc(n.id),
-          {'isRead': true});
-    }
-    await batch.commit();
+    try { await NotificationApiService.markAllRead(); } catch (_) {}
   }
 
-  Future<void> _markRead(String id) async {
+  Future<void> _markRead(int id) async {
     setState(() {
       final idx = _notifs.indexWhere((n) => n.id == id);
       if (idx == -1) return;
       final n = _notifs[idx];
-      _notifs[idx] = _Notif.fromFirestore(n.id, {
-        'type': n.type, 'title': n.title, 'body': n.body,
-        'bookingId': n.bookingId, 'isRead': true,
-        'createdAt': Timestamp.fromDate(n.createdAt),
-      });
+      _notifs[idx] = _Notif(
+        id: n.id, type: n.type, title: n.title, body: n.body,
+        isRead: true, createdAt: n.createdAt,
+      );
     });
-    if (_uid.isNotEmpty) {
-      await _db.collection('notifications').doc(id)
-          .update({'isRead': true});
-    }
+    try { await NotificationApiService.markRead(id); } catch (_) {}
   }
 
-  Future<void> _deleteNotif(String id) async {
+  Future<void> _deleteNotif(int id) async {
     setState(() => _notifs.removeWhere((n) => n.id == id));
-    if (_uid.isNotEmpty) {
-      await _db.collection('notifications').doc(id).delete();
-    }
+    try { await NotificationApiService.delete(id); } catch (_) {}
   }
 
   // ═══════════════════════════════════════
@@ -270,7 +208,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
   }
 
   Widget _notifTile(_Notif n) => Dismissible(
-    key: Key(n.id),
+    key: Key('${n.id}'),
     direction: DismissDirection.endToStart,
     onDismissed: (_) => _deleteNotif(n.id),
     background: Container(

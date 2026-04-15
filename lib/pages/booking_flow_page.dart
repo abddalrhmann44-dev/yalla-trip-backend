@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
-//  YALLA TRIP — Booking Flow Page
+//  TALAA — Booking Flow Page
 //  3 steps: تواريخ → تفاصيل + سياسة الإلغاء → تأكيد → PaymentPage
 // ═══════════════════════════════════════════════════════════════
 
@@ -7,7 +7,7 @@ import 'package:flutter/material.dart';
 import '../main.dart' show appSettings;
 import '../utils/app_strings.dart';
 import '../widgets/constants.dart';
-import '../models/property_model.dart';
+import '../models/property_model_api.dart';
 import 'payment_page.dart';
 
 const _kOcean  = Color(0xFF1565C0);
@@ -15,8 +15,8 @@ const _kOrange = Color(0xFFFF6D00);
 const _kGreen  = Color(0xFF22C55E);
 
 class BookingFlowPage extends StatefulWidget {
-  final PropertyModel property;
-  const BookingFlowPage({super.key, required this.property});
+  final PropertyApi propertyApi;
+  const BookingFlowPage({super.key, required this.propertyApi});
   @override State<BookingFlowPage> createState() => _BookingFlowPageState();
 }
 
@@ -35,7 +35,7 @@ class _BookingFlowPageState extends State<BookingFlowPage>
   String    _guestNote = '';
   final _noteCtrl = TextEditingController();
 
-  PropertyModel get p => widget.property;
+  PropertyApi get p => widget.propertyApi;
 
   int get _nights {
     if (_checkIn == null || _checkOut == null) return 0;
@@ -44,10 +44,10 @@ class _BookingFlowPageState extends State<BookingFlowPage>
 
   int get _baseTotal {
     if (_nights <= 0) return 0;
-    return (p.price * _nights).toInt();
+    return (p.pricePerNight * _nights).toInt();
   }
 
-  int get _cleaningFee => p.cleaningFee.toInt();
+  int get _cleaningFee => p.cleaningFee.toStringAsFixed(0) == '0' ? 0 : p.cleaningFee.toInt();
   int get _grandTotal  => _baseTotal + _cleaningFee;
 
   @override
@@ -87,7 +87,7 @@ class _BookingFlowPageState extends State<BookingFlowPage>
   }
 
   bool get _canProceedStep0 =>
-      _checkIn != null && _checkOut != null && _nights >= p.minNights;
+      _checkIn != null && _checkOut != null && _nights >= 1;
 
   // ═══════════════════════════════════════
   //  BUILD
@@ -161,7 +161,7 @@ class _BookingFlowPageState extends State<BookingFlowPage>
             style: TextStyle(fontSize: 18,
                 fontWeight: FontWeight.w900, color: context.kText)),
         const SizedBox(height: 4),
-        Text('الحد الأدنى ${p.minNights} ليالي',
+        Text('الحد الأدنى 1 ليالي',
             style: TextStyle(fontSize: 13, color: context.kSub)),
         const SizedBox(height: 20),
 
@@ -212,7 +212,7 @@ class _BookingFlowPageState extends State<BookingFlowPage>
         ],
 
         if (_checkIn != null && _checkOut != null &&
-            _nights < p.minNights && _nights > 0)
+            _nights < 1 && _nights > 0)
           Container(
             margin: const EdgeInsets.only(top: 12),
             padding: const EdgeInsets.all(12),
@@ -227,7 +227,7 @@ class _BookingFlowPageState extends State<BookingFlowPage>
                   color: Color(0xFFEF5350), size: 18),
               const SizedBox(width: 8),
               Expanded(child: Text(
-                'الحد الأدنى للإقامة ${p.minNights} ليالي',
+                'الحد الأدنى للإقامة 1 ليالي',
                 style: const TextStyle(
                     fontSize: 12, color: Color(0xFFEF5350),
                     fontWeight: FontWeight.w600),
@@ -309,7 +309,7 @@ class _BookingFlowPageState extends State<BookingFlowPage>
     final first = isCheckIn
         ? now
         : (_checkIn ?? now).add(
-            Duration(days: p.minNights));
+            const Duration(days: 1));
     final picked = await showDatePicker(
       context: context,
       initialDate: first,
@@ -431,7 +431,7 @@ class _BookingFlowPageState extends State<BookingFlowPage>
                 fontWeight: FontWeight.w900, color: context.kText)),
       ),
       _counterBtn(Icons.add_rounded,
-          _guests < p.guests ? () => setState(() => _guests++) : null),
+          _guests < p.maxGuests ? () => setState(() => _guests++) : null),
     ]),
   );
 
@@ -502,8 +502,8 @@ class _BookingFlowPageState extends State<BookingFlowPage>
         icon: Icons.access_time_rounded,
         color: _kOcean,
         title: 'وقت الوصول والمغادرة',
-        body: 'الوصول من الساعة ${p.checkinTime.isNotEmpty ? p.checkinTime : "14:00"} '
-              '— المغادرة قبل ${p.checkoutTime.isNotEmpty ? p.checkoutTime : "12:00"}.',
+        body: 'الوصول من الساعة 14:00 '
+              '— وقت الإغلاق ${p.closingTime ?? "22:00"}.',
       ),
       const SizedBox(height: 12),
       _policyItem(
@@ -635,7 +635,7 @@ class _BookingFlowPageState extends State<BookingFlowPage>
       border: Border.all(color: context.kBorder),
     ),
     child: Column(children: [
-      _priceRow('${p.price.toInt()} جنيه × $_nights ليالي',
+      _priceRow('${p.pricePerNight.toStringAsFixed(0)} جنيه × $_nights ليالي',
           '$_baseTotal جنيه'),
       if (_cleaningFee > 0)
         _priceRow(S.cleaningFee, '$_cleaningFee جنيه'),
@@ -726,7 +726,7 @@ class _BookingFlowPageState extends State<BookingFlowPage>
           ]),
         ],
       )),
-      Text('${p.price.toInt()}\nجنيه/ليلة',
+      Text('${p.pricePerNight.toStringAsFixed(0)}\nجنيه/ليلة',
           textAlign: TextAlign.center,
           style: const TextStyle(fontSize: 13,
               fontWeight: FontWeight.w900, color: _kOcean)),
