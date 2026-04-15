@@ -9,11 +9,11 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from pydantic import BaseModel
+
 from app.database import get_db
 from app.middleware.auth_middleware import require_role
 from app.models.booking import Booking, BookingStatus, PaymentStatus
-from pydantic import BaseModel
-
 from app.models.property import Property, PropertyStatus
 from app.models.review import Review
 from app.models.user import User, UserRole
