@@ -104,23 +104,16 @@ const _kHeroes = [
       'شرم الشيخ'),
 ];
 
-const _kCategories = [
-  _Cat('Chalets', '🏡', Color(0xFF1565C0), Icons.cottage_rounded,
-      'assets/images/categories/cat_chalets.jpg'),
-  _Cat('Hotels', '🏨', Color(0xFF7B1FA2), Icons.hotel_rounded,
-      'assets/images/categories/cat_hotels.jpg'),
-  _Cat('Beach', '🌊', Color(0xFF0097A7), Icons.beach_access_rounded,
-      'assets/images/categories/cat_beach.jpg'),
-  _Cat('Aqua Park', '🎢', Color(0xFFE65100), Icons.pool_rounded,
-      'assets/images/categories/cat_aquapark.jpg'),
-  _Cat('Sea Sports', '⛵', Color(0xFF2E7D32), Icons.sailing_rounded,
-      'assets/images/categories/cat_seasports.jpg'),
-  _Cat('Resorts', '🌴', Color(0xFF6D4C41), Icons.villa_rounded,
-      'assets/images/categories/cat_resorts.jpg'),
-];
-
-// Destinations — count loaded dynamically from Firestore
+// Destinations — count loaded dynamically from API
 const _kDestinations = [
+  _Dest('القاهرة', '🏛️', [Color(0xFFBF360C), Color(0xFF8D1C06)],
+      'assets/images/destinations/cairo.jpg'),
+  _Dest('سهل حشيش', '🏝️', [Color(0xFF00838F), Color(0xFF004D57)],
+      'assets/images/destinations/shal_hasheesh.jpg'),
+  _Dest('مرسى علم', '🐬', [Color(0xFF1565C0), Color(0xFF0D3B6F)],
+      'assets/images/destinations/marsa_alam.jpg'),
+  _Dest('اسكندرية', '🌊', [Color(0xFF283593), Color(0xFF1A237E)],
+      'assets/images/destinations/Alexandria.jpg'),
   _Dest('عين السخنة', '🏖️', [Color(0xFF0288D1), Color(0xFF015F86)],
       'assets/images/destinations/ain_sokhna.jpg'),
   _Dest('الساحل الشمالي', '🌴', [Color(0xFF1976D2), Color(0xFF0D47A1)],
@@ -171,13 +164,6 @@ class _Hero {
   }
 }
 
-class _Cat {
-  final String label, emoji, imagePath;
-  final Color color;
-  final IconData icon;
-  const _Cat(this.label, this.emoji, this.color, this.icon, this.imagePath);
-}
-
 class _Dest {
   final String name, emoji, imagePath;
   final List<Color> grad;
@@ -200,7 +186,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   final ScrollController _scroll = ScrollController();
   int _heroIdx = 0;
   int _navIdx = 0;
-  int _catIdx = -1;
   bool _isLoading = true;
   Map<String, int> _areaCounts = {}; // counts from API
 
@@ -383,7 +368,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         slivers: [
           SliverToBoxAdapter(child: _buildHeader()),
           SliverToBoxAdapter(child: _buildHeroSlider()),
-          SliverToBoxAdapter(child: _buildCategories()),
           SliverToBoxAdapter(child: _buildDestinations()),
           SliverToBoxAdapter(child: _buildOffersSection()),
           const SliverToBoxAdapter(child: SizedBox(height: 110)),
@@ -1211,86 +1195,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   }
 
   // ════════════════════════════════════════════════
-  //  3. CATEGORIES
-  // ════════════════════════════════════════════════
-
-  Widget _buildCategories() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 26, 20, 0),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        _secTitle(S.exploreType, action: ''),
-        const SizedBox(height: 14),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: List.generate(_kCategories.length, (i) {
-            final c = _kCategories[i];
-            final sel = _catIdx == i;
-            return GestureDetector(
-              onTap: () => setState(() => _catIdx = sel ? -1 : i),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 220),
-                curve: Curves.easeOut,
-                width: 54,
-                height: 70,
-                decoration: BoxDecoration(
-                  color: sel ? c.color : context.kCard,
-                  borderRadius: BorderRadius.circular(17),
-                  boxShadow: [
-                    BoxShadow(
-                      color: sel
-                          ? c.color.withValues(alpha: 0.45)
-                          : Colors.black.withValues(alpha: 0.07),
-                      blurRadius: sel ? 14 : 8,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      // ── صورة Category ──────────────────
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: SizedBox(
-                          width: 36,
-                          height: 36,
-                          child: Image.asset(
-                            c.imagePath,
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => Container(
-                              decoration: BoxDecoration(
-                                color: sel
-                                    ? Colors.white.withValues(alpha: 0.25)
-                                    : c.color.withValues(alpha: 0.15),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Icon(c.icon,
-                                  size: 18,
-                                  color: sel ? Colors.white : c.color),
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 5),
-                      Text(S.catName(c.label),
-                          textAlign: TextAlign.center,
-                          maxLines: 1,
-                          style: TextStyle(
-                            fontSize: 8.5,
-                            fontWeight: FontWeight.w700,
-                            color: sel ? Colors.white : context.kSub,
-                          )),
-                    ]),
-              ),
-            );
-          }),
-        ),
-      ]),
-    );
-  }
-
-  // ════════════════════════════════════════════════
-  //  4. DESTINATIONS
+  //  3. DESTINATIONS
   // ════════════════════════════════════════════════
 
   Widget _buildDestinations() {
