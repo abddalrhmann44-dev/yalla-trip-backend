@@ -73,6 +73,14 @@ class S {
         return _ar ? ar : 'Sharm El Sheikh';
       case 'رأس سدر':
         return _ar ? ar : 'Ras Sedr';
+      case 'القاهرة':
+        return _ar ? ar : 'Cairo';
+      case 'اسكندرية':
+        return _ar ? ar : 'Alexandria';
+      case 'سهل حشيش':
+        return _ar ? ar : 'Sahl Hasheesh';
+      case 'مرسى علم':
+        return _ar ? ar : 'Marsa Alam';
       default:
         return ar;
     }
@@ -120,6 +128,8 @@ class S {
         return _ar ? ar : 'Marina';
       case 'رياضات بحرية':
         return _ar ? ar : 'Sea Sports';
+      case 'غرف سكنية':
+        return _ar ? ar : 'Residential Rooms';
       default:
         return ar;
     }

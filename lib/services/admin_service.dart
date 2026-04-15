@@ -4,6 +4,7 @@
 // ═══════════════════════════════════════════════════════════════
 
 import '../models/property_model_api.dart';
+import '../models/booking_model.dart';
 import '../utils/api_client.dart';
 
 class AdminService {
@@ -45,9 +46,40 @@ class AdminService {
     return PropertyApi.fromJson(data as Map<String, dynamic>);
   }
 
+  // ── Delete property (admin) ─────────────────────────────────
+  static Future<void> deleteProperty(int id) async {
+    await _api.delete('/properties/$id');
+  }
+
   // ── Get dashboard stats ─────────────────────────────────────
   static Future<Map<String, dynamic>> getStats() async {
     final data = await _api.get('/admin/stats');
     return data as Map<String, dynamic>;
+  }
+
+  // ── List all bookings (admin) ───────────────────────────────
+  static Future<List<BookingModel>> getAllBookings({
+    String? status,
+    int page = 1,
+    int limit = 50,
+  }) async {
+    String query = '?page=$page&limit=$limit';
+    if (status != null) query += '&status=${Uri.encodeComponent(status)}';
+    final data = await _api.get('/bookings/all$query');
+    return (data['items'] as List)
+        .map((e) => BookingModel.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  // ── Confirm booking (admin) ─────────────────────────────────
+  static Future<BookingModel> confirmBooking(int id) async {
+    final data = await _api.put('/bookings/$id/confirm', {});
+    return BookingModel.fromJson(data as Map<String, dynamic>);
+  }
+
+  // ── Cancel booking (admin) ──────────────────────────────────
+  static Future<BookingModel> cancelBooking(int id) async {
+    final data = await _api.put('/bookings/$id/cancel', {});
+    return BookingModel.fromJson(data as Map<String, dynamic>);
   }
 }

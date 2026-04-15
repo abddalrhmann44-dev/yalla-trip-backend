@@ -6,7 +6,7 @@
 
 import 'dart:async';
 import 'package:flutter/material.dart';
-import '../main.dart' show appSettings;
+import '../main.dart' show appSettings, userProvider;
 import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../widgets/constants.dart';
@@ -109,11 +109,11 @@ const _kDestinations = [
   _Dest('القاهرة', '🏛️', [Color(0xFFBF360C), Color(0xFF8D1C06)],
       'assets/images/destinations/cairo.jpg'),
   _Dest('سهل حشيش', '🏝️', [Color(0xFF00838F), Color(0xFF004D57)],
-      'assets/images/destinations/shal_hasheesh.jpg'),
+      'assets/images/destinations/shal_hashesh.jpg'),
   _Dest('مرسى علم', '🐬', [Color(0xFF1565C0), Color(0xFF0D3B6F)],
       'assets/images/destinations/marsa_alam.jpg'),
   _Dest('اسكندرية', '🌊', [Color(0xFF283593), Color(0xFF1A237E)],
-      'assets/images/destinations/Alexandria.jpg'),
+      'assets/images/destinations/alex.jpg'),
   _Dest('عين السخنة', '🏖️', [Color(0xFF0288D1), Color(0xFF015F86)],
       'assets/images/destinations/ain_sokhna.jpg'),
   _Dest('الساحل الشمالي', '🌴', [Color(0xFF1976D2), Color(0xFF0D47A1)],
@@ -219,7 +219,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     'فيلا',
     'فندق',
     'منتجع',
-    'بيت شاطئ',
+    'شواطئ',
+  
     'أكوا بارك'
   ];
 
@@ -237,6 +238,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   void initState() {
     super.initState();
     appSettings.addListener(_onLangChange);
+    userProvider.addListener(_onUserChanged);
 
     _fadeCtrl = AnimationController(
         vsync: this, duration: const Duration(milliseconds: 800));
@@ -264,9 +266,14 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     if (mounted) setState(() {});
   }
 
+  void _onUserChanged() {    if (mounted) setState(() {});
+  }
+
+
   @override
   void dispose() {
     appSettings.removeListener(_onLangChange);
+    userProvider.removeListener(_onUserChanged);
     _heroTimer?.cancel();
     _fadeCtrl.dispose();
     _heroCtrl.dispose();
@@ -938,6 +945,9 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   }
 
   String _getUserName() {
+    if (userProvider.hasUser && userProvider.name.isNotEmpty) {
+      return userProvider.name.split(' ').first;
+    }
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return 'ضيفنا';
     if (user.isAnonymous) return 'ضيفنا';
@@ -1202,7 +1212,11 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Padding(
         padding: const EdgeInsets.fromLTRB(20, 26, 20, 14),
-        child: _secTitle(S.destinations, action: S.seeAll),
+        child: _secTitle(S.destinations, action: S.seeAll, onAction: () {
+          Navigator.push(context, MaterialPageRoute(
+            builder: (_) => const ExplorePage(),
+          ));
+        }),
       ),
       SizedBox(
           height: 145,
@@ -1343,10 +1357,10 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           children: [
             const _ShimmerBox(width: 200, height: 22, radius: 8),
             const SizedBox(height: 14),
-            Row(children: const [
-              _ShimmerBox(width: 195, height: 225, radius: 22),
-              SizedBox(width: 12),
-              _ShimmerBox(width: 195, height: 225, radius: 22),
+            Row(children: [
+              Expanded(child: const _ShimmerBox(width: double.infinity, height: 225, radius: 22)),
+              const SizedBox(width: 12),
+              Expanded(child: const _ShimmerBox(width: double.infinity, height: 225, radius: 22)),
             ]),
           ],
         ),
@@ -1648,7 +1662,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   //  REUSABLE WIDGETS
   // ════════════════════════════════════════════════
 
-  Widget _secTitle(String title, {required String action}) {
+  Widget _secTitle(String title, {required String action, VoidCallback? onAction}) {
     return Row(children: [
       Expanded(
           child: Text(title,
@@ -1657,13 +1671,13 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   fontWeight: FontWeight.w900,
                   color: context.kText,
                   letterSpacing: -0.4))),
-      if (action.isNotEmpty) _seeAll(action),
+      if (action.isNotEmpty) _seeAll(action, onTap: onAction),
     ]);
   }
 
-  Widget _seeAll(String label) {
+  Widget _seeAll(String label, {VoidCallback? onTap}) {
     return GestureDetector(
-      onTap: () {},
+      onTap: onTap ?? () {},
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
         decoration: BoxDecoration(

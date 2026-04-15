@@ -21,6 +21,10 @@ Color _areaColor(String area) {
     case 'الغردقة':        return const Color(0xFF00695C);
     case 'شرم الشيخ':      return const Color(0xFF6A1B9A);
     case 'رأس سدر':        return const Color(0xFF00897B);
+    case 'القاهرة':        return const Color(0xFFBF360C);
+    case 'اسكندرية':       return const Color(0xFF283593);
+    case 'سهل حشيش':       return const Color(0xFF00838F);
+    case 'مرسى علم':       return const Color(0xFF1565C0);
     default:               return const Color(0xFF1565C0);
   }
 }
@@ -33,33 +37,44 @@ IconData _areaIcon(String area) {
     case 'الغردقة':        return Icons.water_rounded;
     case 'شرم الشيخ':      return Icons.scuba_diving_rounded;
     case 'رأس سدر':        return Icons.air_rounded;
+    case 'القاهرة':        return Icons.location_city_rounded;
+    case 'اسكندرية':       return Icons.waves_rounded;
+    case 'سهل حشيش':       return Icons.pool_rounded;
+    case 'مرسى علم':       return Icons.scuba_diving_rounded;
     default:               return Icons.location_on_rounded;
   }
 }
 
 IconData _catIcon(String key) {
   switch (key) {
-    case 'الكل':      return Icons.grid_view_rounded;
-    case 'شاليه':     return Icons.cabin_rounded;
-    case 'فندق':      return Icons.hotel_rounded;
-    case 'فيلا':      return Icons.villa_rounded;
-    case 'منتجع':     return Icons.spa_rounded;
-    case 'أكوا بارك': return Icons.pool_rounded;
-    case 'بيت شاطئ':  return Icons.beach_access_rounded;
-    default:          return Icons.home_rounded;
+    case 'الكل':        return Icons.grid_view_rounded;
+    case 'شاليه':       return Icons.cabin_rounded;
+    case 'غرف سكنية':   return Icons.apartment_rounded;
+    case 'فندق':        return Icons.hotel_rounded;
+    case 'فيلا':        return Icons.villa_rounded;
+    case 'منتجع':       return Icons.spa_rounded;
+    case 'أكوا بارك':   return Icons.pool_rounded;
+    case 'بيت شاطئ':    return Icons.beach_access_rounded;
+    default:            return Icons.home_rounded;
   }
 }
 
 
-const _kCatKeys = ['الكل', 'شاليه', 'فندق', 'فيلا', 'منتجع', 'أكوا بارك', 'بيت شاطئ'];
+const _kCatKeysDefault = ['الكل', 'شاليه', 'فندق', 'فيلا', 'منتجع', 'أكوا بارك', 'بيت شاطئ'];
+const _kCatKeysCairo   = ['الكل', 'غرف سكنية', 'فندق', 'فيلا', 'منتجع', 'أكوا بارك'];
+
+List<String> _catKeysForArea(String area) =>
+    area == 'القاهرة' ? _kCatKeysCairo : _kCatKeysDefault;
+
 const _kCatColors = {
-  'الكل':       Color(0xFF1565C0),
-  'شاليه':      Color(0xFF0288D1),
-  'فندق':       Color(0xFF7B1FA2),
-  'فيلا':       Color(0xFFE65100),
-  'منتجع':      Color(0xFF00695C),
-  'أكوا بارك':  Color(0xFFD32F2F),
-  'بيت شاطئ':   Color(0xFF0097A7),
+  'الكل':         Color(0xFF1565C0),
+  'شاليه':        Color(0xFF0288D1),
+  'غرف سكنية':    Color(0xFF0288D1),
+  'فندق':         Color(0xFF7B1FA2),
+  'فيلا':         Color(0xFFE65100),
+  'منتجع':        Color(0xFF00695C),
+  'أكوا بارك':    Color(0xFFD32F2F),
+  'بيت شاطئ':     Color(0xFF0097A7),
 };
 
 
@@ -218,9 +233,9 @@ class _AreaResultsPageState extends State<AreaResultsPage> {
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsetsDirectional.fromSTEB(16, 7, 16, 7),
-        itemCount: _kCatKeys.length,
+        itemCount: _catKeysForArea(widget.area).length,
         itemBuilder: (_, i) {
-          final key   = _kCatKeys[i];
+          final key   = _catKeysForArea(widget.area)[i];
           final sel   = _selKey == key;
           final col   = _kCatColors[key] ?? _color;
           final icon  = _catIcon(key);

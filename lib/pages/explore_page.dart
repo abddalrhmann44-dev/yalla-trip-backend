@@ -8,6 +8,7 @@ import '../main.dart' show appSettings;
 import '../utils/app_strings.dart';
 import '../widgets/constants.dart';
 import 'property_details_page.dart';
+import 'area_results_page.dart';
 import '../models/property_model_api.dart';
 import '../services/property_service.dart';
 
@@ -17,13 +18,25 @@ const _kOrange = Color(0xFFFF6D00);
 const _kGreen  = Color(0xFF4CAF50);
 
 // ── Static Data ───────────────────────────────────────────────
-final List<Map<String, dynamic>> _kAreas = [
-  {'name': S.ainSokhna,  'emoji': '🏖️', 'count': '48',  'color': const Color(0xFF0288D1)},
-  {'name': S.northCoast, 'emoji': '🌴', 'count': '120', 'color': const Color(0xFF1976D2)},
-  {'name': S.gouna,    'emoji': '⛵', 'count': '67',  'color': const Color(0xFFE65100)},
-  {'name': S.hurghada,    'emoji': '🐠', 'count': '95',  'color': const Color(0xFF00695C)},
-  {'name': S.sharm,       'emoji': '🦈', 'count': '142', 'color': const Color(0xFF6A1B9A)},
-  {'name': S.rasSedr,    'emoji': '🌬️', 'count': '31',  'color': const Color(0xFF00897B)},
+class _Area {
+  final String nameAr;
+  final String image;
+  final Color color;
+  const _Area(this.nameAr, this.image, this.color);
+  String get name => S.areaName(nameAr);
+}
+
+const _kAreas = [
+  _Area('القاهرة',        'assets/images/destinations/cairo.jpg',       Color(0xFFBF360C)),
+  _Area('اسكندرية',       'assets/images/destinations/alex.jpg',        Color(0xFF283593)),
+  _Area('سهل حشيش',       'assets/images/destinations/shal_hashesh.jpg',Color(0xFF00838F)),
+  _Area('مرسى علم',       'assets/images/destinations/marsa_alam.jpg',  Color(0xFF1565C0)),
+  _Area('عين السخنة',     'assets/images/destinations/ain_sokhna.jpg',  Color(0xFF0288D1)),
+  _Area('الساحل الشمالي', 'assets/images/destinations/north_coast.jpg', Color(0xFF1976D2)),
+  _Area('الجونة',         'assets/images/destinations/gouna.jpg',       Color(0xFFE65100)),
+  _Area('الغردقة',        'assets/images/destinations/hurghada.jpg',    Color(0xFF00695C)),
+  _Area('شرم الشيخ',      'assets/images/destinations/sharm.jpg',       Color(0xFF6A1B9A)),
+  _Area('رأس سدر',        'assets/images/destinations/ras_sedr.jpg',    Color(0xFF00897B)),
 ];
 
 const _kCategories = [
@@ -86,7 +99,7 @@ class _ExplorePageState extends State<ExplorePage>
       _query = widget.initialSearch!;
       _searchCtrl.text = widget.initialSearch!;
     }
-    _tabCtrl = TabController(length: 4, vsync: this);
+    _tabCtrl = TabController(length: 3, vsync: this);
     _searchCtrl.addListener(() =>
         setState(() => _query = _searchCtrl.text.toLowerCase()));
     _loadProperties();
@@ -163,7 +176,6 @@ class _ExplorePageState extends State<ExplorePage>
                   controller: _tabCtrl,
                   children: [
                     _buildSearchTab(),
-                    _buildMapTab(),
                     _buildTrendingTab(),
                     _buildTodayTab(),
                   ],
@@ -295,7 +307,6 @@ class _ExplorePageState extends State<ExplorePage>
             padding: const EdgeInsets.symmetric(horizontal: 16),
             tabs: [
               Tab(text: '🔍  ${S.search}'),
-              Tab(text: '🗺️  ${S.areasTab}'),
               Tab(text: '🔥  ${S.trending}'),
               Tab(text: '⚡  ${S.deals}'),
             ],
@@ -319,7 +330,7 @@ class _ExplorePageState extends State<ExplorePage>
           scrollDirection: Axis.horizontal,
           child: Row(children: [
             _areaChip(S.all),
-            ..._kAreas.map((a) => _areaChip(a['name'] as String)),
+            ..._kAreas.map((a) => _areaChip(a.nameAr)),
           ]),
         ),
 
@@ -461,6 +472,9 @@ class _ExplorePageState extends State<ExplorePage>
       onRefresh: _refreshProperties,
       color: _kOcean,
       child: Column(children: [
+      // Destinations horizontal list
+      _buildDestinationsGrid(),
+
       // Result count
       Padding(
         padding: const EdgeInsets.fromLTRB(20, 14, 20, 8),
@@ -506,175 +520,113 @@ class _ExplorePageState extends State<ExplorePage>
     );
   }
 
-  // ── TAB 2: Map Areas ──────────────────────────────────────
-  Widget _buildMapTab() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 100),
-      physics: const BouncingScrollPhysics(),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-        // Area cards
-        // Row 1
-        Row(children: [
-          _bigAreaCard(_kAreas[0]),
-          const SizedBox(width: 12),
-          _bigAreaCard(_kAreas[1]),
-        ]),
-        const SizedBox(height: 12),
-        Row(children: [
-          _bigAreaCard(_kAreas[2]),
-          const SizedBox(width: 12),
-          _bigAreaCard(_kAreas[3]),
-        ]),
-        const SizedBox(height: 12),
-        Row(children: [
-          _bigAreaCard(_kAreas[4]),
-          const SizedBox(width: 12),
-          _bigAreaCard(_kAreas[5]),
-        ]),
+  // ── Destinations Grid (shown above search results) ──────
+  Widget _buildDestinationsGrid() {
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Padding(
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+        child: Text(S.destinations,
+            style: TextStyle(fontSize: 17,
+                fontWeight: FontWeight.w900, color: context.kText)),
+      ),
+      SizedBox(
+        height: 130,
+        child: ListView.builder(
+          scrollDirection: Axis.horizontal,
+          physics: const BouncingScrollPhysics(),
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          itemCount: _kAreas.length,
+          itemBuilder: (_, i) => _areaImageCard(_kAreas[i]),
+        ),
+      ),
+    ]);
+  }
 
-        const SizedBox(height: 24),
-
-        // Egypt map illustration (stylized)
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: context.kCard,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: context.kBorder),
-          ),
-          child: Column(children: [
-            Text('🗺️ ${S.egyptMap}',
-                style: TextStyle(fontSize: 16,
-                    fontWeight: FontWeight.w900, color: context.kText)),
-            const SizedBox(height: 16),
-            // Stylized map dots
-            _mapIllustration(),
+  Widget _areaImageCard(_Area area) {
+    return GestureDetector(
+      onTap: () => Navigator.push(context, MaterialPageRoute(
+        builder: (_) => AreaResultsPage(area: area.nameAr),
+      )),
+      child: Container(
+        width: 140,
+        margin: const EdgeInsetsDirectional.only(end: 12),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.12),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(18),
+          child: Stack(children: [
+            Positioned.fill(
+              child: Image.asset(
+                area.image,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [area.color, area.color.withValues(alpha: 0.6)],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            Positioned.fill(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.transparent,
+                      Colors.black.withValues(alpha: 0.65),
+                    ],
+                    stops: const [0.35, 1.0],
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              bottom: 10, left: 12, right: 12,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(area.name,
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w900,
+                          shadows: [Shadow(blurRadius: 6, color: Colors.black45)]),
+                      maxLines: 1, overflow: TextOverflow.ellipsis),
+                  const SizedBox(height: 2),
+                  Row(children: [
+                    const Icon(Icons.location_on_rounded,
+                        color: Colors.white70, size: 10),
+                    const SizedBox(width: 2),
+                    Text(appSettings.arabic ? 'مصر' : 'Egypt',
+                        style: const TextStyle(
+                            color: Colors.white70,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600)),
+                  ]),
+                ],
+              ),
+            ),
           ]),
         ),
-      ]),
-    );
-  }
-
-  Widget _bigAreaCard(Map<String, dynamic> area) {
-    final color = area['color'] as Color;
-    return Expanded(child: GestureDetector(
-      onTap: () => setState(() {
-        _selArea = area['name'] as String;
-        _tabCtrl.animateTo(0);
-      }),
-      child: Container(
-        height: 110,
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [color, color.withValues(alpha: 0.6)],
-          ),
-          borderRadius: BorderRadius.circular(18),
-          boxShadow: [BoxShadow(
-              color: color.withValues(alpha: 0.35),
-              blurRadius: 12, offset: const Offset(0, 4))],
-        ),
-        child: Stack(children: [
-          Positioned(right: -10, bottom: -8,
-            child: Text(area['emoji'] as String,
-                style: const TextStyle(fontSize: 55))),
-          Padding(
-            padding: const EdgeInsets.all(14),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-              Text(area['name'] as String,
-                  style: const TextStyle(color: Colors.white,
-                      fontSize: 14, fontWeight: FontWeight.w900)),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.25),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text('${area['count']} ${S.places}',
-                    style: const TextStyle(color: Colors.white,
-                        fontSize: 10, fontWeight: FontWeight.w700)),
-              ),
-            ]),
-          ),
-        ]),
       ),
-    ));
-  }
-
-  Widget _mapIllustration() {
-    // Simple stylized dot-map of Egypt coastline
-    final spots = [
-      {'x': 0.55, 'y': 0.55, 'label': S.ainSokhna, 'color': const Color(0xFF0288D1)},
-      {'x': 0.30, 'y': 0.35, 'label': S.northCoast,'color': const Color(0xFF1976D2)},
-      {'x': 0.65, 'y': 0.72, 'label': S.rasSedr,   'color': const Color(0xFF00897B)},
-      {'x': 0.75, 'y': 0.62, 'label': S.gouna,   'color': const Color(0xFFE65100)},
-      {'x': 0.80, 'y': 0.68, 'label': S.hurghada,   'color': const Color(0xFF00695C)},
-      {'x': 0.90, 'y': 0.85, 'label': S.sharm,      'color': const Color(0xFF6A1B9A)},
-    ];
-    return SizedBox(
-      height: 220,
-      child: Stack(children: [
-        // Background
-        Container(
-          decoration: BoxDecoration(
-            color: const Color(0xFFE3F2FD),
-            borderRadius: BorderRadius.circular(12),
-          ),
-        ),
-        // Egypt outline hint
-        Center(child: Text('🗺️',
-            style: TextStyle(fontSize: 120,
-                color: Colors.grey.withValues(alpha: 0.15)))),
-
-        // Location dots
-        ...spots.map((s) {
-          final c = s['color'] as Color;
-          return Positioned(
-            left: (s['x'] as double) *
-                (MediaQuery.of(context).size.width - 80),
-            top: (s['y'] as double) * 180,
-            child: GestureDetector(
-              onTap: () => setState(() {
-                _selArea = s['label'] as String;
-                _tabCtrl.animateTo(0);
-              }),
-              child: Column(children: [
-                Container(
-                  width: 36, height: 36,
-                  decoration: BoxDecoration(
-                    color: c, shape: BoxShape.circle,
-                    boxShadow: [BoxShadow(color: c.withValues(alpha: 0.5),
-                        blurRadius: 8)],
-                  ),
-                  child: const Icon(Icons.location_on_rounded,
-                      color: Colors.white, size: 18),
-                ),
-                Container(
-                  margin: const EdgeInsets.only(top: 3),
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 5, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: c,
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(s['label'] as String,
-                      style: const TextStyle(color: Colors.white,
-                          fontSize: 8, fontWeight: FontWeight.w700)),
-                ),
-              ]),
-            ),
-          );
-        }),
-      ]),
     );
   }
 
-  // ── TAB 3: Trending ───────────────────────────────────────
+  // ── TAB 2: Trending ───────────────────────────────────────
   Widget _buildTrendingTab() {
     final list = _trending;
     return ListView.builder(
@@ -773,7 +725,7 @@ class _ExplorePageState extends State<ExplorePage>
     );
   }
 
-  // ── TAB 4: Today's Deals ──────────────────────────────────
+  // ── TAB 3: Today's Deals ──────────────────────────────────
   Widget _buildTodayTab() {
     final deals = _todayDeals;
     return ListView(

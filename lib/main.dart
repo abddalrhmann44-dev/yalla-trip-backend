@@ -27,6 +27,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'features/booking/presentation/pages/owner_verify_booking_page.dart';
 import 'features/booking/presentation/pages/owner_earnings_dashboard.dart';
 import 'features/booking/presentation/pages/admin_dashboard_page.dart';
+import 'providers/user_provider.dart';
 
 class AppSettings extends ChangeNotifier {
   bool _darkMode = false;
@@ -69,6 +70,7 @@ class AppSettings extends ChangeNotifier {
 }
 
 final appSettings = AppSettings();
+final userProvider = UserProvider();
 
 void main() async {
   final widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
@@ -426,9 +428,12 @@ class _AuthGateState extends State<_AuthGate>
           );
         }
 
-        // Save FCM token when user logs in
+        // Save FCM token & load user profile when user logs in
         if (snapshot.hasData && snapshot.data != null) {
           NotificationService.instance.saveTokenToFirestore();
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            userProvider.loadProfile();
+          });
         }
 
         return snapshot.hasData && snapshot.data != null

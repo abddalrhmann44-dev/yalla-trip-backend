@@ -17,7 +17,7 @@ import 'owner_payouts_page.dart';
 import 'bookings_page.dart';
 import 'host_dashboard_page.dart';
 import 'login_page.dart';
-import '../main.dart' show appSettings;
+import '../main.dart' show appSettings, userProvider;
 import '../utils/app_strings.dart';
 
 // Accent colors (same in light & dark)
@@ -33,12 +33,7 @@ class ProfilePage extends StatefulWidget {
 }
 
 class _ProfilePageState extends State<ProfilePage> {
-  // ── Real data from Firebase ───────────────────────────────
-  String _name = '';
-  String _email = '';
-  String _phone = '';
-  bool _isOwner = false;
-  bool _loading = true;
+  // ── Data from UserProvider + stats ──────────────────
 
   // Settings toggles
   bool _notifBookings = true;
@@ -55,20 +50,34 @@ class _ProfilePageState extends State<ProfilePage> {
   int _tripsCount = 0;
   int _reviewsCount = 0;
 
+  // Convenience getters from shared provider
+  String get _name => userProvider.name;
+  String get _email => userProvider.email;
+  String get _phone => userProvider.phone;
+  bool get _isOwner => userProvider.isOwner;
+  bool get _loading => userProvider.loading && !userProvider.hasUser;
+
   @override
   void initState() {
     super.initState();
+    userProvider.addListener(_onUserChanged);
     _loadProfile();
+  }
+
+  @override
+  void dispose() {
+    userProvider.removeListener(_onUserChanged);
+    super.dispose();
+  }
+
+  void _onUserChanged() {
+    if (mounted) setState(() {});
   }
 
   Future<void> _loadProfile() async {
     try {
-      final profile = await UserService.getProfile();
-
-      _name = profile.name;
-      _email = profile.email ?? '';
-      _phone = profile.phone ?? '';
-      _isOwner = profile.isOwner;
+      // Ensure user data is loaded from API
+      await userProvider.loadProfile(force: true);
 
       if (_isOwner) {
         final props = await PropertyService.getMyProperties();
@@ -98,10 +107,10 @@ class _ProfilePageState extends State<ProfilePage> {
         }
       }
 
-      if (mounted) setState(() => _loading = false);
+      if (mounted) setState(() {});
     } catch (e) {
       debugPrint('Profile load error: $e');
-      if (mounted) setState(() => _loading = false);
+      if (mounted) setState(() {});
     }
   }
 
@@ -141,20 +150,12 @@ class _ProfilePageState extends State<ProfilePage> {
     if (confirm != true) return;
 
     await UserRoleService.instance.saveRole(UserRole.owner);
-    setState(() {
-      _isOwner = true;
-      _loading = true;
-    });
     await _loadProfile();
   }
 
   // ── Switch back to Guest ──────────────────────────────────
   Future<void> _becomeGuest() async {
     await UserRoleService.instance.saveRole(UserRole.guest);
-    setState(() {
-      _isOwner = false;
-      _loading = true;
-    });
     await _loadProfile();
   }
 
@@ -386,19 +387,13 @@ class _ProfilePageState extends State<ProfilePage> {
                       : () async {
                           setSheet(() => saving = true);
                           try {
-                            await UserService.updateProfile({
+                            await userProvider.updateProfile({
                               'name': nameCtrl.text.trim(),
                               'phone': phoneCtrl.text.trim(),
                               'email': emailCtrl.text.trim(),
                             });
                             if (!mounted) return;
-                            final nav = Navigator.of(context);
-                            setState(() {
-                              _name = nameCtrl.text.trim();
-                              _phone = phoneCtrl.text.trim();
-                              _email = emailCtrl.text.trim();
-                            });
-                            nav.pop();
+                            Navigator.of(context).pop();
                           } catch (_) {
                             setSheet(() => saving = false);
                           }
@@ -1037,6 +1032,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   onPressed: () async {
                     Navigator.pop(context);
                     UserRoleService.instance.clearCache();
+                    userProvider.clear();
                     // ── مسح Google credential عشان متدخلش تلقائي ──
                     try {
                       final googleSignIn = GoogleSignIn();
