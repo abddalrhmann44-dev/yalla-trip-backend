@@ -28,6 +28,7 @@ import 'features/booking/presentation/pages/owner_verify_booking_page.dart';
 import 'features/booking/presentation/pages/owner_earnings_dashboard.dart';
 import 'features/booking/presentation/pages/admin_dashboard_page.dart';
 import 'providers/user_provider.dart';
+import 'pages/terms_acceptance_page.dart';
 
 class AppSettings extends ChangeNotifier {
   bool _darkMode = false;
@@ -437,9 +438,41 @@ class _AuthGateState extends State<_AuthGate>
         }
 
         return snapshot.hasData && snapshot.data != null
-            ? const HomePage()
+            ? const _TermsOrHome()
             : const WelcomePage();
       },
     );
+  }
+}
+
+// ── Terms gate: shows acceptance page on first login ──────────
+class _TermsOrHome extends StatefulWidget {
+  const _TermsOrHome();
+  @override
+  State<_TermsOrHome> createState() => _TermsOrHomeState();
+}
+
+class _TermsOrHomeState extends State<_TermsOrHome> {
+  bool? _accepted;
+
+  @override
+  void initState() {
+    super.initState();
+    _check();
+  }
+
+  Future<void> _check() async {
+    final ok = await TermsAcceptancePage.hasAccepted();
+    if (mounted) setState(() => _accepted = ok);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_accepted == null) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+      );
+    }
+    return _accepted! ? const HomePage() : const TermsAcceptancePage();
   }
 }

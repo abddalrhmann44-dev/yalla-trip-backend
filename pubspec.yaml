@@ -43,6 +43,7 @@ dependencies:
   package_info_plus: ^9.0.1
   flutter_riverpod: ^2.6.1
   intl: ^0.20.2
+  lottie: ^3.3.1
 
 dev_dependencies:
   flutter_test:
@@ -62,6 +63,7 @@ flutter:
     - assets/images/register_bg.jpg
     - assets/images/icon.png
     - assets/images/splash.png
+    - assets/animations/
 
 flutter_launcher_icons:
   android: true

@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import '../main.dart' show appSettings;
 import '../utils/app_strings.dart';
 import '../widgets/constants.dart';
+import '../widgets/guests_animation_counter.dart';
 import '../models/property_model_api.dart';
 import 'payment_page.dart';
 
@@ -349,12 +350,16 @@ class _BookingFlowPageState extends State<BookingFlowPage>
         _summaryCard(),
         const SizedBox(height: 20),
 
-        // Guests
+        // Guests (Lottie animation + counter)
         Text(S.guestsNum,
             style: TextStyle(fontSize: 16,
                 fontWeight: FontWeight.w900, color: context.kText)),
         const SizedBox(height: 12),
-        _guestCounter(),
+        GuestsAnimationCounter(
+          guestCount: _guests,
+          maxGuests: p.maxGuests,
+          onChanged: (v) => setState(() => _guests = v),
+        ),
         const SizedBox(height: 20),
 
         // Note to host
@@ -408,53 +413,7 @@ class _BookingFlowPageState extends State<BookingFlowPage>
     );
   }
 
-  Widget _guestCounter() => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-    decoration: BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(16),
-      border: Border.all(color: context.kBorder),
-    ),
-    child: Row(children: [
-      Icon(Icons.people_rounded, color: _kOcean, size: 22),
-      const SizedBox(width: 12),
-      Text('ضيوف',
-          style: TextStyle(fontSize: 14,
-              fontWeight: FontWeight.w700, color: context.kText)),
-      const Spacer(),
-      _counterBtn(Icons.remove_rounded,
-          _guests > 1 ? () => setState(() => _guests--) : null),
-      Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        child: Text('$_guests',
-            style: TextStyle(fontSize: 18,
-                fontWeight: FontWeight.w900, color: context.kText)),
-      ),
-      _counterBtn(Icons.add_rounded,
-          _guests < p.maxGuests ? () => setState(() => _guests++) : null),
-    ]),
-  );
-
-  Widget _counterBtn(IconData icon, VoidCallback? onTap) =>
-    GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        width: 36, height: 36,
-        decoration: BoxDecoration(
-          color: onTap != null
-              ? _kOcean.withValues(alpha: 0.08)
-              : Colors.grey.shade100,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: onTap != null
-                ? _kOcean.withValues(alpha: 0.2)
-                : Colors.grey.shade200),
-        ),
-        child: Icon(icon, size: 18,
-            color: onTap != null ? _kOcean : Colors.grey.shade400),
-      ),
-    );
+  // _guestCounter() replaced by GuestsAnimationCounter widget
 
   // ── Policy section (كـ Airbnb) ──────────────────────
   Widget _policySection() => Container(

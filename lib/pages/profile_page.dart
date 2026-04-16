@@ -19,6 +19,7 @@ import 'host_dashboard_page.dart';
 import 'login_page.dart';
 import '../main.dart' show appSettings, userProvider;
 import '../utils/app_strings.dart';
+import 'terms_page.dart';
 
 // Accent colors (same in light & dark)
 const _kOcean  = Color(0xFF1565C0);
@@ -877,6 +878,10 @@ class _ProfilePageState extends State<ProfilePage> {
         const SizedBox(height: 10),
         _navTile(Icons.help_outline_rounded, S.helpCenter, _kOcean,
             onTap: () {}),
+        _navTile(Icons.verified_user_rounded, 'سياسة الاستخدام والخصوصية',
+            const Color(0xFF7E57C2),
+            onTap: () => Navigator.push(context,
+                MaterialPageRoute(builder: (_) => const TermsPage()))),
         _navTile(Icons.star_rate_rounded, S.rateApp, _kOrange, onTap: () {}),
 
         const SizedBox(height: 20),
