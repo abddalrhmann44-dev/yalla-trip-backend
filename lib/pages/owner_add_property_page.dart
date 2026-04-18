@@ -132,6 +132,7 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
   int _maxNights = 30;
 
   bool _isPublishing = false;
+  bool _isPicking = false;
 
   Future<void> _checkOwnerAccess() async {
     final isOwner = await UserRoleService.instance.isOwner;
@@ -352,31 +353,49 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
 
   // ── Pick Images ─────────────────────────────────────────────
   Future<void> _pickImages() async {
-    final files = await _picker.pickMultiImage(imageQuality: 80, limit: 10);
-    if (files.isEmpty) return;
-    setState(() => _pickedFiles.addAll(files));
+    if (_isPicking) return;
+    _isPicking = true;
+    try {
+      final files = await _picker.pickMultiImage(imageQuality: 80, limit: 10);
+      if (files.isEmpty) return;
+      setState(() => _pickedFiles.addAll(files));
+    } finally {
+      _isPicking = false;
+    }
   }
 
   Future<void> _pickFromCamera() async {
-    final file =
-        await _picker.pickImage(source: ImageSource.camera, imageQuality: 80);
-    if (file == null) return;
-    setState(() => _pickedFiles.add(file));
+    if (_isPicking) return;
+    _isPicking = true;
+    try {
+      final file =
+          await _picker.pickImage(source: ImageSource.camera, imageQuality: 80);
+      if (file == null) return;
+      setState(() => _pickedFiles.add(file));
+    } finally {
+      _isPicking = false;
+    }
   }
 
   Future<void> _pickIdentityImage({required bool isFront}) async {
-    final file = await _picker.pickImage(
-      source: ImageSource.camera,
-      imageQuality: 85,
-    );
-    if (file == null) return;
-    setState(() {
-      if (isFront) {
-        _idFrontImage = file;
-      } else {
-        _idBackImage = file;
-      }
-    });
+    if (_isPicking) return;
+    _isPicking = true;
+    try {
+      final file = await _picker.pickImage(
+        source: ImageSource.camera,
+        imageQuality: 85,
+      );
+      if (file == null) return;
+      setState(() {
+        if (isFront) {
+          _idFrontImage = file;
+        } else {
+          _idBackImage = file;
+        }
+      });
+    } finally {
+      _isPicking = false;
+    }
   }
 
   void _removeImage(int idx) => setState(() => _pickedFiles.removeAt(idx));

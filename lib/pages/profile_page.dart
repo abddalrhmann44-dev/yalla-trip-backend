@@ -4,13 +4,13 @@
 // ═══════════════════════════════════════════════════════════════
 
 import 'package:flutter/material.dart';
+import 'package:lottie/lottie.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import '../services/user_role_service.dart';
 import '../services/user_service.dart';
 import '../services/property_service.dart';
 import '../services/booking_service.dart';
-import '../utils/api_client.dart';
 import '../widgets/constants.dart';
 import 'owner_add_property_page.dart';
 import 'owner_payouts_page.dart';
@@ -28,7 +28,8 @@ const _kGreen  = Color(0xFF4CAF50);
 const _kRed    = Color(0xFFEF5350);
 
 class ProfilePage extends StatefulWidget {
-  const ProfilePage({super.key});
+  final bool embedded;
+  const ProfilePage({super.key, this.embedded = false});
   @override
   State<ProfilePage> createState() => _ProfilePageState();
 }
@@ -46,10 +47,6 @@ class _ProfilePageState extends State<ProfilePage> {
   int _bookingsCount = 0;
   double _avgRating = 0.0;
   int _totalRevenue = 0;
-
-  // Guest stats (real from Firestore)
-  int _tripsCount = 0;
-  int _reviewsCount = 0;
 
   // Convenience getters from shared provider
   String get _name => userProvider.name;
@@ -97,15 +94,6 @@ class _ProfilePageState extends State<ProfilePage> {
         }
         _totalRevenue = revenue.toInt();
         _avgRating = ratedCount > 0 ? ratingSum / ratedCount : 0.0;
-      } else {
-        final bookings = await BookingService.getMyBookings(limit: 200);
-        _tripsCount = bookings.length;
-        try {
-          final reviewData = await ApiClient().get('/reviews/my/count');
-          _reviewsCount = reviewData['count'] as int? ?? 0;
-        } catch (_) {
-          _reviewsCount = 0;
-        }
       }
 
       if (mounted) setState(() {});
@@ -150,14 +138,40 @@ class _ProfilePageState extends State<ProfilePage> {
 
     if (confirm != true) return;
 
-    await UserRoleService.instance.saveRole(UserRole.owner);
-    await _loadProfile();
+    try {
+      await UserRoleService.instance.saveRole(UserRole.owner);
+      await _loadProfile();
+    } catch (e) {
+      debugPrint('Become owner error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: const Text('حصل خطأ أثناء تحويل الحساب. حاول تاني.',
+              style: TextStyle(fontWeight: FontWeight.w600)),
+          backgroundColor: _kRed,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ));
+      }
+    }
   }
 
   // ── Switch back to Guest ──────────────────────────────────
   Future<void> _becomeGuest() async {
-    await UserRoleService.instance.saveRole(UserRole.guest);
-    await _loadProfile();
+    try {
+      await UserRoleService.instance.saveRole(UserRole.guest);
+      await _loadProfile();
+    } catch (e) {
+      debugPrint('Become guest error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: const Text('حصل خطأ أثناء تغيير الحساب. حاول تاني.',
+              style: TextStyle(fontWeight: FontWeight.w600)),
+          backgroundColor: _kRed,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ));
+      }
+    }
   }
 
   @override
@@ -180,7 +194,6 @@ class _ProfilePageState extends State<ProfilePage> {
             SliverToBoxAdapter(child: _buildOwnerSection()),
           ] else ...[
             SliverToBoxAdapter(child: _buildBeOwnerCard()),
-            SliverToBoxAdapter(child: _buildGuestSection()),
           ],
           SliverToBoxAdapter(child: _buildSettings()),
           SliverToBoxAdapter(child: _buildDangerZone()),
@@ -203,22 +216,24 @@ class _ProfilePageState extends State<ProfilePage> {
               Padding(
                 padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
                 child: Row(children: [
-                  GestureDetector(
-                    onTap: () => Navigator.pop(context),
-                    child: Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: context.kChipBg,
-                        borderRadius: BorderRadius.circular(13),
-                        border: Border.all(
-                            color: context.kText
-                                .withValues(alpha: 0.08)),
+                  if (!widget.embedded) ...[
+                    GestureDetector(
+                      onTap: () => Navigator.pop(context),
+                      child: Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: context.kChipBg,
+                          borderRadius: BorderRadius.circular(13),
+                          border: Border.all(
+                              color: context.kText
+                                  .withValues(alpha: 0.08)),
+                        ),
+                        child: Icon(Icons.arrow_back_ios_new_rounded,
+                            color: context.kText, size: 16),
                       ),
-                      child: Icon(Icons.arrow_back_ios_new_rounded,
-                          color: context.kText, size: 16),
                     ),
-                  ),
+                  ],
                   const Spacer(),
                   // Role badge
                   Container(
@@ -471,33 +486,42 @@ class _ProfilePageState extends State<ProfilePage> {
         margin: const EdgeInsets.fromLTRB(20, 20, 20, 0),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          gradient: const LinearGradient(
-              colors: [Color(0xFFFF6D00), Color(0xFFFF8F00)]),
+          color: context.kCard,
           borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: context.kBorder.withValues(alpha: 0.5)),
           boxShadow: [
             BoxShadow(
-                color: _kOrange.withValues(alpha: 0.35),
+                color: Colors.black.withValues(alpha: 0.06),
                 blurRadius: 12,
                 offset: const Offset(0, 4))
           ],
         ),
         child: Row(children: [
-          Text('🏠', style: TextStyle(fontSize: 32)),
-          SizedBox(width: 12),
+          SizedBox(
+            width: 110,
+            height: 110,
+            child: Lottie.asset(
+              'assets/animations/Fishing bye bye.json',
+              animate: false,
+              fit: BoxFit.contain,
+            ),
+          ),
+          const SizedBox(width: 14),
           Expanded(
               child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(S.becomeOwner,
-                  style: const TextStyle(
-                      fontSize: 15,
+                  style: TextStyle(
+                      fontSize: 17,
                       fontWeight: FontWeight.w900,
-                      color: Colors.white)),
+                      color: context.kText)),
+              const SizedBox(height: 4),
               Text(S.becomeOwnerSub,
-                  style: const TextStyle(fontSize: 11, color: Colors.white70)),
+                  style: TextStyle(fontSize: 13, color: context.kSub, height: 1.4)),
             ],
           )),
-          Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Colors.white),
+          Icon(Icons.arrow_forward_ios_rounded, size: 16, color: context.kSub),
         ]),
       ),
     );
@@ -553,22 +577,6 @@ class _ProfilePageState extends State<ProfilePage> {
                     fontSize: 11, fontWeight: FontWeight.w700, color: context.kSub)),
           ),
         ),
-      ]),
-    );
-  }
-
-  // ── Guest Section (real data) ─────────────────────────────
-  Widget _buildGuestSection() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          _statCard(_tripsCount.toString(), S.tripsCount, '✈️', _kOcean),
-          const SizedBox(width: 12),
-          _statCard(_reviewsCount.toString(), S.reviewsCountL, '⭐',
-              const Color(0xFFFFC107)),
-        ]),
-        const SizedBox(height: 20),
       ]),
     );
   }
@@ -675,34 +683,6 @@ class _ProfilePageState extends State<ProfilePage> {
   Widget _statDivider() => Container(
       width: 1, height: 32, color: context.kBorder);
 
-  // ── Guest stat card (kept for guest section) ────────────
-  Widget _statCard(String val, String label, String emoji, Color color) {
-    return Expanded(
-        child: Container(
-      padding: const EdgeInsets.symmetric(vertical: 14),
-      decoration: BoxDecoration(
-        color: context.kCard,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: context.kBorder),
-        boxShadow: [
-          BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 8,
-              offset: const Offset(0, 3))
-        ],
-      ),
-      child: Column(children: [
-        Text(emoji, style: const TextStyle(fontSize: 22)),
-        const SizedBox(height: 5),
-        Text(val,
-            style: TextStyle(
-                fontSize: 18, fontWeight: FontWeight.w900, color: color)),
-        Text(label,
-            style: TextStyle(
-                fontSize: 10, color: context.kSub, fontWeight: FontWeight.w600)),
-      ]),
-    ));
-  }
 
   // ── Reusable menu card container ────────────────────────
   Widget _menuCard({required List<Widget> children}) {

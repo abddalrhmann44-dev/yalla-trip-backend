@@ -18,6 +18,7 @@ import 'profile_page.dart';
 import 'property_details_page.dart';
 import '../models/property_model_api.dart';
 import '../services/property_service.dart';
+import 'chat_inbox_page.dart';
 
 // ────────────────────────────────────────────────────────────────
 //  MODELS
@@ -263,10 +264,15 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   }
 
   void _onLangChange() {
-    if (mounted) setState(() {});
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) setState(() {});
+    });
   }
 
-  void _onUserChanged() {    if (mounted) setState(() {});
+  void _onUserChanged() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) setState(() {});
+    });
   }
 
 
@@ -302,12 +308,20 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   @override
   Widget build(BuildContext context) {
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: SystemUiOverlayStyle.light,
+      value: _navIdx == 0 ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark,
       child: Scaffold(
         backgroundColor: context.kSand,
-        extendBody: true,
+        extendBody: _navIdx == 0,
         bottomNavigationBar: _buildNavBar(),
-        body: _isLoading ? _buildShimmerScreen() : _buildContent(),
+        body: IndexedStack(
+          index: _navIdx,
+          children: [
+            _isLoading ? _buildShimmerScreen() : _buildContent(),
+            const BookingsPage(embedded: true),
+            const ChatInboxPage(embedded: true),
+            const ProfilePage(embedded: true),
+          ],
+        ),
       ),
     );
   }
@@ -438,7 +452,9 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 // Action icons — end side
                 _hdrIcon(Icons.favorite_border_rounded),
                 const SizedBox(width: 8),
-                _hdrIcon(Icons.chat_bubble_outline_rounded),
+                _hdrIcon(Icons.chat_bubble_outline_rounded, onTap: () {
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => const ChatInboxPage()));
+                }),
                 const SizedBox(width: 8),
                 _hdrIcon(Icons.notifications_outlined, notif: true),
               ]),
@@ -955,8 +971,10 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     return name.split(' ').first;
   }
 
-  Widget _hdrIcon(IconData icon, {bool notif = false}) {
-    return Stack(children: [
+  Widget _hdrIcon(IconData icon, {bool notif = false, VoidCallback? onTap}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Stack(children: [
       Container(
         width: 40,
         height: 40,
@@ -980,7 +998,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 border: Border.all(color: const Color(0xFF1565C0), width: 1.5),
               ),
             )),
-    ]);
+    ]),
+    );
   }
 
   // ════════════════════════════════════════════════
@@ -1550,32 +1569,24 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   // ════════════════════════════════════════════════
 
   Widget _buildNavBar() {
-    const ocean = Color(0xFF1565C0);
     final items = [
       {'a': Icons.home_rounded, 'o': Icons.home_outlined, 'l': appSettings.arabic ? 'الرئيسية' : 'Home'},
-      {'a': Icons.explore_rounded, 'o': Icons.explore_outlined, 'l': appSettings.arabic ? 'استكشف' : 'Explore'},
       {'a': Icons.calendar_month_rounded, 'o': Icons.calendar_month_outlined, 'l': appSettings.arabic ? 'حجوزاتي' : 'Bookings'},
       {'a': Icons.chat_rounded, 'o': Icons.chat_bubble_outline_rounded, 'l': appSettings.arabic ? 'رسائل' : 'Messages'},
       {'a': Icons.person_rounded, 'o': Icons.person_outline_rounded, 'l': appSettings.arabic ? 'حسابي' : 'Profile'},
     ];
 
+    const accent = Color(0xFFFF6D00); // orange for active tab
+
     return Container(
-      margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
       decoration: BoxDecoration(
         color: context.kCard,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: context.kBorder.withValues(alpha: 0.5)),
-        boxShadow: [
-          BoxShadow(
-              color: Colors.black.withValues(alpha: 0.10),
-              blurRadius: 24,
-              offset: const Offset(0, -6)),
-        ],
+        border: Border(top: BorderSide(color: context.kBorder.withValues(alpha: 0.3), width: 0.5)),
       ),
       child: SafeArea(
         top: false,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: List.generate(items.length, (i) {
@@ -1583,70 +1594,25 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               final inactiveColor = context.kSub;
               return GestureDetector(
                 onTap: () {
+                  if (_navIdx == i) return;
                   setState(() => _navIdx = i);
-                  switch (i) {
-                    case 0:
-                      break; // Home — already here
-                    case 1:
-                      Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (_) => const ExplorePage()));
-                      break;
-                    case 2:
-                      Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (_) => const BookingsPage()));
-                      break;
-                    case 3:
-                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                        content: const Row(children: [
-                          Icon(Icons.chat_bubble_rounded,
-                              color: Colors.white, size: 16),
-                          SizedBox(width: 8),
-                          Text('Messages — ابدأ حجز للدردشة مع المالك',
-                              style: TextStyle(fontWeight: FontWeight.w600)),
-                        ]),
-                        backgroundColor: ocean,
-                        behavior: SnackBarBehavior.floating,
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
-                        margin: const EdgeInsets.all(16),
-                        duration: const Duration(seconds: 3),
-                      ));
-                      break;
-                    case 4:
-                      Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (_) => const ProfilePage()));
-                      break;
-                  }
                 },
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 220),
+                child: Padding(
                   padding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: sel
-                        ? ocean.withValues(alpha: 0.10)
-                        : Colors.transparent,
-                    borderRadius: BorderRadius.circular(16),
-                  ),
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
                   child: Column(mainAxisSize: MainAxisSize.min, children: [
                     Icon(
                         sel
                             ? items[i]['a'] as IconData
                             : items[i]['o'] as IconData,
-                        size: 23,
-                        color: sel ? ocean : inactiveColor),
+                        size: 24,
+                        color: sel ? accent : inactiveColor),
                     const SizedBox(height: 3),
                     Text(items[i]['l'] as String,
                         style: TextStyle(
                           fontSize: 10,
                           fontWeight: sel ? FontWeight.w800 : FontWeight.w500,
-                          color: sel ? ocean : inactiveColor,
+                          color: sel ? accent : inactiveColor,
                         )),
                   ]),
                 ),

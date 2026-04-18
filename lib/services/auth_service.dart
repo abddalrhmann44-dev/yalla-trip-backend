@@ -27,8 +27,19 @@ class AuthService {
       final accessToken = data['access_token'] as String;
       await _api.setToken(accessToken);
     } else {
-      throw Exception('Auth exchange failed: ${response.statusCode}');
+      final detail = _tryParseDetail(response.body);
+      throw Exception(
+          'Auth exchange failed: ${response.statusCode} — $detail');
     }
+  }
+
+  /// Extract server detail from JSON response body (for logging).
+  static String _tryParseDetail(String body) {
+    try {
+      final j = jsonDecode(body);
+      if (j is Map) return j['detail']?.toString() ?? body;
+    } catch (_) {}
+    return body;
   }
 
   /// Clear stored tokens on logout.

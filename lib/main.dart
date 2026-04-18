@@ -29,6 +29,7 @@ import 'features/booking/presentation/pages/owner_earnings_dashboard.dart';
 import 'features/booking/presentation/pages/admin_dashboard_page.dart';
 import 'providers/user_provider.dart';
 import 'pages/terms_acceptance_page.dart';
+import 'pages/splash_screen.dart';
 
 class AppSettings extends ChangeNotifier {
   bool _darkMode = false;
@@ -166,6 +167,7 @@ class _TalaaAppState extends State<TalaaApp> {
         '/owner-verify': (_) => const OwnerVerifyBookingPage(),
         '/owner-earnings': (_) => const OwnerEarningsDashboard(),
         '/admin-dashboard': (_) => const AdminDashboardPage(),
+        '/splash': (_) => const SplashScreen(),
       },
       onGenerateRoute: (settings) {
         switch (settings.name) {
@@ -289,6 +291,7 @@ class _AuthGateState extends State<_AuthGate>
     with SingleTickerProviderStateMixin {
   bool _showSplash = true;
   bool _checkedVersion = false;
+  bool _profileLoaded = false;
 
   late AnimationController _controller;
   late Animation<double> _logoScale;
@@ -429,12 +432,17 @@ class _AuthGateState extends State<_AuthGate>
           );
         }
 
-        // Save FCM token & load user profile when user logs in
-        if (snapshot.hasData && snapshot.data != null) {
-          NotificationService.instance.saveTokenToFirestore();
+        // Save FCM token & load user profile ONCE when user logs in
+        if (snapshot.hasData && snapshot.data != null && !_profileLoaded) {
+          _profileLoaded = true;
           WidgetsBinding.instance.addPostFrameCallback((_) {
+            NotificationService.instance.saveTokenToFirestore();
             userProvider.loadProfile();
           });
+        }
+        // Reset flag when user signs out
+        if (!snapshot.hasData || snapshot.data == null) {
+          _profileLoaded = false;
         }
 
         return snapshot.hasData && snapshot.data != null

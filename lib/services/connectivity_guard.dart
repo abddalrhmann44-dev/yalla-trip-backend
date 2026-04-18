@@ -20,7 +20,9 @@ class _ConnectivityGuardState extends State<ConnectivityGuard> {
   @override
   void initState() {
     super.initState();
-    _checkInitialConnection();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkInitialConnection();
+    });
     _subscription =
         Connectivity().onConnectivityChanged.listen(_onConnectivityChanged);
   }
@@ -71,6 +73,7 @@ class _ConnectivityGuardState extends State<ConnectivityGuard> {
     _offlineDialogOpen = true;
     showDialog<void>(
       context: context,
+      useRootNavigator: true,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
         title: const Text('لا يوجد اتصال بالإنترنت'),

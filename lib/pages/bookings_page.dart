@@ -63,7 +63,8 @@ String _statusGroup(String status) {
 //  PAGE
 // ══════════════════════════════════════════════════════════════
 class BookingsPage extends StatefulWidget {
-  const BookingsPage({super.key});
+  final bool embedded;
+  const BookingsPage({super.key, this.embedded = false});
   @override State<BookingsPage> createState() => _BookingsPageState();
 }
 
@@ -143,19 +144,21 @@ class _BookingsPageState extends State<BookingsPage>
         Padding(
           padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
           child: Row(children: [
-            GestureDetector(
-              onTap: () => Navigator.pop(context),
-              child: Container(
-                width: 38, height: 38,
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(12),
+            if (!widget.embedded) ...[
+              GestureDetector(
+                onTap: () => Navigator.pop(context),
+                child: Container(
+                  width: 38, height: 38,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.arrow_back_ios_new_rounded,
+                      color: Colors.white, size: 16),
                 ),
-                child: const Icon(Icons.arrow_back_ios_new_rounded,
-                    color: Colors.white, size: 16),
               ),
-            ),
-            const SizedBox(width: 12),
+              const SizedBox(width: 12),
+            ],
             Expanded(child: Text(S.myBookingsTitle,
                 style: TextStyle(color: Colors.white,
                     fontSize: 20, fontWeight: FontWeight.w900))),
