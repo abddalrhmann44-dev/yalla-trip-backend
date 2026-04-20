@@ -13,12 +13,13 @@ import '../widgets/constants.dart';
 import 'explore_page.dart';
 import 'area_results_page.dart';
 import '../utils/app_strings.dart';
-import 'bookings_page.dart';
+import 'best_trip_page.dart';
 import 'profile_page.dart';
 import 'property_details_page.dart';
 import '../models/property_model_api.dart';
 import '../services/property_service.dart';
 import 'chat_inbox_page.dart';
+import 'favorites_page.dart';
 
 // ────────────────────────────────────────────────────────────────
 //  MODELS
@@ -317,7 +318,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           index: _navIdx,
           children: [
             _isLoading ? _buildShimmerScreen() : _buildContent(),
-            const BookingsPage(embedded: true),
+            const BestTripPage(embedded: true),
             const ChatInboxPage(embedded: true),
             const ProfilePage(embedded: true),
           ],
@@ -450,7 +451,10 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 ),
 
                 // Action icons — end side
-                _hdrIcon(Icons.favorite_border_rounded),
+                _hdrIcon(Icons.favorite_border_rounded, onTap: () {
+                  Navigator.push(context, MaterialPageRoute(
+                      builder: (_) => const FavoritesPage()));
+                }),
                 const SizedBox(width: 8),
                 _hdrIcon(Icons.chat_bubble_outline_rounded, onTap: () {
                   Navigator.push(context, MaterialPageRoute(builder: (_) => const ChatInboxPage()));
@@ -1571,7 +1575,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   Widget _buildNavBar() {
     final items = [
       {'a': Icons.home_rounded, 'o': Icons.home_outlined, 'l': appSettings.arabic ? 'الرئيسية' : 'Home'},
-      {'a': Icons.calendar_month_rounded, 'o': Icons.calendar_month_outlined, 'l': appSettings.arabic ? 'حجوزاتي' : 'Bookings'},
+      {'a': Icons.travel_explore_rounded, 'o': Icons.travel_explore_outlined, 'l': appSettings.arabic ? 'أحلى رحلة' : 'Best Trip'},
       {'a': Icons.chat_rounded, 'o': Icons.chat_bubble_outline_rounded, 'l': appSettings.arabic ? 'رسائل' : 'Messages'},
       {'a': Icons.person_rounded, 'o': Icons.person_outline_rounded, 'l': appSettings.arabic ? 'حسابي' : 'Profile'},
     ];

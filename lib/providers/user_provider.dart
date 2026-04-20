@@ -3,12 +3,14 @@
 //  Single source of truth for current user data across all pages
 // ═══════════════════════════════════════════════════════════════
 
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/user_model_api.dart';
 import '../services/user_service.dart';
 import '../services/auth_service.dart';
+import '../services/sentry_service.dart';
 import '../utils/api_client.dart';
 
 class UserProvider extends ChangeNotifier {
@@ -36,6 +38,8 @@ class UserProvider extends ChangeNotifier {
   String? get avatarUrl => _user?.avatarUrl ?? _firebasePhoto;
   bool get isOwner => _user?.isOwner ?? false;
   bool get isAdmin => _user?.isAdmin ?? false;
+  bool get isVerified => _user?.isVerified ?? false;
+  bool get phoneVerified => _user?.phoneVerified ?? false;
 
   // ── Firebase Auth fallback values ────────────────────────────
   String get _firebaseName =>
@@ -57,6 +61,16 @@ class UserProvider extends ChangeNotifier {
     try {
       _user = await _fetchWithAutoRefresh();
       _error = null;
+      // Tag Sentry with the authenticated user so crashes are
+      // attributed correctly.  No-op when Sentry is disabled.
+      final u = _user;
+      if (u != null) {
+        unawaited(SentryService.setUser(
+          userId: u.id,
+          role: u.role,
+          email: u.email,
+        ));
+      }
     } catch (e) {
       _error = e.toString();
       debugPrint('UserProvider load error: $e');
@@ -106,6 +120,7 @@ class UserProvider extends ChangeNotifier {
     _user = null;
     _loading = false;
     _error = null;
+    unawaited(SentryService.setUser(userId: null));
     notifyListeners();
   }
 }

@@ -5,6 +5,7 @@
 // ═══════════════════════════════════════════════════════════════
 
 import 'dart:io';
+import '../main.dart' show userProvider;
 import '../services/user_role_service.dart';
 import '../services/property_service.dart';
 import 'package:image_picker/image_picker.dart';
@@ -12,6 +13,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../widgets/constants.dart';
 import 'home_page.dart';
+import 'phone_verification_page.dart';
 
 const _kOcean  = Color(0xFF1565C0);
 const _kOrange = Color(0xFFFF6D00);
@@ -24,15 +26,16 @@ class _Step {
 }
 
 const _kSteps = [
-  _Step('01', 'نوع العقار', 'إيه نوع عقارك؟', '🏷️'),
-  _Step('02', 'الصور', 'وريهم أحسن زوايا', '📸'),
+  _Step('01', 'نوع العقار', 'اختار الصنف اللي يناسب عقارك', '🏷️'),
+  _Step('02', 'الصور', 'كلما كانت الصور أحلى، الحجوزات بتزيد', '📸'),
   _Step('03', 'المعلومات الأساسية', 'الاسم والموقع والوصف', '📝'),
-  _Step('04', 'تفاصيل العقار', 'الغرف والأسرة والطاقة الاستيعابية', '🛏️'),
-  _Step('05', 'المرافق', 'إيه اللي موجود عندك؟', '✨'),
-  _Step('06', 'المنشآت', 'مزايا المنتجع والفندق', '🏊'),
+  _Step('04', 'تفاصيل العقار', 'الغرف والطاقة الاستيعابية', '🛏️'),
+  _Step('05', 'المرافق', 'اللي موجود جوا الوحدة', '✨'),
+  _Step('06', 'المنشآت', 'المزايا العامة للمجمع', '🏊'),
   _Step('07', 'المناطق القريبة', 'إيه الموجود حواليك؟', '📍'),
-  _Step('08', 'التسعير', 'حدد أسعارك', '💰'),
+  _Step('08', 'التسعير', 'حدد أسعارك بنفسك', '💰'),
   _Step('09', 'إعدادات الحجز', 'إزاي الضيوف يحجزوا', '⚙️'),
+  _Step('10', 'إثبات الهوية', 'تصوير البطاقة بالكاميرا فقط', '📇'),
 ];
 
 class _PropType {
@@ -49,6 +52,8 @@ const _kPropTypes = [
   _PropType('فيلا', 'فيلا', '🏡', 'فيلا فاخرة خاصة', Color(0xFFE65100)),
   _PropType(
       'بيت شاطئ', 'بيت شاطئ', '🌊', 'بيت على الشاطئ مباشرة', Color(0xFF0097A7)),
+  _PropType(
+      'مركب', 'مركب / يخت', '⛵', 'رحلات بحرية بالساعة', Color(0xFF0277BD)),
 ];
 
 const _kLocations = [
@@ -109,6 +114,9 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
   int _bathrooms = 1;
   int _guests = 2;
   int _hotelRooms = 1;
+  // Boat-specific: max people + trip duration (hours).
+  int _boatPeople = 6;
+  int _boatHours = 4;
 
   // Step 5 — Amenities (كلها إجبارية من منظور "الحد الأدنى = اختار 1")
   late List<_Toggle> _amenities;
@@ -241,9 +249,6 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
         if (_pickedFiles.isEmpty) {
           return 'أضف صورة واحدة على الأقل للعقار';
         }
-        if (_idFrontImage == null || _idBackImage == null) {
-          return 'لازم تصوير البطاقة (وش + ظهر) بالكاميرا';
-        }
         return null;
 
       case 2: // المعلومات الأساسية
@@ -291,6 +296,12 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
         return null;
 
       case 8: // إعدادات الحجز — دايماً كاملة (bookingMode له default)
+        return null;
+
+      case 9: // إثبات الهوية — آخر خطوة
+        if (_idFrontImage == null || _idBackImage == null) {
+          return 'لازم تصور البطاقة (وش + ظهر) بالكاميرا';
+        }
         return null;
 
       default:
@@ -402,9 +413,33 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
 
   // ── Publish ─────────────────────────────────────────────────
   Future<void> _publish() async {
+    // Wave 23: owner must have a verified phone before their listing
+    // can receive chat / bookings.  Intercept the publish flow and
+    // route them through the OTP page if needed.
+    if (!userProvider.phoneVerified) {
+      final ok = await Navigator.of(context).push<bool>(
+        MaterialPageRoute(
+          builder: (_) => PhoneVerificationPage(
+            initialPhone: userProvider.phone.isNotEmpty
+                ? userProvider.phone
+                : null,
+            reasonAr:
+                'لازم توثّق رقم موبايلك قبل نشر عقارك عشان الضيوف يقدروا يتواصلوا معاك بعد تأكيد الحجز.',
+          ),
+        ),
+      );
+      if (ok != true) return; // user backed out — don't publish
+      await userProvider.loadProfile(force: true);
+    }
+
     setState(() => _isPublishing = true);
     try {
-      // Build request payload matching PropertyCreate schema
+      final isBoat = _isBoat;
+
+      // Build request payload matching PropertyCreate schema.
+      // For boats, ``price_per_night`` is semantically a price-per-hour
+      // and ``max_guests`` is the number of passengers; the backend
+      // understands this via the ``boat`` category.
       final payload = <String, dynamic>{
         'name': _nameCtrl.text.trim(),
         'description': _descCtrl.text.trim().isNotEmpty
@@ -413,12 +448,15 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
         'area': _selLocation ?? '',
         'category': _selType?.key ?? '',
         'price_per_night': int.tryParse(_priceCtrl.text) ?? 0,
-        'weekend_price': int.tryParse(_weekendCtrl.text),
-        'cleaning_fee': int.tryParse(_cleaningCtrl.text) ?? 0,
-        'bedrooms': _bedrooms,
-        'bathrooms': _bathrooms,
-        'max_guests': _guests,
-        'total_rooms': _selType?.key == 'فندق' ? _hotelRooms : 0,
+        if (!isBoat) 'weekend_price': int.tryParse(_weekendCtrl.text),
+        if (!isBoat) 'cleaning_fee': int.tryParse(_cleaningCtrl.text) ?? 0,
+        'bedrooms': isBoat ? 0 : _bedrooms,
+        'bathrooms': isBoat ? 0 : _bathrooms,
+        'max_guests': isBoat ? _boatPeople : _guests,
+        'total_rooms': isBoat
+            ? 0
+            : (_selType?.key == 'فندق' ? _hotelRooms : 0),
+        if (isBoat) 'trip_duration_hours': _boatHours,
         'amenities': _amenities
             .where((a) => a.selected)
             .map((a) => a.label)
@@ -435,6 +473,15 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
         final files = _pickedFiles.map((xf) => File(xf.path)).toList();
         await PropertyService.uploadImages(created.id, files);
         setState(() => _uploadingImages = false);
+      }
+
+      // Upload owner's ID card (always required — last step)
+      if (_idFrontImage != null && _idBackImage != null) {
+        await PropertyService.uploadIdDocuments(
+          created.id,
+          front: File(_idFrontImage!.path),
+          back: File(_idBackImage!.path),
+        );
       }
 
       if (!mounted) return;
@@ -512,6 +559,8 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
   //  BUILD
   // ══════════════════════════════════════════════════════════
 
+  bool get _isBoat => _selType?.key == 'مركب';
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -533,6 +582,7 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
                 _buildStep7(),
                 _buildStep8(),
                 _buildStep9(),
+                _buildStep10(),
               ],
             ),
           ),
@@ -785,72 +835,6 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
           ),
         ),
       ]),
-      const SizedBox(height: 18),
-      Text('توثيق الهوية (إجباري)',
-          style: TextStyle(
-              fontSize: 15, fontWeight: FontWeight.w800, color: context.kText)),
-      const SizedBox(height: 6),
-      Text('لازم تصور البطاقة بالكاميرا فقط (وش + ظهر)',
-          style: TextStyle(fontSize: 12, color: context.kSub)),
-      const SizedBox(height: 10),
-      Row(children: [
-        Expanded(
-          child: GestureDetector(
-            onTap: () => _pickIdentityImage(isFront: true),
-            child: Container(
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              decoration: BoxDecoration(
-                color: _idFrontImage == null
-                    ? context.kCard
-                    : _kGreen.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(
-                  color: _idFrontImage == null ? context.kBorder : _kGreen,
-                  width: _idFrontImage == null ? 1.5 : 2,
-                ),
-              ),
-              child: Column(children: [
-                Icon(Icons.badge_rounded, color: context.kText, size: 22),
-                const SizedBox(height: 6),
-                Text(_idFrontImage == null ? 'البطاقة - الوش' : 'تم تصوير الوش',
-                    style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        color: _idFrontImage == null ? context.kText : _kGreen)),
-              ]),
-            ),
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: GestureDetector(
-            onTap: () => _pickIdentityImage(isFront: false),
-            child: Container(
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              decoration: BoxDecoration(
-                color: _idBackImage == null
-                    ? context.kCard
-                    : _kGreen.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(
-                  color: _idBackImage == null ? context.kBorder : _kGreen,
-                  width: _idBackImage == null ? 1.5 : 2,
-                ),
-              ),
-              child: Column(children: [
-                Icon(Icons.badge_outlined, color: context.kText, size: 22),
-                const SizedBox(height: 6),
-                Text(
-                    _idBackImage == null ? 'البطاقة - الظهر' : 'تم تصوير الظهر',
-                    style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        color: _idBackImage == null ? context.kText : _kGreen)),
-              ]),
-            ),
-          ),
-        ),
-      ]),
       if (_pickedFiles.isNotEmpty) ...[
         const SizedBox(height: 16),
         Row(children: [
@@ -1000,6 +984,48 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
   //  STEP 4 — DETAILS
   // ══════════════════════════════════════════════════════════
   Widget _buildStep4() {
+    // ── Boat-specific layout: hours + people only ──
+    if (_isBoat) {
+      return ListView(padding: const EdgeInsets.all(20), children: [
+        Text('تفاصيل المركب',
+            style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w900,
+                color: context.kText)),
+        const SizedBox(height: 6),
+        _requiredLabel('حدد عدد الأفراد ومدة الرحلة'),
+        const SizedBox(height: 16),
+        Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: const Color(0xFF0277BD).withValues(alpha: 0.06),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+                color: const Color(0xFF0277BD).withValues(alpha: 0.25)),
+          ),
+          child: Row(children: [
+            const Text('⛵', style: TextStyle(fontSize: 28)),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Text(
+                'المركب بيتحجز بالساعة — حدد السعة القصوى ومتوسط مدة الرحلة.',
+                style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF0277BD)),
+              ),
+            ),
+          ]),
+        ),
+        const SizedBox(height: 16),
+        _counter('👥  عدد الأفراد', _boatPeople,
+            (v) => setState(() => _boatPeople = v), 1, 50),
+        _counter('⏱️  مدة الرحلة (ساعات)', _boatHours,
+            (v) => setState(() => _boatHours = v), 1, 24),
+      ]);
+    }
+
+    // ── Default property layout ──
     return ListView(padding: const EdgeInsets.all(20), children: [
       Text('تفاصيل العقار',
           style: TextStyle(
@@ -1223,6 +1249,39 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
   //  STEP 8 — PRICING
   // ══════════════════════════════════════════════════════════
   Widget _buildStep8() {
+    if (_isBoat) {
+      return ListView(padding: const EdgeInsets.all(20), children: [
+        Text('تسعير المركب',
+            style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w900,
+                color: context.kText)),
+        const SizedBox(height: 6),
+        _requiredLabel('السعر للساعة الواحدة'),
+        const SizedBox(height: 16),
+        _priceField(_priceCtrl, 'السعر في الساعة *', 'لكل ساعة رحلة',
+            required: true),
+        const SizedBox(height: 10),
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: _kOrange.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(children: [
+            const Icon(Icons.info_outline_rounded,
+                color: _kOrange, size: 18),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'الإجمالي للرحلة يحسب تلقائياً = السعر × مدة الرحلة.',
+                style: TextStyle(fontSize: 12, color: context.kText),
+              ),
+            ),
+          ]),
+        ),
+      ]);
+    }
     return ListView(padding: const EdgeInsets.all(20), children: [
       Text('التسعير',
           style: TextStyle(
@@ -1307,12 +1366,159 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
           (v) => setState(() => _autoConfirm = v)),
       _switchRow(
           'طلب إثبات هوية', _requireId, (v) => setState(() => _requireId = v)),
-      const SizedBox(height: 16),
-      _counter('🌙  أقل ليالي', _minNights,
-          (v) => setState(() => _minNights = v), 1, 30),
-      _counter('🌙  أقصى ليالي', _maxNights,
-          (v) => setState(() => _maxNights = v), 1, 90),
+      if (!_isBoat) ...[
+        const SizedBox(height: 16),
+        _counter('🌙  أقل ليالي', _minNights,
+            (v) => setState(() => _minNights = v), 1, 30),
+        _counter('🌙  أقصى ليالي', _maxNights,
+            (v) => setState(() => _maxNights = v), 1, 90),
+      ],
     ]);
+  }
+
+  // ══════════════════════════════════════════════════════════
+  //  STEP 10 — IDENTITY  (camera-only ID capture)
+  // ══════════════════════════════════════════════════════════
+  Widget _buildStep10() {
+    return ListView(padding: const EdgeInsets.all(20), children: [
+      Text('إثبات الهوية',
+          style: TextStyle(
+              fontSize: 22, fontWeight: FontWeight.w900, color: context.kText)),
+      const SizedBox(height: 6),
+      _requiredLabel('تصوير البطاقة بالكاميرا فقط'),
+      const SizedBox(height: 16),
+      Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFF1565C0), Color(0xFF0D47A1)],
+          ),
+          borderRadius: BorderRadius.circular(18),
+        ),
+        child: Row(children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.18),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(Icons.verified_user_rounded,
+                color: Colors.white, size: 24),
+          ),
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('خطوة أخيرة — تأمين حسابك',
+                    style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w900)),
+                SizedBox(height: 4),
+                Text(
+                  'محتاجين صورة بطاقتك القومية (وش + ظهر) — الصور بتتخزن مشفرة ومش بتظهر للضيوف نهائياً.',
+                  style: TextStyle(
+                      color: Colors.white70, fontSize: 12, height: 1.4),
+                ),
+              ],
+            ),
+          ),
+        ]),
+      ),
+      const SizedBox(height: 18),
+      _idCaptureCard(
+        title: 'وش البطاقة',
+        subtitle: 'الصورة الأمامية — اسمك ورقم البطاقة',
+        picked: _idFrontImage,
+        onTap: () => _pickIdentityImage(isFront: true),
+      ),
+      const SizedBox(height: 12),
+      _idCaptureCard(
+        title: 'ظهر البطاقة',
+        subtitle: 'الصورة الخلفية — تاريخ الإصدار',
+        picked: _idBackImage,
+        onTap: () => _pickIdentityImage(isFront: false),
+      ),
+      const SizedBox(height: 18),
+      Row(children: [
+        Icon(Icons.lock_rounded, size: 14, color: context.kSub),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Text(
+            'الصور بتتبعت لسيرفرات Talaa مباشرة بتشفير SSL 256-bit.',
+            style: TextStyle(fontSize: 11, color: context.kSub),
+          ),
+        ),
+      ]),
+    ]);
+  }
+
+  Widget _idCaptureCard({
+    required String title,
+    required String subtitle,
+    required XFile? picked,
+    required VoidCallback onTap,
+  }) {
+    final done = picked != null;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: done ? _kGreen.withValues(alpha: 0.06) : context.kCard,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+              color: done ? _kGreen : context.kBorder,
+              width: done ? 2 : 1.5),
+        ),
+        child: Row(children: [
+          if (done)
+            ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Image.file(
+                File(picked.path),
+                width: 72,
+                height: 56,
+                fit: BoxFit.cover,
+              ),
+            )
+          else
+            Container(
+              width: 72,
+              height: 56,
+              decoration: BoxDecoration(
+                color: _kOcean.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(Icons.camera_alt_rounded,
+                  color: _kOcean, size: 24),
+            ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title,
+                    style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
+                        color: done ? _kGreen : context.kText)),
+                const SizedBox(height: 2),
+                Text(subtitle,
+                    style: TextStyle(fontSize: 11, color: context.kSub)),
+              ],
+            ),
+          ),
+          Icon(
+            done ? Icons.check_circle_rounded : Icons.chevron_left_rounded,
+            color: done ? _kGreen : context.kSub,
+          ),
+        ]),
+      ),
+    );
   }
 
   // ══════════════════════════════════════════════════════════

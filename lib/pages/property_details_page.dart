@@ -4,14 +4,25 @@
 // ═══════════════════════════════════════════════════════════════
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../main.dart' show appSettings;
+import '../services/sharing_service.dart';
 import '../utils/app_strings.dart';
 import '../widgets/constants.dart';
+import '../widgets/favorite_button.dart';
 import '../models/property_model_api.dart';
+import '../models/review_model.dart';
 import '../services/property_service.dart';
+import '../services/report_service.dart';
+import '../services/review_service.dart';
+import '../widgets/report_sheet.dart';
 import '../utils/api_client.dart';
 import '../utils/error_handler.dart';
 import 'booking_flow_page.dart';
+import 'photo_viewer_page.dart';
+import 'chat_page.dart';
+import '../widgets/review_card.dart';
+import '../widgets/verified_badge.dart';
 
 const _kOcean  = Color(0xFF1565C0);
 const _kOrange = Color(0xFFFF6D00);
@@ -28,12 +39,19 @@ class PropertyDetailsPage extends StatefulWidget {
 
 class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
   int  _imgIndex   = 0;
-  bool _isFav      = false;
   bool _descExpand = false;
   bool _loading    = true;
   String? _error;
   PropertyApi? _prop;
   final PageController _imgCtrl = PageController();
+
+  // Similar properties (recommendations)
+  List<PropertyApi> _similar = [];
+  bool _similarLoading = false;
+
+  // Reviews
+  List<ReviewModel> _reviews = const [];
+  bool _reviewsLoading = false;
 
   PropertyApi get p => _prop!;
 
@@ -44,6 +62,8 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
     if (widget.propertyApi != null) {
       _prop = widget.propertyApi;
       _loading = false;
+      _loadSimilar();
+      _loadReviews();
     } else {
       _loadProperty();
     }
@@ -54,10 +74,44 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
       final prop = await PropertyService.getProperty(widget.propertyId!);
       if (!mounted) return;
       setState(() { _prop = prop; _loading = false; });
+      _loadSimilar();
+      _loadReviews();
     } on ApiException catch (e) {
       if (mounted) setState(() { _error = ErrorHandler.getMessage(e); _loading = false; });
     } catch (_) {
       if (mounted) setState(() { _error = 'حدث خطأ غير متوقع'; _loading = false; });
+    }
+  }
+
+  Future<void> _loadSimilar() async {
+    if (_prop == null || _similarLoading) return;
+    setState(() => _similarLoading = true);
+    try {
+      final list = await PropertyService.getSimilar(_prop!.id, limit: 8);
+      if (!mounted) return;
+      setState(() {
+        _similar = list;
+        _similarLoading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _similarLoading = false);
+    }
+  }
+
+  Future<void> _loadReviews() async {
+    if (_prop == null || _reviewsLoading) return;
+    setState(() => _reviewsLoading = true);
+    try {
+      final list = await ReviewService.forProperty(_prop!.id, limit: 6);
+      if (!mounted) return;
+      setState(() {
+        _reviews = list;
+        _reviewsLoading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _reviewsLoading = false);
     }
   }
 
@@ -111,30 +165,44 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
               ),
             ),
             actions: [
-              GestureDetector(
-                onTap: () => setState(() => _isFav = !_isFav),
-                child: Container(
-                  margin: const EdgeInsets.all(8),
+              Padding(
+                padding: const EdgeInsets.all(8),
+                child: FavoriteButton(
+                  propertyId: p.id,
+                  size: 20,
+                  background: Colors.black.withValues(alpha: 0.35),
+                  inactiveColor: Colors.white,
+                  activeColor: Colors.red,
                   padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.35),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    _isFav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                    color: _isFav ? Colors.red : Colors.white, size: 20),
                 ),
               ),
               GestureDetector(
-                onTap: () {},
+                onTap: () => _sharePropertyLink(p),
                 child: Container(
-                  margin: const EdgeInsets.only(right: 12, top: 8, bottom: 8),
+                  margin: const EdgeInsets.only(top: 8, bottom: 8),
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
                     color: Colors.black.withValues(alpha: 0.35),
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(Icons.share_rounded,
+                      color: Colors.white, size: 20),
+                ),
+              ),
+              GestureDetector(
+                onTap: () => showReportSheet(
+                  context,
+                  target: ReportTarget.property,
+                  targetId: p.id,
+                ),
+                child: Container(
+                  margin: const EdgeInsets.only(right: 12, left: 8, top: 8, bottom: 8),
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.35),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.flag_outlined,
                       color: Colors.white, size: 20),
                 ),
               ),
@@ -150,13 +218,19 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
                         controller: _imgCtrl,
                         onPageChanged: (i) => setState(() => _imgIndex = i),
                         itemCount: p.images.length,
-                        itemBuilder: (_, i) => Image.network(
-                          p.images[i],
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => Container(
-                            color: const Color(0xFF1565C0),
-                            child: const Icon(Icons.villa_rounded,
-                                color: Colors.white54, size: 80)),
+                        itemBuilder: (_, i) => GestureDetector(
+                          onTap: () => _openPhotoViewer(p, i),
+                          child: Hero(
+                            tag: p.images[i],
+                            child: Image.network(
+                              p.images[i],
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => Container(
+                                color: const Color(0xFF1565C0),
+                                child: const Icon(Icons.villa_rounded,
+                                    color: Colors.white54, size: 80)),
+                            ),
+                          ),
                         ),
                       ),
                 // Image counter
@@ -379,6 +453,10 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
               if (p.owner != null)
                 _section('🏠 المضيف', _ownerCard()),
 
+              // ── Similar properties ───────────────────
+              if (_similar.isNotEmpty)
+                _section('✨ عقارات مشابهة', _similarList()),
+
               const SizedBox(height: 120),
             ],
           )),
@@ -593,15 +671,16 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
 
   Widget _reviewsSection() {
     if (p.reviewCount == 0) {
-      return Center(
-        child: Padding(
-          padding: EdgeInsets.symmetric(vertical: 12),
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        child: Center(
           child: Text('لا يوجد تقييمات بعد',
               style: TextStyle(color: context.kSub, fontSize: 13)),
         ),
       );
     }
-    return Column(children: [
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      // Summary row
       Row(children: [
         Text(p.rating.toStringAsFixed(1),
             style: TextStyle(
@@ -617,11 +696,20 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
               style: TextStyle(fontSize: 13, color: context.kSub)),
         ]),
       ]),
+      const SizedBox(height: 16),
+      if (_reviewsLoading && _reviews.isEmpty)
+        const Padding(
+          padding: EdgeInsets.symmetric(vertical: 16),
+          child: Center(child: CircularProgressIndicator(color: _kOcean)),
+        )
+      else
+        ..._reviews.map((r) => ReviewCard(review: r)),
     ]);
   }
 
   Widget _ownerCard() {
     final ownerName = p.owner?.name ?? 'المالك';
+    final ownerVerified = p.owner?.isVerified ?? false;
     return Row(children: [
       Container(
         width: 54, height: 54,
@@ -639,23 +727,217 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
       Expanded(child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(ownerName,
-              style: TextStyle(fontSize: 15,
-                  fontWeight: FontWeight.w800, color: context.kText)),
-          Text('مضيف في Talaa',
-              style: TextStyle(fontSize: 12, color: context.kSub)),
+          Row(children: [
+            Flexible(
+              child: Text(ownerName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 15,
+                      fontWeight: FontWeight.w800, color: context.kText)),
+            ),
+            if (ownerVerified) ...[
+              const SizedBox(width: 4),
+              const VerifiedBadge(size: 16),
+            ],
+          ]),
+          const SizedBox(height: 2),
+          if (ownerVerified)
+            const VerifiedChip(label: 'مضيف موثّق')
+          else
+            Text('مضيف في Talaa',
+                style: TextStyle(fontSize: 12, color: context.kSub)),
         ],
       )),
-      Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
-        decoration: BoxDecoration(
-          border: Border.all(color: _kOcean),
-          borderRadius: BorderRadius.circular(12),
+      GestureDetector(
+        onTap: () => Navigator.of(context).push(MaterialPageRoute(
+          builder: (_) => ChatPage(propertyId: p.id),
+        )),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+          decoration: BoxDecoration(
+            border: Border.all(color: _kOcean),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: const Text('تواصل',
+              style: TextStyle(fontSize: 13,
+                  fontWeight: FontWeight.w700, color: _kOcean)),
         ),
-        child: const Text('تواصل',
-            style: TextStyle(fontSize: 13,
-                fontWeight: FontWeight.w700, color: _kOcean)),
       ),
     ]);
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  //  SIMILAR PROPERTIES
+  // ═══════════════════════════════════════════════════════════════
+  Widget _similarList() => SizedBox(
+    height: 210,
+    child: ListView.separated(
+      scrollDirection: Axis.horizontal,
+      itemCount: _similar.length,
+      separatorBuilder: (_, __) => const SizedBox(width: 12),
+      itemBuilder: (_, i) => _similarCard(_similar[i]),
+    ),
+  );
+
+  Widget _similarCard(PropertyApi sp) => GestureDetector(
+    onTap: () => Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (_) => PropertyDetailsPage(propertyApi: sp)),
+    ),
+    child: SizedBox(
+      width: 180,
+      child: Container(
+        decoration: BoxDecoration(
+          color: context.kCard,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+                color: Colors.black.withValues(alpha: 0.06),
+                blurRadius: 10,
+                offset: const Offset(0, 3)),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ClipRRect(
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(16)),
+              child: SizedBox(
+                height: 110,
+                width: double.infinity,
+                child: Stack(fit: StackFit.expand, children: [
+                  sp.firstImage.isNotEmpty
+                      ? Image.network(sp.firstImage,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => _similarPlaceholder(sp))
+                      : _similarPlaceholder(sp),
+                  PositionedDirectional(
+                    top: 6,
+                    end: 6,
+                    child: FavoriteButton(
+                      propertyId: sp.id,
+                      size: 14,
+                      padding: const EdgeInsets.all(6),
+                    ),
+                  ),
+                ]),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(sp.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                          color: context.kText)),
+                  const SizedBox(height: 2),
+                  Row(children: [
+                    Icon(Icons.location_on_rounded,
+                        size: 11, color: context.kSub),
+                    const SizedBox(width: 2),
+                    Expanded(
+                      child: Text(sp.area,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                              fontSize: 10, color: context.kSub)),
+                    ),
+                  ]),
+                  const SizedBox(height: 4),
+                  Row(children: [
+                    if (sp.rating > 0) ...[
+                      const Icon(Icons.star_rounded,
+                          color: Colors.amber, size: 12),
+                      const SizedBox(width: 2),
+                      Text(sp.rating.toStringAsFixed(1),
+                          style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              color: context.kText)),
+                    ],
+                    const Spacer(),
+                    Text('${sp.pricePerNight.toStringAsFixed(0)} ج.م',
+                        style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w900,
+                            color: _kOrange)),
+                  ]),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+
+  Widget _similarPlaceholder(PropertyApi sp) => Container(
+    decoration: BoxDecoration(
+      gradient: LinearGradient(
+        colors: [sp.areaColor, sp.areaColor.withValues(alpha: 0.55)],
+      ),
+    ),
+    child: Center(
+      child: Text(sp.categoryEmoji, style: const TextStyle(fontSize: 42)),
+    ),
+  );
+
+  // ═══════════════════════════════════════════════════════════════
+  //  PHOTO VIEWER
+  // ═══════════════════════════════════════════════════════════════
+  void _openPhotoViewer(PropertyApi prop, int index) {
+    if (prop.images.isEmpty) return;
+    Navigator.of(context).push(
+      PageRouteBuilder(
+        opaque: false,
+        barrierColor: Colors.black,
+        transitionDuration: const Duration(milliseconds: 220),
+        pageBuilder: (_, __, ___) => PhotoViewerPage(
+          images: prop.images,
+          initialIndex: index,
+          title: prop.name,
+        ),
+      ),
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  //  SHARE  (native share sheet — WhatsApp, Messenger, SMS, Copy…)
+  // ═══════════════════════════════════════════════════════════════
+  Future<void> _sharePropertyLink(PropertyApi prop) async {
+    HapticFeedback.selectionClick();
+    final ok = await SharingService.instance.shareProperty(
+      propertyId: prop.id,
+      propertyName: prop.name,
+      pricePerNight: prop.pricePerNight,
+    );
+    if (ok || !mounted) return;
+
+    // Fall back to clipboard if the native sheet is unavailable.
+    final link = SharingService.instance.propertyUrl(prop.id);
+    await Clipboard.setData(ClipboardData(text: link));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          appSettings.arabic
+              ? 'تم نسخ رابط العقار — الصقه أينما تريد للمشاركة'
+              : 'Property link copied — paste it anywhere to share',
+          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+        ),
+        backgroundColor: _kOcean,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12)),
+        margin: const EdgeInsets.all(16),
+        duration: const Duration(seconds: 3),
+      ),
+    );
   }
 }

@@ -16,6 +16,7 @@ import 'host_dashboard_page.dart';
 import 'offer_creation_page.dart';
 import 'home_page.dart';
 import '../services/user_role_service.dart';
+import 'availability_calendar_page.dart';
 
 // Accent colors (same in light & dark)
 const _kOcean  = Color(0xFF1565C0);
@@ -694,6 +695,23 @@ class _OwnerDashboardPageState extends State<OwnerDashboardPage>
                   style: TextStyle(fontSize: 12, color: context.kSub,
                       fontWeight: FontWeight.w600)),
               const Spacer(),
+
+              // Calendar editor button
+              _actionBtn(
+                icon: Icons.calendar_month_rounded,
+                label: 'تقويم',
+                color: _kGreen,
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => AvailabilityCalendarPage(
+                      propertyId: p.id,
+                      propertyName: p.name,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
 
               // Edit button
               _actionBtn(

@@ -1,0 +1,13 @@
+# Ruff — fast Python linter config. Mirror whatever the CI runs so
+# devs can reproduce locally with `ruff check app`.
+line-length = 120
+target-version = "py311"
+
+[lint]
+select = ["E", "F", "W"]
+ignore = [
+    "E501",  # long lines — we format manually where readability matters
+]
+
+[lint.per-file-ignores]
+"tests/**" = ["E741"]  # short names are fine in tests

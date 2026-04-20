@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from typing import List, Optional
 
 from pydantic import BaseModel, Field, model_validator
@@ -26,6 +26,9 @@ _UNLIMITED_CATEGORIES = {Category.aqua_park, Category.beach_house}
 
 # Supports closing time
 _CLOSING_TIME_CATEGORIES = {Category.aqua_park, Category.beach_house}
+
+# Boats — price is per hour, no rooms, configurable trip duration
+_BOAT_CATEGORIES = {Category.boat}
 
 
 # ── Service schema ────────────────────────────────────────
@@ -88,6 +91,7 @@ class PropertyCreate(BaseModel):
     max_guests: int = Field(4, ge=1)
     total_rooms: int = Field(1, ge=0)
     closing_time: Optional[str] = Field(None, pattern=r"^\d{2}:\d{2}$")
+    trip_duration_hours: Optional[int] = Field(None, ge=1, le=24)
     services: Optional[List[PropertyService]] = []
     amenities: Optional[List[str]] = []
     instant_booking: bool = False
@@ -114,6 +118,15 @@ class PropertyCreate(BaseModel):
         # Closing time: beaches & aqua parks only
         if cat not in _CLOSING_TIME_CATEGORIES:
             self.closing_time = None
+        # Boat specifics — no rooms/bathrooms; duration defaults to 4h
+        if cat in _BOAT_CATEGORIES:
+            self.bedrooms = 0
+            self.bathrooms = 0
+            self.total_rooms = 0
+            if self.trip_duration_hours is None:
+                self.trip_duration_hours = 4
+        else:
+            self.trip_duration_hours = None
         return self
 
 
@@ -133,6 +146,7 @@ class PropertyUpdate(BaseModel):
     max_guests: Optional[int] = Field(None, ge=1)
     total_rooms: Optional[int] = Field(None, ge=0)
     closing_time: Optional[str] = Field(None, pattern=r"^\d{2}:\d{2}$")
+    trip_duration_hours: Optional[int] = Field(None, ge=1, le=24)
     services: Optional[List[PropertyService]] = None
     amenities: Optional[List[str]] = None
     is_available: Optional[bool] = None
@@ -171,7 +185,16 @@ class PropertyFilter(BaseModel):
     max_guests: Optional[int] = Field(None, ge=1)
     instant_booking: Optional[bool] = None
     search: Optional[str] = None
-    sort_by: Optional[str] = Field("newest", pattern=r"^(price_asc|price_desc|rating|newest)$")
+    sort_by: Optional[str] = Field(
+        "best_match",
+        pattern=(
+            r"^(price_asc|price_desc|rating|newest|"
+            r"popularity|distance|best_match)$"
+        ),
+    )
+    amenities: Optional[List[str]] = None
+    check_in: Optional[date] = None
+    check_out: Optional[date] = None
     latitude: Optional[float] = None
     longitude: Optional[float] = None
     radius_km: Optional[float] = Field(None, gt=0)
@@ -194,9 +217,12 @@ class PropertyOut(BaseModel):
     security_deposit: float
     total_rooms: int
     closing_time: Optional[str] = None
+    trip_duration_hours: Optional[int] = None
     bedrooms: int
     bathrooms: int
     max_guests: int
+    id_document_front_url: Optional[str] = None
+    id_document_back_url: Optional[str] = None
     images: Optional[List[str]] = []
     amenities: Optional[List[str]] = []
     services: Optional[List[PropertyService]] = []
@@ -206,6 +232,7 @@ class PropertyOut(BaseModel):
     admin_note: Optional[str] = None
     is_available: bool
     is_featured: bool
+    is_verified: bool = False
     instant_booking: bool
     offer_price: Optional[float] = None
     offer_start: Optional[datetime] = None

@@ -5,7 +5,7 @@ from __future__ import annotations
 import enum
 from datetime import date, datetime
 
-from sqlalchemy import Boolean, Date, DateTime, Enum, Float, ForeignKey, Integer, String, func
+from sqlalchemy import Date, DateTime, Enum, Float, ForeignKey, Integer, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -22,6 +22,7 @@ class PaymentStatus(str, enum.Enum):
     pending = "pending"
     paid = "paid"
     refunded = "refunded"
+    partially_refunded = "partially_refunded"
 
 
 class DepositStatus(str, enum.Enum):
@@ -63,6 +64,30 @@ class Booking(Base):
     platform_fee: Mapped[float] = mapped_column(Float, nullable=False)
     owner_payout: Mapped[float] = mapped_column(Float, nullable=False)
 
+    # ── Applied promo code (Wave 8) ───────────────────────────
+    # The discount is subtracted from ``total_price`` *before* the
+    # fee split, so ``platform_fee`` and ``owner_payout`` already
+    # reflect the post-discount amount.  ``promo_discount`` is kept
+    # around for receipts and analytics.
+    promo_discount: Mapped[float] = mapped_column(
+        Float, default=0.0, server_default="0", nullable=False
+    )
+
+    # ── Wallet credit applied at checkout (Wave 11) ─────────
+    # Like ``promo_discount`` this is already subtracted from
+    # ``total_price`` – we retain it for the receipt breakdown.
+    wallet_discount: Mapped[float] = mapped_column(
+        Float, default=0.0, server_default="0", nullable=False
+    )
+
+    # ── Host payout state (Wave 9) ────────────────────────────
+    # Lives on the booking rather than on a join table so we can
+    # filter "which bookings should I include in the next payout
+    # batch?" with a single index.
+    payout_status: Mapped[str] = mapped_column(
+        String(16), default="unpaid", server_default="unpaid", nullable=False,
+    )
+
     status: Mapped[BookingStatus] = mapped_column(
         Enum(BookingStatus), default=BookingStatus.pending, server_default="pending"
     )
@@ -71,6 +96,15 @@ class Booking(Base):
     )
 
     fawry_ref: Mapped[str | None] = mapped_column(String(100), nullable=True)
+
+    # ── Cancellation / refund metadata ────────────────────────
+    refund_amount: Mapped[float | None] = mapped_column(Float, nullable=True)
+    cancelled_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    cancellation_reason: Mapped[str | None] = mapped_column(
+        String(500), nullable=True
+    )
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()

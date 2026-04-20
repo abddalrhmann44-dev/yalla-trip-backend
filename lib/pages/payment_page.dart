@@ -6,15 +6,20 @@
 // ═══════════════════════════════════════════════════════════════
 
 import 'package:flutter/material.dart';
-import '../main.dart' show appSettings;
-import '../utils/app_strings.dart';
-import '../widgets/constants.dart';
 import 'package:flutter/services.dart';
+import 'package:url_launcher/url_launcher.dart';
+
+import '../main.dart' show appSettings;
+import '../models/payment_model.dart';
 import '../models/property_model_api.dart';
 import '../services/booking_service.dart';
+import '../services/payment_service.dart';
+import '../services/promo_code_service.dart';
 import '../utils/api_client.dart';
+import '../utils/app_strings.dart';
 import '../utils/error_handler.dart';
-import 'home_page.dart';
+import '../widgets/constants.dart';
+import 'payment_status_page.dart';
 
 const _kOcean = Color(0xFF1565C0);
 const _kGreen = Color(0xFF22C55E);
@@ -27,23 +32,15 @@ class _PayMethod {
       this.id, this.name, this.desc, this.logo, this.color, this.bg);
 }
 
-// Payment methods — use S. getters in display, keep Arabic keys for logic
+// Payment methods — card payments only.  Cash / mobile-wallet
+// methods were intentionally removed: bookings confirm instantly via
+// Visa / Mastercard / Meeza so the escrow ledger always opens with
+// cleared funds.
 List<_PayMethod> get _kMethods => [
       _PayMethod('visa', S.visaMaster, S.visaDesc, '💳',
           const Color(0xFF1565C0), const Color(0xFFEEF2FF)),
-      _PayMethod('meeza', S.meeza, S.meezaDesc, '🇪🇬', const Color(0xFF006633),
-          const Color(0xFFE8F5E9)),
-      _PayMethod('fawry', S.fawry, S.fawryDesc, '🟡', const Color(0xFFFF6600),
-          const Color(0xFFFFF3E0)),
-      _PayMethod('vodafone', S.vodafone, S.vodafoneDesc, '🔴',
-          const Color(0xFFE53935), const Color(0xFFFFEBEE)),
-      _PayMethod(
-          'etisalat',
-          S.ar ? 'اتصالات كاش' : 'Etisalat Cash',
-          S.ar ? 'ادفع عبر محفظة اتصالات' : 'Pay via Etisalat wallet',
-          '🟢',
-          const Color(0xFF2E7D32),
-          const Color(0xFFE8F5E9)),
+      _PayMethod('meeza', S.meeza, S.meezaDesc, '🇪🇬',
+          const Color(0xFF006633), const Color(0xFFE8F5E9)),
     ];
 
 // ══════════════════════════════════════════════════════════════
@@ -81,6 +78,13 @@ class _PaymentPageState extends State<PaymentPage> {
   final _cvvCtrl = TextEditingController();
   final _nameCtrl = TextEditingController();
 
+  // Promo-code state
+  final _promoCtrl = TextEditingController();
+  String? _appliedCode;
+  double _discount = 0;
+  bool _validatingPromo = false;
+  String? _promoError;
+
   void _onLangChange() {
     if (mounted) setState(() {});
   }
@@ -92,10 +96,61 @@ class _PaymentPageState extends State<PaymentPage> {
     _expCtrl.dispose();
     _cvvCtrl.dispose();
     _nameCtrl.dispose();
+    _promoCtrl.dispose();
     super.dispose();
   }
 
   PropertyApi get p => widget.property;
+
+  // ── Promo-code actions ──────────────────────────────────────
+  Future<void> _applyPromoCode() async {
+    final input = _promoCtrl.text.trim();
+    if (input.isEmpty) return;
+    setState(() {
+      _validatingPromo = true;
+      _promoError = null;
+    });
+    try {
+      final res = await PromoCodeService.validate(
+        code: input,
+        bookingAmount: widget.totalAmount.toDouble(),
+      );
+      if (!mounted) return;
+      if (!res.valid) {
+        setState(() {
+          _validatingPromo = false;
+          _promoError = res.reasonAr ?? res.reason ?? 'كود غير صالح';
+          _appliedCode = null;
+          _discount = 0;
+        });
+        return;
+      }
+      setState(() {
+        _validatingPromo = false;
+        _appliedCode = res.code;
+        _discount = res.discountAmount;
+        _promoError = null;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _validatingPromo = false;
+        _promoError = 'تعذّر التحقق من الكود';
+      });
+    }
+  }
+
+  void _removePromoCode() {
+    setState(() {
+      _appliedCode = null;
+      _discount = 0;
+      _promoError = null;
+      _promoCtrl.clear();
+    });
+  }
+
+  int get _finalAmount =>
+      (widget.totalAmount - _discount).clamp(0, double.infinity).toInt();
 
   // ─────────────────────────────────────────────────────────────
   @override
@@ -122,6 +177,8 @@ class _PaymentPageState extends State<PaymentPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _orderCard(),
+              const SizedBox(height: 12),
+              _promoCard(),
               const SizedBox(height: 16),
               _escrowBanner(),
               const SizedBox(height: 24),
@@ -131,19 +188,13 @@ class _PaymentPageState extends State<PaymentPage> {
                       fontWeight: FontWeight.w900,
                       color: context.kText)),
               const SizedBox(height: 6),
-              Text('مدفوعاتك مؤمّنة عبر Fawry Pay',
+              Text('مدفوعاتك مؤمّنة بتشفير البنوك الدولي — فيزا وماستر كارد و ميزة فقط',
                   style: TextStyle(fontSize: 12, color: context.kSub)),
               const SizedBox(height: 14),
               ..._kMethods.map(_methodTile),
               if (_sel == 'visa' || _sel == 'meeza') ...[
                 const SizedBox(height: 16),
                 _cardForm(),
-              ],
-              if (_sel == 'fawry' ||
-                  _sel == 'vodafone' ||
-                  _sel == 'etisalat') ...[
-                const SizedBox(height: 16),
-                _walletSteps(),
               ],
               const SizedBox(height: 8),
               _secBadge(),
@@ -293,25 +344,140 @@ class _PaymentPageState extends State<PaymentPage> {
               '${widget.baseAmount} جنيه'),
           if (widget.cleaningFee > 0)
             _row(S.cleaningFee, '${widget.cleaningFee} جنيه'),
+          if (_discount > 0)
+            _row(
+              'كود خصم ($_appliedCode)',
+              '- ${_discount.toStringAsFixed(0)} جنيه',
+              color: _kGreen,
+            ),
           Divider(height: 14, color: context.kBorder),
-          _row(S.totalPrice, '${widget.totalAmount} جنيه', bold: true),
+          _row(S.totalPrice, '$_finalAmount جنيه', bold: true),
         ]),
       );
 
-  Widget _row(String l, String v, {bool bold = false}) => Padding(
+  // ── Promo-code card ───────────────────────────────────────────
+  Widget _promoCard() {
+    if (_appliedCode != null) {
+      return Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: _kGreen.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: _kGreen.withValues(alpha: 0.35)),
+        ),
+        child: Row(children: [
+          const Icon(Icons.local_offer_rounded, color: _kGreen, size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('تم تطبيق الكود $_appliedCode',
+                    style: const TextStyle(
+                        color: _kGreen,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 13)),
+                Text(
+                  'خصم ${_discount.toStringAsFixed(0)} جنيه',
+                  style: TextStyle(color: context.kSub, fontSize: 11),
+                ),
+              ],
+            ),
+          ),
+          TextButton(
+            onPressed: _removePromoCode,
+            child: const Text('إلغاء',
+                style: TextStyle(color: Colors.red, fontSize: 12)),
+          ),
+        ]),
+      );
+    }
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: context.kCard,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: context.kBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            Icon(Icons.local_offer_outlined, color: context.kText, size: 18),
+            const SizedBox(width: 8),
+            Text('عندك كود خصم؟',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                  color: context.kText,
+                )),
+          ]),
+          const SizedBox(height: 10),
+          Row(children: [
+            Expanded(
+              child: TextField(
+                controller: _promoCtrl,
+                textCapitalization: TextCapitalization.characters,
+                decoration: InputDecoration(
+                  hintText: 'أدخل الكود',
+                  isDense: true,
+                  contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 12, vertical: 10),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            SizedBox(
+              height: 40,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _kOcean,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                onPressed: _validatingPromo ? null : _applyPromoCode,
+                child: _validatingPromo
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white,
+                        ),
+                      )
+                    : const Text('تطبيق',
+                        style: TextStyle(fontWeight: FontWeight.w700)),
+              ),
+            ),
+          ]),
+          if (_promoError != null) ...[
+            const SizedBox(height: 6),
+            Text(_promoError!,
+                style: const TextStyle(color: Colors.red, fontSize: 12)),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _row(String l, String v, {bool bold = false, Color? color}) => Padding(
         padding: const EdgeInsets.symmetric(vertical: 3),
         child: Row(children: [
           Expanded(
               child: Text(l,
                   style: TextStyle(
                       fontSize: 13,
-                      color: bold ? context.kText : context.kSub,
+                      color: color ?? (bold ? context.kText : context.kSub),
                       fontWeight: bold ? FontWeight.w900 : FontWeight.w400))),
           Text(v,
               style: TextStyle(
                   fontSize: bold ? 16 : 13,
                   fontWeight: bold ? FontWeight.w900 : FontWeight.w700,
-                  color: bold ? _kOcean : context.kText)),
+                  color: color ?? (bold ? _kOcean : context.kText))),
         ]),
       );
 
@@ -440,101 +606,12 @@ class _PaymentPageState extends State<PaymentPage> {
         ),
       );
 
-  // ── Wallet Steps ──────────────────────────────────────────────
-  Widget _walletSteps() {
-    final info = {
-      'fawry': {
-        'logo': '🟡',
-        'title': 'الدفع عبر فوري Pay',
-        'color': const Color(0xFFFF6600),
-        'bg': const Color(0xFFFFF3E0),
-        'steps': [
-          'افتح تطبيق فوري أو اذهب لأقرب نقطة فوري',
-          'اختر "دفع الفواتير" ← "Talaa"',
-          'أدخل رقم الطلب اللي هيوصلك على هاتفك',
-          'ادفع ${widget.totalAmount} جنيه واحتفظ بالإيصال',
-        ],
-      },
-      'vodafone': {
-        'logo': '🔴',
-        'title': 'الدفع عبر فودافون كاش',
-        'color': const Color(0xFFE53935),
-        'bg': const Color(0xFFFFEBEE),
-        'steps': [
-          'افتح تطبيق فودافون كاش أو اضغط *9#',
-          'اختر "الدفع والسداد"',
-          'ابحث عن "Talaa" في قائمة التجار',
-          'أدخل ${widget.totalAmount} جنيه وأكّد برقمك السري',
-        ],
-      },
-      'etisalat': {
-        'logo': '🟢',
-        'title': 'الدفع عبر اتصالات كاش',
-        'color': const Color(0xFF2E7D32),
-        'bg': const Color(0xFFE8F5E9),
-        'steps': [
-          'افتح تطبيق اتصالات كاش',
-          'اختر "ادفع فاتورة"',
-          'ابحث عن "Talaa"',
-          'أدخل ${widget.totalAmount} جنيه وأكّد',
-        ],
-      },
-    };
-    final d = info[_sel]!;
-    final color = d['color'] as Color;
-    final steps = d['steps'] as List<String>;
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: d['bg'] as Color,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withValues(alpha: 0.3)),
-      ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          Text(d['logo'] as String, style: const TextStyle(fontSize: 20)),
-          const SizedBox(width: 8),
-          Text(d['title'] as String,
-              style: TextStyle(
-                  fontSize: 14, fontWeight: FontWeight.w900, color: color)),
-        ]),
-        const SizedBox(height: 12),
-        ...steps.asMap().entries.map((e) => Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    width: 22,
-                    height: 22,
-                    decoration: BoxDecoration(
-                        color: color.withValues(alpha: 0.15),
-                        shape: BoxShape.circle),
-                    child: Center(
-                        child: Text('${e.key + 1}',
-                            style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w900,
-                                color: color))),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                      child: Text(e.value,
-                          style: TextStyle(
-                              fontSize: 13, color: color, height: 1.4))),
-                ],
-              ),
-            )),
-      ]),
-    );
-  }
-
   Widget _secBadge() => Padding(
         padding: const EdgeInsets.symmetric(vertical: 8),
         child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
           Icon(Icons.lock_rounded, size: 13, color: Colors.grey.shade400),
           const SizedBox(width: 6),
-          Text('مدفوعاتك محمية بتشفير SSL 256-bit عبر Fawry Pay',
+          Text('مدفوعاتك محمية بتشفير SSL 256-bit وفق معايير PCI-DSS',
               style: TextStyle(fontSize: 11, color: Colors.grey.shade400)),
         ]),
       );
@@ -589,16 +666,30 @@ class _PaymentPageState extends State<PaymentPage> {
       );
 
   // ═══════════════════════════════════════
-  //  PAY — Create booking via REST API
+  //  PAY — create booking → initiate payment → open gateway
   // ═══════════════════════════════════════
-  Future<void> _pay() async {
-    if (_sel == null) return;
+  /// Map the UI method id to a backend (provider, method) tuple.
+  ({PayProvider provider, PayMethod method})? _mapSelection() {
+    switch (_sel) {
+      case 'visa':
+      case 'meeza':
+        return (provider: PayProvider.paymob, method: PayMethod.card);
+    }
+    return null;
+  }
 
-    if (_sel == 'visa' || _sel == 'meeza') {
-      if (_numCtrl.text.length < 16 ||
-          _expCtrl.text.length < 5 ||
-          _cvvCtrl.text.length < 3 ||
-          _nameCtrl.text.trim().isEmpty) {
+  Future<void> _pay() async {
+    final mapped = _mapSelection();
+    if (mapped == null) return;
+
+    // Card forms are gateway-hosted now, but we still sanity-check
+    // the local fields if the user filled them in.
+    if (mapped.method == PayMethod.card) {
+      if (_numCtrl.text.isNotEmpty &&
+          (_numCtrl.text.length < 16 ||
+              _expCtrl.text.length < 5 ||
+              _cvvCtrl.text.length < 3 ||
+              _nameCtrl.text.trim().isEmpty)) {
         _snack('يرجى إدخال بيانات البطاقة كاملة', isError: true);
         return;
       }
@@ -606,7 +697,7 @@ class _PaymentPageState extends State<PaymentPage> {
 
     setState(() => _loading = true);
     try {
-      // ── Parse check-in / check-out to DateTime ─────
+      // ── 1. Create the booking (still pending until paid) ─────
       final parts = widget.checkIn.split('/');
       final checkInDt = DateTime(
           int.parse(parts[2]), int.parse(parts[1]), int.parse(parts[0]));
@@ -614,15 +705,45 @@ class _PaymentPageState extends State<PaymentPage> {
       final checkOutDt = DateTime(
           int.parse(coParts[2]), int.parse(coParts[1]), int.parse(coParts[0]));
 
-      await BookingService.createBooking(
+      final booking = await BookingService.createBooking(
         propertyId: p.id,
         checkIn: checkInDt,
         checkOut: checkOutDt,
         guestsCount: widget.guests,
+        promoCode: _appliedCode,
       );
 
-      HapticFeedback.heavyImpact();
-      if (mounted) _showSuccess();
+      // ── 2. Initiate payment with the chosen gateway ──────────
+      final result = await PaymentService.initiate(
+        bookingId: booking.id,
+        provider: mapped.provider,
+        method: mapped.method,
+      );
+
+      // ── 3. Open checkout URL (Paymob iframe / Fawry hosted) ──
+      final url = result.checkoutUrl;
+      if (url != null && url.isNotEmpty) {
+        final uri = Uri.tryParse(url);
+        if (uri != null) {
+          await launchUrl(uri, mode: LaunchMode.externalApplication);
+        }
+      }
+
+      HapticFeedback.mediumImpact();
+
+      // ── 4. Land on the polling / status screen ───────────────
+      if (!mounted) return;
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (_) => PaymentStatusPage(
+            paymentId: result.paymentId,
+            checkoutUrl: result.checkoutUrl,
+            fawryReference:
+                result.extra['reference_number']?.toString() ??
+                    result.providerRef,
+          ),
+        ),
+      );
     } on ApiException catch (e) {
       _snack(ErrorHandler.getMessage(e), isError: true);
     } catch (_) {
@@ -644,86 +765,4 @@ class _PaymentPageState extends State<PaymentPage> {
     ));
   }
 
-  void _showSuccess() {
-    showModalBottomSheet(
-      context: context,
-      isDismissible: false,
-      enableDrag: false,
-      backgroundColor: Colors.transparent,
-      builder: (_) => Container(
-        padding: EdgeInsets.fromLTRB(
-            24, 24, 24, MediaQuery.of(context).padding.bottom + 24),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-        ),
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          TweenAnimationBuilder<double>(
-            tween: Tween(begin: 0.0, end: 1.0),
-            duration: const Duration(milliseconds: 700),
-            curve: Curves.elasticOut,
-            builder: (_, v, __) => Transform.scale(
-              scale: v,
-              child: Container(
-                width: 80,
-                height: 80,
-                decoration:
-                    const BoxDecoration(color: _kGreen, shape: BoxShape.circle),
-                child: const Icon(Icons.check_rounded,
-                    color: Colors.white, size: 44),
-              ),
-            ),
-          ),
-          const SizedBox(height: 20),
-          Text('تم الحجز بنجاح! 🎉',
-              style: TextStyle(
-                  fontSize: 24, fontWeight: FontWeight.w900, color: context.kText)),
-          const SizedBox(height: 8),
-          Text('${p.name}\n${widget.checkIn}  →  ${widget.checkOut}',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 14, color: context.kSub, height: 1.6)),
-          const SizedBox(height: 16),
-
-          // Escrow confirmation
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: _kOcean.withValues(alpha: 0.06),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: _kOcean.withValues(alpha: 0.2)),
-            ),
-            child: const Row(children: [
-              Icon(Icons.verified_user_rounded, color: _kOcean, size: 18),
-              SizedBox(width: 10),
-              Expanded(
-                  child: Text(
-                'فلوسك محجوزة عندنا — هتتأكد بعد ما تدخل العقار بـ 24 ساعة',
-                style: TextStyle(fontSize: 12, color: _kOcean, height: 1.5),
-              )),
-            ]),
-          ),
-          const SizedBox(height: 20),
-          SizedBox(
-            width: double.infinity,
-            height: 52,
-            child: ElevatedButton(
-              onPressed: () => Navigator.of(context).pushAndRemoveUntil(
-                MaterialPageRoute(builder: (_) => const HomePage()),
-                (_) => false,
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: _kOcean,
-                foregroundColor: Colors.white,
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16)),
-              ),
-              child: const Text('رجوع للرئيسية',
-                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w900)),
-            ),
-          ),
-        ]),
-      ),
-    );
-  }
 }

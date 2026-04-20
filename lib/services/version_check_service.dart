@@ -5,6 +5,8 @@ import 'package:http/http.dart' as http;
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../utils/api_config.dart';
+
 class VersionCheckResult {
   final bool requiresUpdate;
   final String storeUrl;
@@ -15,22 +17,35 @@ class VersionCheckResult {
 }
 
 class VersionCheckService {
-  // TODO: replace with your production endpoint.
-  static const String _versionApi =
-      'https://example.com/api/mobile/latest-version';
+  /// Backend endpoint that returns `{ latest_version, store_url_android,
+  /// store_url_ios, min_supported_version }`. Add the route to FastAPI
+  /// whenever you ship a forced-update flow.
+  static String get _versionApi =>
+      '${ApiConfig.baseUrl}/app/latest-version';
 
   static Future<VersionCheckResult> checkForUpdate() async {
     try {
       final packageInfo = await PackageInfo.fromPlatform();
       final current = packageInfo.version;
-      final response = await http.get(Uri.parse(_versionApi));
+      final response = await http
+          .get(Uri.parse(_versionApi))
+          .timeout(const Duration(seconds: 5));
       if (response.statusCode != 200) {
         return const VersionCheckResult(requiresUpdate: false, storeUrl: '');
       }
 
       final data = jsonDecode(response.body) as Map<String, dynamic>;
-      final latest = (data['latestVersion'] ?? '').toString();
-      final storeUrl = (data['storeUrl'] ?? '').toString();
+      // Accept both snake_case (backend convention) and camelCase (legacy)
+      final latest = (data['min_supported_version'] ??
+              data['latestVersion'] ??
+              data['latest_version'] ??
+              '')
+          .toString();
+      final storeUrl = (data['store_url_android'] ??
+              data['storeUrl'] ??
+              data['store_url'] ??
+              '')
+          .toString();
       final requiresUpdate = _isOutdated(current, latest);
 
       return VersionCheckResult(
@@ -38,6 +53,7 @@ class VersionCheckService {
         storeUrl: storeUrl,
       );
     } catch (_) {
+      // Silent fail — never block the app on a dead version endpoint
       return const VersionCheckResult(requiresUpdate: false, storeUrl: '');
     }
   }

@@ -9,7 +9,7 @@ import 'dart:io';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import '../utils/api_client.dart';
+import 'device_service.dart';
 
 // ── Top-level background handler (must be top-level function) ──
 @pragma('vm:entry-point')
@@ -26,6 +26,11 @@ class NotificationService {
   final FirebaseMessaging _fcm = FirebaseMessaging.instance;
   final FlutterLocalNotificationsPlugin _localNotif =
       FlutterLocalNotificationsPlugin();
+
+  /// Global navigator key — wire this into `MaterialApp(navigatorKey: ...)`
+  /// so notification taps can push routes from outside the widget tree.
+  static final GlobalKey<NavigatorState> navigatorKey =
+      GlobalKey<NavigatorState>();
 
   bool _initialized = false;
 
@@ -127,7 +132,11 @@ class NotificationService {
   // ══════════════════════════════════════════════════════════
   //  TOKEN MANAGEMENT
   // ══════════════════════════════════════════════════════════
-  Future<void> saveTokenToFirestore() async {
+
+  /// Fetch the current FCM token from Firebase and hand it to the
+  /// backend.  Call after a successful sign-in so the server knows
+  /// which device to push to.
+  Future<void> registerToken() async {
     try {
       final token = await _fcm.getToken();
       if (token != null) {
@@ -138,12 +147,19 @@ class NotificationService {
     }
   }
 
+  /// Backwards-compat alias kept so older call sites don't break.
+  Future<void> saveTokenToFirestore() => registerToken();
+
+  /// Remove every push target registered by this user – call on
+  /// sign-out so the next user on the same device isn't spammed.
+  Future<void> unregisterAll() => DeviceService.unregisterAll();
+
   Future<void> _saveToken(String token) async {
     try {
-      await ApiClient().put('/users/me/fcm-token', {'fcm_token': token});
-      debugPrint('[FCM] Token saved via API');
+      await DeviceService.register(token);
+      debugPrint('[FCM] Token registered via /devices');
     } catch (e) {
-      debugPrint('[FCM] Error saving token via API: $e');
+      debugPrint('[FCM] Error registering device: $e');
     }
   }
 
@@ -169,19 +185,68 @@ class NotificationService {
   // ══════════════════════════════════════════════════════════
   void _handleNotificationTap(RemoteMessage message) {
     debugPrint('[FCM] Notification tapped: ${message.data}');
-    // Navigate based on notification data if needed
-    // Example: navigate to property details or bookings page
+    _routeFromPayload(message.data);
   }
 
   void _onNotificationTapped(NotificationResponse response) {
     debugPrint('[Local] Notification tapped: ${response.payload}');
-    if (response.payload != null) {
-      try {
-        final data = jsonDecode(response.payload!) as Map<String, dynamic>;
-        debugPrint('[Local] Payload data: $data');
-        // Handle navigation based on payload
-      } catch (_) {}
+    if (response.payload == null) return;
+    try {
+      final data = jsonDecode(response.payload!) as Map<String, dynamic>;
+      _routeFromPayload(data);
+    } catch (e) {
+      debugPrint('[Local] Bad payload: $e');
     }
+  }
+
+  /// Route an FCM/local notification to the appropriate page based on
+  /// its ``type`` field.  Payload keys follow the backend contract in
+  /// ``app/services/notification_service.py`` and ``push_service.py``.
+  void _routeFromPayload(Map<String, dynamic> data) {
+    final nav = navigatorKey.currentState;
+    if (nav == null) {
+      debugPrint('[FCM] Navigator not ready, skipping route');
+      return;
+    }
+    final type = (data['type'] ?? '').toString();
+    debugPrint('[FCM] Routing notification type=$type data=$data');
+
+    switch (type) {
+      case 'booking_created':
+      case 'booking_confirmed':
+      case 'booking_cancelled':
+      case 'booking_completed':
+      case 'payment_received':
+      case 'review_received':
+        nav.pushNamed('/bookings');
+        break;
+
+      case 'property_approved':
+      case 'property_rejected':
+        // Owner-facing – deep-link to the host dashboard.
+        nav.pushNamed('/host');
+        break;
+
+      case 'chat_message':
+      case 'message':
+      case 'chat':
+        final convId = _parseInt(data['conversation_id']);
+        if (convId != null) {
+          nav.pushNamed('/chat', arguments: {'conversationId': convId});
+        } else {
+          nav.pushNamed('/home');
+        }
+        break;
+
+      default:
+        nav.pushNamed('/home');
+    }
+  }
+
+  int? _parseInt(dynamic v) {
+    if (v == null) return null;
+    if (v is int) return v;
+    return int.tryParse(v.toString());
   }
 
   // ══════════════════════════════════════════════════════════

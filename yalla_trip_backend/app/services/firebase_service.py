@@ -29,6 +29,16 @@ def _init_firebase() -> None:
         logger.warning("firebase_init_skipped", reason=str(exc))
 
 
+def ensure_initialized() -> bool:
+    """Try to initialise Firebase and return whether it succeeded.
+
+    Used by the push-notification path – when Firebase isn't
+    configured (dev / CI) we silently no-op instead of raising.
+    """
+    _init_firebase()
+    return _app is not None
+
+
 async def verify_firebase_token(token: str) -> dict | None:
     """Verify a Firebase ID token and return decoded claims.
 

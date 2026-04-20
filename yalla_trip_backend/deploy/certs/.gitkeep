@@ -1,0 +1,2 @@
+# Place fullchain.pem + privkey.pem here before running
+# docker compose -f docker-compose.prod.yml up. See DEPLOYMENT.md §2.

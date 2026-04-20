@@ -1,6 +1,8 @@
 // ═══════════════════════════════════════════════════════════════
 //  TALAA — Admin Main Dashboard  (REST API)
-//  Stats + navigation to Properties / Bookings / Pending
+//  Stats + navigation to Properties / Bookings / Users / Reviews /
+//  Pending. Access is role-gated — only User.role == admin can reach
+//  this page (backend also enforces via require_role).
 // ═══════════════════════════════════════════════════════════════
 
 import 'package:flutter/material.dart';
@@ -11,11 +13,18 @@ import '../../main.dart' show userProvider;
 import '../admin_pending_page.dart';
 import 'admin_properties_page.dart';
 import 'admin_bookings_page.dart';
+import 'admin_users_page.dart';
+import 'admin_stats_page.dart';
+import 'admin_reports_page.dart';
+import 'admin_promo_codes_page.dart';
+import 'admin_payouts_page.dart';
+import 'admin_audit_log_page.dart';
 
 const _kOcean  = Color(0xFF1565C0);
 const _kGreen  = Color(0xFF4CAF50);
 const _kOrange = Color(0xFFFF6D00);
 const _kPurple = Color(0xFF7E57C2);
+const _kRed    = Color(0xFFEF5350);
 
 class AdminMainPage extends StatefulWidget {
   const AdminMainPage({super.key});
@@ -25,11 +34,15 @@ class AdminMainPage extends StatefulWidget {
 
 class _AdminMainPageState extends State<AdminMainPage> {
   bool _loading = true;
+  String? _error;
+
   int _propertiesCount = 0;
   int _bookingsCount = 0;
   int _usersCount = 0;
   int _pendingCount = 0;
+  int _pendingBookings = 0;
   double _revenue = 0;
+  double _platformFees = 0;
 
   @override
   void initState() {
@@ -38,16 +51,22 @@ class _AdminMainPageState extends State<AdminMainPage> {
   }
 
   Future<void> _loadStats() async {
-    setState(() => _loading = true);
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
     try {
       final stats = await AdminService.getStats();
       _propertiesCount = stats['total_properties'] ?? 0;
       _bookingsCount = stats['total_bookings'] ?? 0;
       _usersCount = stats['total_users'] ?? 0;
       _pendingCount = stats['pending_properties'] ?? 0;
+      _pendingBookings = stats['pending_bookings'] ?? 0;
       _revenue = (stats['total_revenue'] ?? 0).toDouble();
+      _platformFees = (stats['total_platform_fees'] ?? 0).toDouble();
     } catch (e) {
       debugPrint('Admin stats error: $e');
+      _error = e.toString();
     }
     if (mounted) setState(() => _loading = false);
   }
@@ -122,6 +141,38 @@ class _AdminMainPageState extends State<AdminMainPage> {
                 : Padding(
                     padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
                     child: Column(children: [
+                      if (_error != null)
+                        Container(
+                          margin: const EdgeInsets.only(bottom: 12),
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: _kRed.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: _kRed.withValues(alpha: 0.3)),
+                          ),
+                          child: Row(children: [
+                            const Icon(Icons.error_outline_rounded,
+                                color: _kRed, size: 18),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'فشل تحميل الإحصائيات',
+                                style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                    color: _kRed),
+                              ),
+                            ),
+                            TextButton(
+                              onPressed: _loadStats,
+                              child: const Text('إعادة المحاولة',
+                                  style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                      color: _kRed)),
+                            ),
+                          ]),
+                        ),
                       Row(children: [
                         _statCard('العقارات', '$_propertiesCount',
                             Icons.apartment_rounded, _kOcean),
@@ -139,6 +190,20 @@ class _AdminMainPageState extends State<AdminMainPage> {
                             '${_revenue.toStringAsFixed(0)} ج.م',
                             Icons.payments_rounded,
                             _kOrange),
+                      ]),
+                      const SizedBox(height: 12),
+                      Row(children: [
+                        _statCard(
+                            'عمولة المنصة',
+                            '${_platformFees.toStringAsFixed(0)} ج.م',
+                            Icons.account_balance_wallet_rounded,
+                            _kGreen),
+                        const SizedBox(width: 12),
+                        _statCard(
+                            'حجوزات معلقة',
+                            '$_pendingBookings',
+                            Icons.schedule_rounded,
+                            _kRed),
                       ]),
                     ]),
                   ),
@@ -234,14 +299,82 @@ class _AdminMainPageState extends State<AdminMainPage> {
                 ),
                 const SizedBox(height: 10),
                 _navTile(
+                  icon: Icons.people_alt_rounded,
+                  title: 'إدارة المستخدمين',
+                  subtitle: 'تغيير الصلاحيات، التفعيل، التوثيق',
+                  color: _kPurple,
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const AdminUsersPage())),
+                ),
+                const SizedBox(height: 10),
+                _navTile(
                   icon: Icons.pending_actions_rounded,
                   title: 'العقارات المعلقة',
-                  subtitle: 'موافقة أو رفض العقارات الجديدة',
+                  subtitle: _pendingCount > 0
+                      ? '$_pendingCount عقار في انتظار الموافقة'
+                      : 'موافقة أو رفض العقارات الجديدة',
                   color: _kOrange,
                   onTap: () => Navigator.push(
                       context,
                       MaterialPageRoute(
                           builder: (_) => const AdminPendingPage())),
+                ),
+                const SizedBox(height: 10),
+                _navTile(
+                  icon: Icons.report_rounded,
+                  title: 'البلاغات والنزاعات',
+                  subtitle: 'حل شكاوى المستخدمين',
+                  color: _kRed,
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const AdminReportsPage())),
+                ),
+                const SizedBox(height: 10),
+                _navTile(
+                  icon: Icons.local_offer_rounded,
+                  title: 'أكواد الخصم',
+                  subtitle: 'إنشاء وإدارة أكواد البروموشن',
+                  color: _kGreen,
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const AdminPromoCodesPage())),
+                ),
+                const SizedBox(height: 10),
+                _navTile(
+                  icon: Icons.account_balance_wallet_rounded,
+                  title: 'دفعات المضيفين',
+                  subtitle: 'تجميع + دفع مستحقات الملاك',
+                  color: _kOrange,
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const AdminPayoutsPage())),
+                ),
+                const SizedBox(height: 10),
+                _navTile(
+                  icon: Icons.history_rounded,
+                  title: 'سجل الإجراءات',
+                  subtitle: 'من فعل ماذا ومتى — forensic audit log',
+                  color: _kRed,
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const AdminAuditLogPage())),
+                ),
+                const SizedBox(height: 10),
+                _navTile(
+                  icon: Icons.analytics_rounded,
+                  title: 'الإحصائيات التفصيلية',
+                  subtitle: 'إيرادات، عمولات، نسب نمو',
+                  color: _kPurple,
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const AdminStatsPage())),
                 ),
               ]),
             ),

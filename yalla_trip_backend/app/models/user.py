@@ -39,6 +39,24 @@ class User(Base):
     is_verified: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
 
+    # ── Phone OTP (Wave 23) ───────────────────────────────────
+    # ``phone_verified`` flips True once the user has confirmed the
+    # 6-digit SMS code for the current value of ``phone``.  Changing
+    # ``phone`` must reset this back to False.
+    phone_verified: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default="false"
+    )
+    phone_verified_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
+    # Unique referral code (e.g. "ALI8F2Q") – generated on first use by
+    # the wallet service.  Null until the user opens the referrals
+    # screen so existing rows migrate cleanly.
+    referral_code: Mapped[str | None] = mapped_column(
+        String(16), unique=True, index=True, nullable=True,
+    )
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
@@ -56,6 +74,10 @@ class User(Base):
     )
     reviews = relationship("Review", back_populates="reviewer", lazy="selectin")
     notifications = relationship("Notification", back_populates="user", lazy="selectin")
+    devices = relationship(
+        "DeviceToken", back_populates="user", lazy="selectin",
+        cascade="all, delete-orphan",
+    )
 
     def __repr__(self) -> str:
         return f"<User id={self.id} name={self.name!r} role={self.role.value}>"

@@ -79,6 +79,7 @@ class BookingModel {
   final double totalPrice;
   final double platformFee;
   final double ownerPayout;
+  final double promoDiscount;
   final String status;
   final String paymentStatus;
   final String? fawryRef;
@@ -104,6 +105,7 @@ class BookingModel {
     required this.totalPrice,
     required this.platformFee,
     required this.ownerPayout,
+    this.promoDiscount = 0,
     this.status = 'pending',
     this.paymentStatus = 'pending',
     this.fawryRef,
@@ -137,6 +139,7 @@ class BookingModel {
       totalPrice: (j['total_price'] ?? 0).toDouble(),
       platformFee: (j['platform_fee'] ?? 0).toDouble(),
       ownerPayout: (j['owner_payout'] ?? 0).toDouble(),
+      promoDiscount: (j['promo_discount'] ?? 0).toDouble(),
       status: j['status'] ?? 'pending',
       paymentStatus: j['payment_status'] ?? 'pending',
       fawryRef: j['fawry_ref'],

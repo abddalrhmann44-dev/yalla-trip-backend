@@ -11,15 +11,20 @@ import '../services/user_role_service.dart';
 import '../services/user_service.dart';
 import '../services/property_service.dart';
 import '../services/booking_service.dart';
+import '../services/notification_service.dart';
 import '../widgets/constants.dart';
+import '../widgets/wallet_lottie.dart';
 import 'owner_add_property_page.dart';
 import 'owner_payouts_page.dart';
 import 'bookings_page.dart';
 import 'host_dashboard_page.dart';
 import 'login_page.dart';
-import '../main.dart' show appSettings, userProvider;
+import 'wallet_page.dart';
+import '../main.dart' show appSettings, userProvider, favoritesProvider;
 import '../utils/app_strings.dart';
+import '../widgets/verified_badge.dart';
 import 'terms_page.dart';
+import 'phone_verification_page.dart';
 
 // Accent colors (same in light & dark)
 const _kOcean  = Color(0xFF1565C0);
@@ -189,12 +194,14 @@ class _ProfilePageState extends State<ProfilePage> {
         physics: const BouncingScrollPhysics(),
         slivers: [
           SliverToBoxAdapter(child: _buildHeader()),
+          SliverToBoxAdapter(child: _buildBookingsTile()),
           if (_isOwner) ...[
             SliverToBoxAdapter(child: _buildOwnerBanner()),
             SliverToBoxAdapter(child: _buildOwnerSection()),
           ] else ...[
             SliverToBoxAdapter(child: _buildBeOwnerCard()),
           ],
+          SliverToBoxAdapter(child: _buildWalletTile()),
           SliverToBoxAdapter(child: _buildSettings()),
           SliverToBoxAdapter(child: _buildDangerZone()),
           const SliverToBoxAdapter(child: SizedBox(height: 110)),
@@ -271,9 +278,11 @@ class _ProfilePageState extends State<ProfilePage> {
                 child: GestureDetector(
                   onTap: _showProfileSheet,
                   child: Row(children: [
-                    Expanded(
+                    Flexible(
                       child: Text(
                         _name.isNotEmpty ? _name : S.noData,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           fontSize: 26,
                           fontWeight: FontWeight.w900,
@@ -282,6 +291,11 @@ class _ProfilePageState extends State<ProfilePage> {
                         ),
                       ),
                     ),
+                    if (userProvider.isVerified) ...[
+                      const SizedBox(width: 6),
+                      const VerifiedBadge(size: 22),
+                    ],
+                    const Spacer(),
                     Container(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 10, vertical: 5),
@@ -648,6 +662,35 @@ class _ProfilePageState extends State<ProfilePage> {
           ),
           _menuDivider(),
           _menuItem(
+            icon: userProvider.phoneVerified
+                ? Icons.verified_rounded
+                : Icons.phonelink_lock_rounded,
+            title: userProvider.phoneVerified
+                ? 'رقم الموبايل موثّق'
+                : 'توثيق رقم الموبايل',
+            subtitle: userProvider.phoneVerified
+                ? 'رقمك ظاهر للضيوف بعد تأكيد الحجز فقط'
+                : 'مطلوب قبل نشر شاليه أو مركب',
+            color: userProvider.phoneVerified ? _kGreen : _kOrange,
+            onTap: () async {
+              final ok = await Navigator.push<bool>(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => PhoneVerificationPage(
+                    initialPhone: userProvider.phone.isNotEmpty
+                        ? userProvider.phone
+                        : null,
+                  ),
+                ),
+              );
+              if (ok == true && mounted) {
+                await userProvider.loadProfile(force: true);
+                if (mounted) setState(() {});
+              }
+            },
+          ),
+          _menuDivider(),
+          _menuItem(
             icon: Icons.add_home_rounded,
             title: S.addProperty,
             subtitle: S.addPropertySub,
@@ -742,6 +785,118 @@ class _ProfilePageState extends State<ProfilePage> {
           Icon(Icons.arrow_forward_ios_rounded,
               size: 14, color: context.kSub),
         ]),
+      ),
+    );
+  }
+
+  // ── Bookings entry tile (orange) ───────────────────────────
+  //
+  // The bookings bottom-nav tab was removed (replaced with "Best
+  // Trip"), so this tile is the single path to the user's booking
+  // history — shown to guests and owners alike.
+  Widget _buildBookingsTile() {
+    const kOrange = Color(0xFFFF6D00);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: () => Navigator.push(context,
+            MaterialPageRoute(builder: (_) => const BookingsPage())),
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFFFF8A3D), kOrange],
+              begin: Alignment.topRight,
+              end: Alignment.bottomLeft,
+            ),
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: kOrange.withValues(alpha: 0.32),
+                blurRadius: 14,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Row(children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.22),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(Icons.calendar_month_rounded,
+                  color: Colors.white, size: 26),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('حجوزاتي',
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w900)),
+                  SizedBox(height: 3),
+                  Text('كل الرحلات القادمة والماضية',
+                      style:
+                          TextStyle(color: Colors.white70, fontSize: 11)),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_left_rounded, color: Colors.white),
+          ]),
+        ),
+      ),
+    );
+  }
+
+  // ── Wallet entry tile ─────────────────────────────────────
+  Widget _buildWalletTile() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: () => Navigator.push(context,
+            MaterialPageRoute(builder: (_) => const WalletPage())),
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFFE5E7EB)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.06),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Row(children: [
+            const WalletLottie.static_(size: 48),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('محفظتي ورصيد الدعوات',
+                      style: TextStyle(
+                          color: context.kText,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w900)),
+                  const SizedBox(height: 3),
+                  Text('ادعُ الأصدقاء واكسب 100 ج.م لكل حجز',
+                      style: TextStyle(
+                          color: context.kSub, fontSize: 11)),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_left_rounded, color: context.kSub),
+          ]),
+        ),
       ),
     );
   }
@@ -852,6 +1007,19 @@ class _ProfilePageState extends State<ProfilePage> {
             ),
           ]),
         ),
+
+        // ── Admin Panel (visible only for admin role) ─────────
+        if (userProvider.isAdmin) ...[
+          const SizedBox(height: 20),
+          _sectionTitle('لوحة التحكم'),
+          const SizedBox(height: 10),
+          _navTile(
+            Icons.admin_panel_settings_rounded,
+            'الدخول للوحة الإدارة',
+            _kRed,
+            onTap: () => Navigator.pushNamed(context, '/admin'),
+          ),
+        ],
 
         const SizedBox(height: 20),
         _sectionTitle(S.support),
@@ -1016,8 +1184,13 @@ class _ProfilePageState extends State<ProfilePage> {
                 ElevatedButton(
                   onPressed: () async {
                     Navigator.pop(context);
+                    // Unregister this device from the push list *before*
+                    // we clear the auth token – otherwise the DELETE
+                    // request has no credentials.
+                    await NotificationService.instance.unregisterAll();
                     UserRoleService.instance.clearCache();
                     userProvider.clear();
+                    favoritesProvider.clear();
                     // ── مسح Google credential عشان متدخلش تلقائي ──
                     try {
                       final googleSignIn = GoogleSignIn();

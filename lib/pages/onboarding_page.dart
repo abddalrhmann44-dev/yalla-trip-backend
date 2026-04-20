@@ -4,7 +4,10 @@
 // ═══════════════════════════════════════════════════════════════
 
 import 'package:flutter/material.dart';
-import 'home_page.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'welcome_page.dart';
+
+const String kOnboardingSeenKey = 'onboarding_seen_v1';
 
 class OnboardingPage extends StatefulWidget {
   const OnboardingPage({super.key});
@@ -80,9 +83,14 @@ class _OnboardingPageState extends State<OnboardingPage>
   }
 
   Future<void> _goToApp() async {
+    // Persist that the user has seen the onboarding so it doesn't show again.
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(kOnboardingSeenKey, true);
+    } catch (_) {/* best-effort */}
     if (!mounted) return;
     Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const HomePage()),
+      MaterialPageRoute(builder: (_) => const WelcomePage()),
       (_) => false,
     );
   }

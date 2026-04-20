@@ -5,6 +5,7 @@ from __future__ import annotations
 from functools import lru_cache
 from typing import List
 
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -13,6 +14,7 @@ class Settings(BaseSettings):
         env_file=".env",
         env_file_encoding="utf-8",
         case_sensitive=False,
+        extra="ignore",
     )
 
     # ── App ───────────────────────────────────────────────────
@@ -22,8 +24,14 @@ class Settings(BaseSettings):
     ALLOWED_ORIGINS: List[str] = ["*"]
 
     # ── Database ──────────────────────────────────────────────
+    # ``DATABASE_URL`` may arrive in any of the common shapes:
+    #   * ``postgres://…``                 – legacy Heroku/Railway
+    #   * ``postgresql://…``               – modern, psycopg/psycopg2
+    #   * ``postgresql+asyncpg://…``       – fully qualified async driver
+    # ``_normalize_db_urls`` below upgrades it to the async form used
+    # by the FastAPI engine and derives the sync form for Alembic.
     DATABASE_URL: str = "postgresql+asyncpg://yalla:yalla_secret@localhost:5432/yalla_trip"
-    DATABASE_URL_SYNC: str = "postgresql://yalla:yalla_secret@localhost:5432/yalla_trip"
+    DATABASE_URL_SYNC: str = ""
 
     # ── Redis ─────────────────────────────────────────────────
     REDIS_URL: str = "redis://localhost:6379/0"
@@ -42,8 +50,23 @@ class Settings(BaseSettings):
     FAWRY_SECRET_KEY: str = ""
     FAWRY_BASE_URL: str = "https://atfawry.fawrystaging.com"
 
+    # ── Paymob ────────────────────────────────────────────────
+    PAYMOB_API_KEY: str = ""
+    PAYMOB_HMAC_SECRET: str = ""
+    PAYMOB_IFRAME_ID: str = ""
+    PAYMOB_INTEGRATION_CARD: str = ""
+    PAYMOB_INTEGRATION_WALLET: str = ""
+
     # ── FCM ───────────────────────────────────────────────────
     FCM_SERVER_KEY: str = ""
+
+    # ── Sentry ────────────────────────────────────────────────
+    # Leave empty to disable. When set, unhandled exceptions and
+    # structured log errors are forwarded to the configured project.
+    SENTRY_DSN: str = ""
+    # 0.0 disables performance tracing. 0.1 = 10% sample.
+    SENTRY_TRACES_SAMPLE_RATE: float = 0.0
+    SENTRY_RELEASE: str = ""
 
     # ── JWT ───────────────────────────────────────────────────
     JWT_ALGORITHM: str = "HS256"
@@ -55,6 +78,82 @@ class Settings(BaseSettings):
 
     # ── Platform ──────────────────────────────────────────────
     PLATFORM_FEE_PERCENT: float = 8.0
+    # Days between booking check-out and payout eligibility.  Gives
+    # the guest a window to dispute before money leaves the platform.
+    PAYOUT_HOLD_DAYS: int = 1
+
+    # ── Referrals / Wallet ────────────────────────────────────
+    # Fixed EGP credit dropped into the referrer's wallet once the
+    # invitee completes their first paid booking.  Set to 0 to
+    # disable the programme entirely.
+    REFERRAL_REWARD_AMOUNT: float = 100.0
+    # Maximum number of referral rewards a single user can earn in
+    # total.  After hitting this cap, further invitees still sign up and
+    # their pending Referral rows transition to ``rewarded`` status, but
+    # no wallet credit is paid.  Set to 0 to disable the cap.
+    REFERRAL_REWARD_MAX_COUNT: int = 3
+    # Optional newcomer bonus credited on signup (pre-any-booking).
+    SIGNUP_BONUS_AMOUNT: float = 0.0
+    # Percentage of a booking's subtotal that may be paid from wallet
+    # credit.  Capped so fees + payouts cover the checkout cost.
+    WALLET_MAX_REDEEM_PERCENT: float = 50.0
+    # Public base URL used to build shareable referral links
+    # (e.g. https://yalla-trip.com/signup?ref=ABC123).
+    PUBLIC_APP_URL: str = "https://talaa.app"
+
+    # ── Deep links / SEO (Wave 20) ────────────────────────────
+    # Android app package (for assetlinks.json) and iOS App Store id
+    # (for apple-app-site-association / Smart App Banner meta).  Leave
+    # empty to omit the corresponding tags.
+    ANDROID_PACKAGE_NAME: str = "com.talaa.app"
+    ANDROID_SHA256_FINGERPRINTS: str = ""  # comma-separated hex SHA-256
+    IOS_APP_ID: str = ""       # numeric App Store id, e.g. "1234567890"
+    IOS_TEAM_ID: str = ""      # e.g. "ABCDE12345"
+    IOS_BUNDLE_ID: str = "com.talaa.app"
+
+    # ── Admin bootstrap ───────────────────────────────────────
+    # Comma-separated list of emails that become admin on first login
+    # and are auto-promoted on subsequent logins. Works with ANY Firebase
+    # auth provider (Google Sign-In, email/password, phone-linked email).
+    #
+    # The defaults below are the Talaa founding team — override in .env
+    # for different deployments. Case-insensitive.
+    ADMIN_EMAILS: str = "qaran12121@gmail.com,abdalrhamnmohamed4@gmail.com"
+
+    @property
+    def admin_emails_set(self) -> set[str]:
+        return {
+            e.strip().lower()
+            for e in self.ADMIN_EMAILS.split(",")
+            if e.strip()
+        }
+
+    # ── Database URL normalisation ────────────────────────────
+    # Runs after the BaseSettings has loaded env vars / defaults.
+    # Handles the three real-world shapes of ``DATABASE_URL`` so
+    # dropping into Railway / Heroku / local-Docker all "just works".
+    @model_validator(mode="after")
+    def _normalize_db_urls(self) -> "Settings":
+        url = self.DATABASE_URL or ""
+
+        # 1) Legacy ``postgres://`` → canonical ``postgresql://``.
+        #    SQLAlchemy 2 rejects the old scheme outright.
+        if url.startswith("postgres://"):
+            url = "postgresql://" + url[len("postgres://"):]
+
+        # 2) Inject the asyncpg driver for the FastAPI engine if the
+        #    URL arrived in plain ``postgresql://`` form.
+        if url.startswith("postgresql://") and "+asyncpg" not in url:
+            url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
+
+        self.DATABASE_URL = url
+
+        # 3) Alembic / psycopg2 want the plain scheme — auto-derive
+        #    from the async URL whenever the operator hasn't set it.
+        if not self.DATABASE_URL_SYNC:
+            self.DATABASE_URL_SYNC = url.replace("+asyncpg", "", 1)
+
+        return self
 
 
 @lru_cache

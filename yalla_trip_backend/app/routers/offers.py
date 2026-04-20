@@ -15,7 +15,6 @@ from app.models.property import Property
 from app.models.user import User
 from app.schemas.common import MessageResponse
 from app.schemas.offer import OfferCreate, OfferOut
-from app.schemas.property import PropertyOut
 
 logger = structlog.get_logger(__name__)
 router = APIRouter(prefix="/offers", tags=["Offers"])

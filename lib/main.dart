@@ -14,20 +14,21 @@ import 'pages/home_page.dart';
 import 'pages/owner_add_property_page.dart';
 import 'pages/onboarding_page.dart';
 import 'pages/chat_page.dart';
+import 'pages/chat_inbox_page.dart';
 import 'pages/explore_page.dart';
 import 'pages/bookings_page.dart';
+import 'pages/host_dashboard_page.dart';
 import 'pages/profile_page.dart';
 import 'widgets/constants.dart';
 import 'utils/app_strings.dart';
 import 'services/connectivity_guard.dart';
 import 'services/version_check_service.dart';
 import 'services/notification_service.dart';
-import 'pages/admin_pending_page.dart';
+import 'services/sentry_service.dart';
+import 'pages/admin/admin_main_page.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'features/booking/presentation/pages/owner_verify_booking_page.dart';
-import 'features/booking/presentation/pages/owner_earnings_dashboard.dart';
-import 'features/booking/presentation/pages/admin_dashboard_page.dart';
 import 'providers/user_provider.dart';
+import 'providers/favorites_provider.dart';
 import 'pages/terms_acceptance_page.dart';
 import 'pages/splash_screen.dart';
 
@@ -73,6 +74,7 @@ class AppSettings extends ChangeNotifier {
 
 final appSettings = AppSettings();
 final userProvider = UserProvider();
+final favoritesProvider = FavoritesProvider();
 
 void main() async {
   final widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
@@ -99,7 +101,12 @@ void main() async {
   // Initialize FCM & local notifications
   await NotificationService.instance.initialize();
 
-  runApp(const ProviderScope(child: TalaaApp()));
+  // Wrap runApp in the Sentry zone so uncaught errors are reported.
+  // When SENTRY_DSN isn't defined the helper transparently calls the
+  // runner directly, keeping dev/tests identical to before.
+  await SentryService.bootstrap(() async {
+    runApp(const ProviderScope(child: TalaaApp()));
+  });
 }
 
 class TalaaApp extends StatefulWidget {
@@ -128,6 +135,7 @@ class _TalaaAppState extends State<TalaaApp> {
 
     return MaterialApp(
       title: S.appName,
+      navigatorKey: NotificationService.navigatorKey,
       debugShowCheckedModeBanner: false,
       themeMode: isDark ? ThemeMode.dark : ThemeMode.light,
       theme: _buildTheme(Brightness.light),
@@ -162,23 +170,25 @@ class _TalaaAppState extends State<TalaaApp> {
         '/owner': (_) => const OwnerAddPropertyPage(),
         '/explore': (_) => const ExplorePage(),
         '/bookings': (_) => const BookingsPage(),
+        '/host': (_) => const HostDashboardPage(),
         '/profile': (_) => const ProfilePage(),
-        '/admin': (_) => const AdminPendingPage(),
-        '/owner-verify': (_) => const OwnerVerifyBookingPage(),
-        '/owner-earnings': (_) => const OwnerEarningsDashboard(),
-        '/admin-dashboard': (_) => const AdminDashboardPage(),
+        '/admin': (_) => const AdminMainPage(),
         '/splash': (_) => const SplashScreen(),
       },
       onGenerateRoute: (settings) {
         switch (settings.name) {
           case '/chat':
             final args = settings.arguments as Map<String, dynamic>? ?? {};
+            final convId = args['conversationId'] as int?;
+            final propId = args['propertyId'] as int?;
+            if (convId == null && propId == null) {
+              return MaterialPageRoute(
+                  builder: (_) => const ChatInboxPage());
+            }
             return MaterialPageRoute(
               builder: (_) => ChatPage(
-                ownerName: args['ownerName'] ?? 'المالك',
-                propertyName: args['propertyName'] ?? 'العقار',
-                propertyEmoji: args['propertyEmoji'] ?? '🏡',
-                currentPrice: args['currentPrice'] ?? '850',
+                conversationId: convId,
+                propertyId: propId,
               ),
             );
           case '/payment':
@@ -292,6 +302,7 @@ class _AuthGateState extends State<_AuthGate>
   bool _showSplash = true;
   bool _checkedVersion = false;
   bool _profileLoaded = false;
+  bool? _onboardingSeen;
 
   late AnimationController _controller;
   late Animation<double> _logoScale;
@@ -332,6 +343,19 @@ class _AuthGateState extends State<_AuthGate>
     _controller.forward().then((_) {
       if (mounted) setState(() => _showSplash = false);
     });
+
+    _loadOnboardingFlag();
+  }
+
+  Future<void> _loadOnboardingFlag() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final seen = prefs.getBool(kOnboardingSeenKey) ?? false;
+      if (!mounted) return;
+      setState(() => _onboardingSeen = seen);
+    } catch (_) {
+      if (mounted) setState(() => _onboardingSeen = true);
+    }
   }
 
   @override
@@ -438,6 +462,7 @@ class _AuthGateState extends State<_AuthGate>
           WidgetsBinding.instance.addPostFrameCallback((_) {
             NotificationService.instance.saveTokenToFirestore();
             userProvider.loadProfile();
+            favoritesProvider.loadIds();
           });
         }
         // Reset flag when user signs out
@@ -445,9 +470,24 @@ class _AuthGateState extends State<_AuthGate>
           _profileLoaded = false;
         }
 
-        return snapshot.hasData && snapshot.data != null
-            ? const _TermsOrHome()
-            : const WelcomePage();
+        if (snapshot.hasData && snapshot.data != null) {
+          return const _TermsOrHome();
+        }
+        // Not logged in — onboarding first (if not seen yet).
+        if (_onboardingSeen == null) {
+          return const Scaffold(
+            backgroundColor: Colors.transparent,
+            body: Center(
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: AppColors.primary,
+              ),
+            ),
+          );
+        }
+        return _onboardingSeen!
+            ? const WelcomePage()
+            : const OnboardingPage();
       },
     );
   }

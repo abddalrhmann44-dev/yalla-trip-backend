@@ -8,12 +8,16 @@ import 'package:flutter/services.dart';
 import 'package:lottie/lottie.dart';
 import '../widgets/constants.dart';
 import 'owner_add_property_page.dart';
+import 'owner_analytics_page.dart';
 import 'owner_dashboard_page.dart';
 import 'bookings_page.dart';
+import 'host_payouts_page.dart';
 
 const _kOcean  = Color(0xFF1565C0);
 const _kGreen  = Color(0xFF22C55E);
 const _kOrange = Color(0xFFFF6D00);
+const _kPurple = Color(0xFF7C3AED);
+const _kTeal   = Color(0xFF0891B2);
 
 class HostDashboardPage extends StatelessWidget {
   const HostDashboardPage({super.key});
@@ -117,6 +121,36 @@ class HostDashboardPage extends StatelessWidget {
                   context,
                   MaterialPageRoute(
                       builder: (_) => const BookingsPage()),
+                );
+              },
+            ),
+            const SizedBox(height: 14),
+            _ActionButton(
+              icon: Icons.insights_rounded,
+              label: 'التحليلات',
+              subtitle: 'الأرباح، الإشغال، وأفضل عقاراتك',
+              color: _kPurple,
+              onTap: () {
+                HapticFeedback.lightImpact();
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => const OwnerAnalyticsPage()),
+                );
+              },
+            ),
+            const SizedBox(height: 14),
+            _ActionButton(
+              icon: Icons.account_balance_wallet_rounded,
+              label: 'أرباحي والتحويلات',
+              subtitle: 'الرصيد المستحق، الحسابات البنكية، سجل السحب',
+              color: _kTeal,
+              onTap: () {
+                HapticFeedback.lightImpact();
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => const HostPayoutsPage()),
                 );
               },
             ),

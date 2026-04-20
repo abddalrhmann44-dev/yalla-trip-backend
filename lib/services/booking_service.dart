@@ -4,23 +4,29 @@
 // ═══════════════════════════════════════════════════════════════
 
 import '../models/booking_model.dart';
+import '../models/refund_quote.dart';
 import '../utils/api_client.dart';
 
 class BookingService {
   static final _api = ApiClient();
 
   // ── Create a new booking ──────────────────────────────────
+  /// [promoCode] is optional; when provided the backend validates it
+  /// and either returns the discounted booking or rejects it with 400.
   static Future<BookingModel> createBooking({
     required int propertyId,
     required DateTime checkIn,
     required DateTime checkOut,
     required int guestsCount,
+    String? promoCode,
   }) async {
     final data = await _api.post('/bookings', {
       'property_id': propertyId,
       'check_in': checkIn.toIso8601String().split('T')[0],
       'check_out': checkOut.toIso8601String().split('T')[0],
       'guests_count': guestsCount,
+      if (promoCode != null && promoCode.trim().isNotEmpty)
+        'promo_code': promoCode.trim(),
     });
     return BookingModel.fromJson(data as Map<String, dynamic>);
   }
@@ -61,9 +67,17 @@ class BookingService {
     return BookingModel.fromJson(data as Map<String, dynamic>);
   }
 
+  // ── Cancel-preview: how much will the guest get back? ─────
+  static Future<RefundQuote> cancelPreview(int id) async {
+    final data = await _api.get('/bookings/$id/cancel/preview');
+    return RefundQuote.fromJson(data as Map<String, dynamic>);
+  }
+
   // ── Cancel booking ────────────────────────────────────────
-  static Future<BookingModel> cancelBooking(int id) async {
-    final data = await _api.put('/bookings/$id/cancel', {});
+  static Future<BookingModel> cancelBooking(int id, {String? reason}) async {
+    final data = await _api.put('/bookings/$id/cancel', {
+      if (reason != null && reason.trim().isNotEmpty) 'reason': reason.trim(),
+    });
     return BookingModel.fromJson(data as Map<String, dynamic>);
   }
 

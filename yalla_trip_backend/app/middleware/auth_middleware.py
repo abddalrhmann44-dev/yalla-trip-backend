@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import secrets
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
@@ -32,13 +33,37 @@ def create_access_token(user_id: int, role: str) -> str:
     )
 
 
-def create_refresh_token(user_id: int) -> str:
-    expire = datetime.now(timezone.utc) + timedelta(days=settings.JWT_REFRESH_EXPIRE_DAYS)
-    return jwt.encode(
-        {"sub": str(user_id), "type": "refresh", "exp": expire},
+def create_refresh_token(
+    user_id: int,
+    *,
+    jti: str | None = None,
+    family_id: str | None = None,
+) -> tuple[str, str, str, datetime]:
+    """Issue a refresh token with a tracked ``jti`` and ``family_id``.
+
+    Returns a tuple ``(token, jti, family_id, expires_at)`` so the
+    caller can persist the row for rotation-tracking.  ``family_id``
+    propagates across the chain of rotations; pass it through from
+    the previous token, or leave ``None`` to start a new family (i.e.
+    a brand-new login session).
+    """
+    jti = jti or secrets.token_urlsafe(32)
+    family_id = family_id or secrets.token_urlsafe(32)
+    expire = datetime.now(timezone.utc) + timedelta(
+        days=settings.JWT_REFRESH_EXPIRE_DAYS
+    )
+    token = jwt.encode(
+        {
+            "sub": str(user_id),
+            "type": "refresh",
+            "jti": jti,
+            "fam": family_id,
+            "exp": expire,
+        },
         settings.SECRET_KEY,
         algorithm=settings.JWT_ALGORITHM,
     )
+    return token, jti, family_id, expire
 
 
 def decode_token(token: str) -> dict | None:
@@ -84,6 +109,13 @@ async def get_current_active_user(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="الحساب معطل / Account disabled",
         )
+    # Tag the Sentry scope with the authenticated user so exceptions
+    # captured later in the request can be attributed to them.
+    try:
+        from app.services.sentry_service import set_user_tag
+        set_user_tag(user.id, user.role.value if user.role else None)
+    except Exception:
+        pass
     return user
 
 

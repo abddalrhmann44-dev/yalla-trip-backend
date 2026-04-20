@@ -5,23 +5,36 @@ from __future__ import annotations
 import math
 import secrets
 import string
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import and_, func, select
+from pydantic import BaseModel
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
 from app.database import get_db
 from app.middleware.auth_middleware import get_current_active_user, require_role
 from app.models.booking import Booking, BookingStatus, DepositStatus, PaymentStatus
+from app.models.availability_rule import AvailabilityRule, RuleType
+from app.models.calendar import CalendarBlock
 from app.models.notification import NotificationType
+from app.models.payment import Payment, PaymentState
 from app.models.property import Category, Property
 from app.models.user import User, UserRole
-from app.schemas.booking import BookingCreate, BookingOut
-from app.schemas.common import MessageResponse, PaginatedResponse
+from app.schemas.booking import (
+    BookingCancelRequest,
+    BookingCreate,
+    BookingOut,
+    RefundQuoteOut,
+)
+from app.schemas.common import PaginatedResponse
+from app.services.cancellation import quote_refund
+from app.services.gateways import GatewayError, get_gateway
 from app.services.notification_service import create_notification
+from app.services.promo_service import redeem_for_booking
+from app.services import wallet_service
 
 logger = structlog.get_logger(__name__)
 settings = get_settings()
@@ -58,13 +71,26 @@ def _calc_price(
     prop: Property,
     check_in: date,
     check_out: date,
+    pricing_rules: list | None = None,
 ) -> _PriceBreakdown:
-    """Calculate full price breakdown including utilities and deposit."""
+    """Calculate full price breakdown including utilities and deposit.
+
+    If *pricing_rules* is provided (list of AvailabilityRule with
+    rule_type == pricing), per-day overrides are applied.  Rules are
+    assumed ordered by created_at so the last matching rule wins.
+    """
     nights_total = 0.0
     day = check_in
     while day < check_out:
         is_weekend = day.weekday() in (4, 5)  # Friday / Saturday (Egypt)
         rate = (prop.weekend_price or prop.price_per_night) if is_weekend else prop.price_per_night
+
+        # Apply pricing override from availability rules (last match wins)
+        if pricing_rules:
+            for rule in pricing_rules:
+                if rule.start_date <= day < rule.end_date and rule.price_override is not None:
+                    rate = rule.price_override
+
         nights_total += rate
         day += timedelta(days=1)
 
@@ -163,12 +189,124 @@ async def create_booking(
             detail = "جميع الغرف محجوزة في هذه التواريخ / All rooms booked for these dates"
         raise HTTPException(status_code=409, detail=detail)
 
-    price = _calc_price(prop, body.check_in, body.check_out)
+    # Also honour manual/imported calendar blocks (Wave 13).  Any
+    # overlapping ``CalendarBlock`` means the host has already marked
+    # the property unavailable in their Airbnb/Booking.com calendar.
+    blocked = (await db.execute(
+        select(func.count(CalendarBlock.id))
+        .where(
+            CalendarBlock.property_id == prop.id,
+            CalendarBlock.start_date < body.check_out,
+            CalendarBlock.end_date > body.check_in,
+        )
+    )).scalar() or 0
+    if blocked > 0:
+        raise HTTPException(
+            status_code=409,
+            detail="التواريخ غير متاحة / Dates blocked by host",
+        )
+
+    # ── Availability rules (Wave 14) ────────────────────────
+    avail_rules = (await db.execute(
+        select(AvailabilityRule)
+        .where(
+            AvailabilityRule.property_id == prop.id,
+            AvailabilityRule.start_date < body.check_out,
+            AvailabilityRule.end_date > body.check_in,
+        )
+        .order_by(AvailabilityRule.created_at)
+    )).scalars().all()
+
+    # Check closed days
+    closed_rules = [r for r in avail_rules if r.rule_type == RuleType.closed]
+    for rule in closed_rules:
+        # If any day in [check_in, check_out) falls in a closed range, reject
+        overlap_start = max(body.check_in, rule.start_date)
+        overlap_end = min(body.check_out, rule.end_date)
+        if overlap_start < overlap_end:
+            raise HTTPException(
+                status_code=409,
+                detail="التواريخ مغلقة من قبل المالك / Dates closed by host",
+            )
+
+    # Check minimum stay
+    stay_nights = (body.check_out - body.check_in).days
+    min_stay_rules = [r for r in avail_rules if r.rule_type == RuleType.min_stay]
+    for rule in min_stay_rules:
+        # Rule applies if any day of the booking falls in its range
+        overlap_start = max(body.check_in, rule.start_date)
+        overlap_end = min(body.check_out, rule.end_date)
+        if overlap_start < overlap_end and rule.min_nights and stay_nights < rule.min_nights:
+            raise HTTPException(
+                status_code=422,
+                detail=(
+                    f"الحد الأدنى {rule.min_nights} ليالي / "
+                    f"Minimum stay {rule.min_nights} nights"
+                ),
+            )
+
+    # Price calculation with pricing overrides
+    pricing_rules = [r for r in avail_rules if r.rule_type == RuleType.pricing]
+    price = _calc_price(prop, body.check_in, body.check_out, pricing_rules)
     code = await _generate_code(db)
 
     initial_status = (
         BookingStatus.confirmed if prop.instant_booking else BookingStatus.pending
     )
+
+    # ── Promo code preview (actual redemption happens after the
+    # booking row exists so we can reference its id) ─────────────
+    promo_discount = 0.0
+    if body.promo_code:
+        from app.services.promo_service import validate_code  # local import
+        preview = await validate_code(
+            db, body.promo_code, price.total_price, user.id,
+        )
+        if not preview.valid:
+            raise HTTPException(
+                status_code=400,
+                detail=preview.reason_ar or preview.reason or "كود غير صالح",
+            )
+        promo_discount = preview.discount_amount
+
+    # Apply discount: shave it off platform_fee first (admin-issued
+    # promos are a platform cost, not the owner's), then the owner
+    # if the discount is bigger than the platform's cut.
+    effective_total = round(price.total_price - promo_discount, 2)
+    remaining_discount = promo_discount
+    platform_fee_final = price.platform_fee
+    owner_payout_final = price.owner_payout
+    if remaining_discount > 0:
+        from_platform = min(platform_fee_final, remaining_discount)
+        platform_fee_final = round(platform_fee_final - from_platform, 2)
+        remaining_discount -= from_platform
+    if remaining_discount > 0:
+        owner_payout_final = round(owner_payout_final - remaining_discount, 2)
+
+    # ── Wallet credit (Wave 11) ──────────────────────────────
+    # Applied *after* promo discount so the redemption cap is computed
+    # on the post-promo total – the user cannot double-dip the same
+    # EGP.  The owner's payout is untouched; wallet credit comes out
+    # of the platform's pocket (it was their promo/referral rebate).
+    wallet_discount = 0.0
+    wallet_txn = None
+    if body.wallet_amount > 0 and effective_total > 0:
+        try:
+            wallet_discount, wallet_txn = await wallet_service.redeem_for_booking(
+                db,
+                user_id=user.id,
+                booking_id=None,      # patched below once we have an id
+                requested=body.wallet_amount,
+                subtotal=effective_total,
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc))
+
+        if wallet_discount > 0:
+            effective_total = round(effective_total - wallet_discount, 2)
+            platform_fee_final = round(
+                max(0.0, platform_fee_final - wallet_discount), 2,
+            )
 
     booking = Booking(
         booking_code=code,
@@ -182,14 +320,40 @@ async def create_booking(
         water_fee=price.water_fee,
         security_deposit=price.security_deposit,
         deposit_status=DepositStatus.held if price.security_deposit > 0 else DepositStatus.refunded,
-        total_price=price.total_price,
-        platform_fee=price.platform_fee,
-        owner_payout=price.owner_payout,
+        total_price=effective_total,
+        platform_fee=platform_fee_final,
+        owner_payout=owner_payout_final,
+        promo_discount=promo_discount,
+        wallet_discount=wallet_discount,
         status=initial_status,
     )
     db.add(booking)
     await db.flush()
     await db.refresh(booking)
+
+    # Patch the wallet redemption row with the real booking id.
+    if wallet_txn is not None:
+        wallet_txn.booking_id = booking.id
+        wallet_txn.description = f"Booking #{booking.id} wallet credit"
+        await db.flush()
+
+    # Now that booking.id exists, atomically redeem the promo code.
+    # A concurrent booking might have just consumed the last slot –
+    # the redemption call raises ValueError in that case.
+    if body.promo_code and promo_discount > 0:
+        try:
+            await redeem_for_booking(
+                db,
+                code=body.promo_code,
+                booking_id=booking.id,
+                user_id=user.id,
+                booking_amount=price.total_price,
+            )
+        except ValueError as exc:
+            # Undo the booking – the slot raced away from us.
+            await db.delete(booking)
+            await db.flush()
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
 
     # notifications
     await create_notification(
@@ -199,7 +363,10 @@ async def create_booking(
         notif_type=NotificationType.booking_created,
     )
 
-    logger.info("booking_created", booking_id=booking.id, code=code)
+    logger.info(
+        "booking_created",
+        booking_id=booking.id, code=code, promo_discount=promo_discount,
+    )
     return BookingOut.model_validate(booking)
 
 
@@ -290,33 +457,208 @@ async def confirm_booking(
     return BookingOut.model_validate(booking)
 
 
-@router.put("/{booking_id}/cancel", response_model=BookingOut)
-async def cancel_booking(
+async def _load_booking_or_403(
+    db: AsyncSession, booking_id: int, user: User
+) -> Booking:
+    booking = (
+        await db.execute(select(Booking).where(Booking.id == booking_id))
+    ).scalar_one_or_none()
+    if booking is None:
+        raise HTTPException(status_code=404, detail="الحجز غير موجود / Booking not found")
+    if (
+        booking.guest_id != user.id
+        and booking.owner_id != user.id
+        and user.role != UserRole.admin
+    ):
+        raise HTTPException(status_code=403, detail="ليس لديك صلاحية / Not authorized")
+    return booking
+
+
+# ── Contact reveal after booking is confirmed (Wave 23) ────────
+class _BookingContactOut(BaseModel):
+    """Contact information of the counter-party on a confirmed booking."""
+    name: str
+    phone: str | None = None
+    role: str  # "owner" or "guest"
+
+    model_config = {"from_attributes": True}
+
+
+@router.get("/{booking_id}/contact", response_model=_BookingContactOut)
+async def booking_contact(
     booking_id: int,
     user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
-    result = await db.execute(select(Booking).where(Booking.id == booking_id))
-    booking = result.scalar_one_or_none()
-    if booking is None:
-        raise HTTPException(status_code=404, detail="الحجز غير موجود / Booking not found")
-    if booking.guest_id != user.id and booking.owner_id != user.id and user.role != UserRole.admin:
-        raise HTTPException(status_code=403, detail="ليس لديك صلاحية / Not authorized")
+    """Return the counter-party's phone once the booking is confirmed.
+
+    Before confirmation the chat is the only allowed communication
+    channel, which is why numbers are sanitised there.  Once the owner
+    (or the system, via a paid transaction) confirms the booking we
+    reveal raw contact details so the two parties can finalise check-in
+    logistics directly.
+    """
+    booking = await _load_booking_or_403(db, booking_id, user)
+    if booking.status not in (
+        BookingStatus.confirmed, BookingStatus.completed,
+    ):
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "التواصل متاح بعد تأكيد الحجز فقط / "
+                "Contact is shared only after booking is confirmed"
+            ),
+        )
+
+    # Which side is the caller?  Reveal the *other* side.
+    if user.id == booking.guest_id:
+        other_id = booking.owner_id
+        role = "owner"
+    else:
+        other_id = booking.guest_id
+        role = "guest"
+
+    other = await db.get(User, other_id)
+    if other is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    return _BookingContactOut(
+        name=other.name,
+        phone=other.phone if other.phone_verified else None,
+        role=role,
+    )
+
+
+@router.get("/{booking_id}/cancel/preview", response_model=RefundQuoteOut)
+async def cancel_preview(
+    booking_id: int,
+    user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Return the refund quote the guest would get if they cancelled now.
+
+    Used by the Flutter client to show a confirmation sheet with the
+    exact amount and policy reasoning before actually cancelling.
+    """
+    booking = await _load_booking_or_403(db, booking_id, user)
+    prop = await db.get(Property, booking.property_id)
+    if prop is None:
+        raise HTTPException(status_code=404, detail="Property not found")
+
+    # If the booking was never paid, the refund is trivially zero.
+    paid = booking.payment_status == PaymentStatus.paid
+    quote = quote_refund(
+        policy=prop.cancellation_policy,
+        check_in=booking.check_in,
+        total_price=booking.total_price if paid else 0.0,
+    )
+    return RefundQuoteOut(
+        refundable_percent=quote.refundable_percent,
+        refund_amount=quote.refund_amount,
+        platform_fee_refunded=quote.platform_fee_refunded,
+        reason_en=quote.reason_en,
+        reason_ar=quote.reason_ar,
+        cancellation_policy=prop.cancellation_policy.value,
+    )
+
+
+@router.put("/{booking_id}/cancel", response_model=BookingOut)
+async def cancel_booking(
+    booking_id: int,
+    body: BookingCancelRequest | None = None,
+    user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    booking = await _load_booking_or_403(db, booking_id, user)
     if booking.status in (BookingStatus.cancelled, BookingStatus.completed):
         raise HTTPException(status_code=400, detail="لا يمكن إلغاء هذا الحجز / Cannot cancel")
 
+    prop = await db.get(Property, booking.property_id)
+    policy = prop.cancellation_policy if prop else None
+
+    now = datetime.now(timezone.utc)
     booking.status = BookingStatus.cancelled
+    booking.cancelled_at = now
+    if body and body.reason:
+        booking.cancellation_reason = body.reason.strip()[:500]
+
+    # ── Auto-refund the latest successful payment, if any ────────
+    refund_failed: str | None = None
+    if booking.payment_status == PaymentStatus.paid and policy is not None:
+        quote = quote_refund(
+            policy=policy,
+            check_in=booking.check_in,
+            total_price=booking.total_price,
+            now=now,
+        )
+        booking.refund_amount = quote.refund_amount
+
+        if quote.refund_amount > 0:
+            # Latest paid payment for the booking.
+            payment = (
+                await db.execute(
+                    select(Payment)
+                    .where(Payment.booking_id == booking.id)
+                    .where(Payment.state == PaymentState.paid)
+                    .order_by(Payment.paid_at.desc())
+                    .limit(1)
+                )
+            ).scalar_one_or_none()
+
+            if payment is not None and payment.provider_ref:
+                gateway = get_gateway(payment.provider)
+                try:
+                    await gateway.refund(
+                        payment.provider_ref, quote.refund_amount
+                    )
+                    # Flip payment row + booking mirror.
+                    if quote.refundable_percent == 100:
+                        payment.state = PaymentState.refunded
+                        booking.payment_status = PaymentStatus.refunded
+                    else:
+                        payment.state = PaymentState.partially_refunded
+                        booking.payment_status = PaymentStatus.partially_refunded
+                    logger.info(
+                        "booking_refund_issued",
+                        booking_id=booking.id,
+                        amount=quote.refund_amount,
+                        percent=quote.refundable_percent,
+                    )
+                except GatewayError as exc:
+                    # Cancellation still proceeds so the guest isn't
+                    # locked in, but we flag the refund for admin
+                    # reconciliation via the logs + a note.
+                    refund_failed = str(exc)[:500]
+                    logger.warning(
+                        "booking_refund_failed",
+                        booking_id=booking.id,
+                        provider=payment.provider.value,
+                        error=refund_failed,
+                    )
+
     await db.flush()
     await db.refresh(booking)
 
-    # notify both parties
-    notify_user = booking.owner_id if user.id == booking.guest_id else booking.guest_id
+    # ── Notify both parties ──────────────────────────────────
+    notify_user = (
+        booking.owner_id if user.id == booking.guest_id else booking.guest_id
+    )
+    note_body = f"حجز {booking.booking_code} تم إلغاؤه"
+    if booking.refund_amount and booking.refund_amount > 0:
+        note_body += f" — سيتم استرداد {booking.refund_amount:.0f} ج.م"
     await create_notification(
         db, notify_user,
         title="تم إلغاء الحجز",
-        body=f"حجز {booking.booking_code} تم إلغاؤه",
+        body=note_body,
         notif_type=NotificationType.booking_cancelled,
     )
+    if refund_failed:
+        # Also alert the guest so they know to contact support.
+        await create_notification(
+            db, booking.guest_id,
+            title="مشكلة في استرداد المبلغ",
+            body="يرجى التواصل مع الدعم لإكمال عملية الاسترداد.",
+            notif_type=NotificationType.booking_cancelled,
+        )
 
     return BookingOut.model_validate(booking)
 

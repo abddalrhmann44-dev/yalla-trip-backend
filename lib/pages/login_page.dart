@@ -118,8 +118,18 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
             ));
       },
       verificationCompleted: (cred) async {
-        await _auth.signInWithCredential(cred);
+        final result = await _auth.signInWithCredential(cred);
         if (name.isNotEmpty) await _auth.currentUser?.updateDisplayName(name);
+
+        // ── Exchange Firebase token for backend JWT ──
+        final fbUser = result.user;
+        if (fbUser != null) {
+          final idToken = await fbUser.getIdToken();
+          if (idToken != null) {
+            await AuthService.exchangeFirebaseToken(idToken);
+          }
+        }
+
         if (mounted) _goHome();
       },
       verificationFailed: (e) {
@@ -139,7 +149,18 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
     try {
       final email = _emailCtrl.text.trim().toLowerCase();
       final password = _passCtrl.text.trim();
-      await _auth.signInWithEmailAndPassword(email: email, password: password);
+      final result = await _auth
+          .signInWithEmailAndPassword(email: email, password: password);
+
+      // ── Exchange Firebase token for backend JWT ──
+      final fbUser = result.user;
+      if (fbUser != null) {
+        final idToken = await fbUser.getIdToken();
+        if (idToken != null) {
+          await AuthService.exchangeFirebaseToken(idToken);
+        }
+      }
+
       if (mounted) _goHome();
     } on FirebaseAuthException catch (e) {
       String msg = 'حدث خطأ، حاول مرة أخرى';

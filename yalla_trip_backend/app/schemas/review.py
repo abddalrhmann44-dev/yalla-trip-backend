@@ -17,6 +17,10 @@ class ReviewCreate(BaseModel):
     comment: Optional[str] = Field(None, max_length=1000)
 
 
+class OwnerResponseCreate(BaseModel):
+    response: str = Field(..., min_length=1, max_length=1000)
+
+
 # ── Response ──────────────────────────────────────────────
 class ReviewOut(BaseModel):
     id: int
@@ -26,6 +30,21 @@ class ReviewOut(BaseModel):
     reviewer: Optional[UserBrief] = None
     rating: float
     comment: Optional[str] = None
+    owner_response: Optional[str] = None
+    owner_response_at: Optional[datetime] = None
+    is_hidden: bool = False
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+# ── Pending review summary ───────────────────────────────
+class PendingReviewItem(BaseModel):
+    booking_id: int
+    booking_code: str
+    property_id: int
+    property_name: str
+    property_image: Optional[str] = None
+    check_in: datetime
+    check_out: datetime
+    completed_at: datetime

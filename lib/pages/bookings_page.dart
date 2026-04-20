@@ -5,12 +5,19 @@
 import 'package:flutter/material.dart';
 import '../main.dart' show appSettings;
 import '../utils/app_strings.dart';
+import '../widgets/cancel_booking_sheet.dart';
 import '../widgets/constants.dart';
 import '../models/booking_model.dart';
+import '../models/review_model.dart';
 import '../services/booking_service.dart';
+import '../services/review_service.dart';
+import 'write_review_page.dart';
 
 // Accent colors (same in light & dark)
-const _kOcean  = Color(0xFF1565C0);
+// Bookings page is themed orange (was ocean blue). The const name is
+// kept as `_kOcean` locally so the broad `context.kSand` / area colour
+// logic below continues to work; its VALUE is now orange.
+const _kOcean  = Color(0xFFFF6D00); // brand orange
 const _kOrange = Color(0xFFFF6D00);
 const _kGreen  = Color(0xFF22C55E);
 const _kRed    = Color(0xFFEF5350);
@@ -73,6 +80,8 @@ class _BookingsPageState extends State<BookingsPage>
 
   late TabController _tabCtrl;
   List<BookingModel> _bookings = [];
+  // Booking ids that the user can still post a review for.
+  Set<int> _pendingReviewIds = const {};
   bool _loading = true;
 
   @override
@@ -91,11 +100,47 @@ class _BookingsPageState extends State<BookingsPage>
 
   Future<void> _loadBookings() async {
     try {
-      final list = await BookingService.getMyBookings();
-      if (mounted) setState(() { _bookings = list; _loading = false; });
+      final results = await Future.wait([
+        BookingService.getMyBookings(),
+        ReviewService.myPending(),
+      ]);
+      final list = results[0] as List<BookingModel>;
+      final pending = results[1] as List<PendingReview>;
+      if (mounted) {
+        setState(() {
+          _bookings = list;
+          _pendingReviewIds = pending.map((p) => p.bookingId).toSet();
+          _loading = false;
+        });
+      }
     } catch (_) {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  PendingReview _asPending(BookingModel b) => PendingReview(
+        bookingId: b.id,
+        bookingCode: b.bookingCode,
+        propertyId: b.propertyId,
+        propertyName: b.propertyName,
+        propertyImage: b.propertyImage.isNotEmpty ? b.propertyImage : null,
+        checkIn: b.checkIn,
+        checkOut: b.checkOut,
+        completedAt: b.updatedAt,
+      );
+
+  Future<void> _rate(BookingModel b) async {
+    final submitted = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => WriteReviewPage(pending: _asPending(b)),
+      ),
+    );
+    if (submitted == true) _loadBookings();
+  }
+
+  Future<void> _cancel(BookingModel b) async {
+    final updated = await showCancelBookingSheet(context, b);
+    if (updated != null) _loadBookings();
   }
 
   List<BookingModel> _byStatus(String s) =>
@@ -368,6 +413,48 @@ class _BookingsPageState extends State<BookingsPage>
                     style: TextStyle(fontSize: 16,
                         fontWeight: FontWeight.w900, color: context.kText)),
               ]),
+              if (b.isCompleted && _pendingReviewIds.contains(b.id)) ...[
+                const SizedBox(height: 10),
+                SizedBox(
+                  width: double.infinity,
+                  height: 38,
+                  child: OutlinedButton.icon(
+                    onPressed: () => _rate(b),
+                    icon: const Icon(Icons.star_rounded,
+                        size: 16, color: Color(0xFFF59E0B)),
+                    label: const Text('قيّم إقامتك',
+                        style: TextStyle(
+                            fontSize: 12, fontWeight: FontWeight.w800)),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFFF59E0B),
+                      side: const BorderSide(
+                          color: Color(0xFFF59E0B), width: 1.3),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                ),
+              ] else if (isUpcoming) ...[
+                const SizedBox(height: 10),
+                SizedBox(
+                  width: double.infinity,
+                  height: 38,
+                  child: OutlinedButton.icon(
+                    onPressed: () => _cancel(b),
+                    icon: const Icon(Icons.close_rounded,
+                        size: 16, color: _kRed),
+                    label: const Text('إلغاء الحجز',
+                        style: TextStyle(
+                            fontSize: 12, fontWeight: FontWeight.w800)),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: _kRed,
+                      side: const BorderSide(color: _kRed, width: 1.3),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                ),
+              ],
             ]),
           ),
         ]),

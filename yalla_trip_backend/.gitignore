@@ -1,9 +1,22 @@
 __pycache__/
 *.pyc
+*.pyo
 .env
+.env.prod
+.env.*.local
+.venv/
+venv/
+env/
 *.egg-info/
 dist/
+build/
 .pytest_cache/
 .mypy_cache/
+.ruff_cache/
 .coverage
 htmlcov/
+
+# Production deployment artefacts (should never be committed)
+deploy/certs/*.pem
+deploy/pg_backups/
+

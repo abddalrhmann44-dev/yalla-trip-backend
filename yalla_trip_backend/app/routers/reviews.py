@@ -1,13 +1,15 @@
-"""Reviews router – create review + list by property."""
+"""Reviews router – create review + list by property + host reply."""
 
 from __future__ import annotations
 
 import math
+from datetime import datetime, timezone
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.database import get_db
 from app.middleware.auth_middleware import get_current_active_user
@@ -16,8 +18,13 @@ from app.models.notification import NotificationType
 from app.models.property import Property
 from app.models.review import Review
 from app.models.user import User
-from app.schemas.common import PaginatedResponse
-from app.schemas.review import ReviewCreate, ReviewOut
+from app.schemas.common import MessageResponse, PaginatedResponse
+from app.schemas.review import (
+    OwnerResponseCreate,
+    PendingReviewItem,
+    ReviewCreate,
+    ReviewOut,
+)
 from app.services.notification_service import create_notification
 
 logger = structlog.get_logger(__name__)
@@ -115,9 +122,11 @@ async def property_reviews(
     limit: int = Query(20, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
 ):
+    # Hide moderated reviews from the public feed.
     stmt = (
         select(Review)
         .where(Review.property_id == property_id)
+        .where(Review.is_hidden.is_(False))
         .order_by(Review.created_at.desc())
     )
 
@@ -134,3 +143,123 @@ async def property_reviews(
         items=[ReviewOut.model_validate(r) for r in rows],
         total=total, page=page, limit=limit, pages=pages,
     )
+
+
+# ── Pending reviews ─────────────────────────────────────────
+@router.get("/my/pending", response_model=list[PendingReviewItem])
+async def my_pending_reviews(
+    user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Completed bookings the user has *not* yet reviewed.
+
+    Used by the Flutter client to surface a "rate your stay" prompt.
+    """
+    # LEFT JOIN Review — keep rows with no matching review.
+    stmt = (
+        select(Booking)
+        .options(selectinload(Booking.property))
+        .outerjoin(Review, Review.booking_id == Booking.id)
+        .where(Booking.guest_id == user.id)
+        .where(Booking.status == BookingStatus.completed)
+        .where(Review.id.is_(None))
+        .order_by(Booking.updated_at.desc())
+    )
+    rows = (await db.execute(stmt)).scalars().all()
+    items: list[PendingReviewItem] = []
+    for b in rows:
+        if b.property is None:
+            continue
+        image = None
+        imgs = getattr(b.property, "images", None)
+        if imgs:
+            first = imgs[0] if isinstance(imgs, list) else None
+            image = (
+                first
+                if isinstance(first, str)
+                else getattr(first, "url", None)
+            )
+        items.append(
+            PendingReviewItem(
+                booking_id=b.id,
+                booking_code=b.booking_code,
+                property_id=b.property_id,
+                property_name=b.property.name,
+                property_image=image,
+                check_in=datetime.combine(b.check_in, datetime.min.time()),
+                check_out=datetime.combine(b.check_out, datetime.min.time()),
+                completed_at=b.updated_at,
+            )
+        )
+    return items
+
+
+# ── Host reply ──────────────────────────────────────────────
+@router.post("/{review_id}/respond", response_model=ReviewOut)
+async def respond_to_review(
+    review_id: int,
+    body: OwnerResponseCreate,
+    user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    review = await db.get(Review, review_id)
+    if review is None:
+        raise HTTPException(status_code=404, detail="Review not found")
+
+    prop = await db.get(Property, review.property_id)
+    if prop is None or prop.owner_id != user.id:
+        raise HTTPException(
+            status_code=403,
+            detail="فقط مالك العقار يمكنه الرد / Only the owner can reply",
+        )
+    if review.owner_response:
+        raise HTTPException(status_code=409, detail="Already responded")
+
+    review.owner_response = body.response.strip()
+    review.owner_response_at = datetime.now(timezone.utc)
+    await db.flush()
+
+    # Notify the guest so the reply shows in their inbox.
+    await create_notification(
+        db, review.reviewer_id,
+        title="رد على تقييمك",
+        body=f"رد مالك العقار على تقييمك لـ {prop.name}",
+        notif_type=NotificationType.review_received,
+    )
+    # Re-fetch with the reviewer relationship eagerly loaded so the
+    # Pydantic response can serialize it without triggering async I/O.
+    fresh = (
+        await db.execute(
+            select(Review)
+            .options(selectinload(Review.reviewer))
+            .where(Review.id == review.id)
+        )
+    ).scalar_one()
+    logger.info("review_responded", review_id=fresh.id, owner_id=user.id)
+    return ReviewOut.model_validate(fresh)
+
+
+# ── Report a review ─────────────────────────────────────────
+@router.post("/{review_id}/report", response_model=MessageResponse)
+async def report_review(
+    review_id: int,
+    user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Flag a review for admin moderation.
+
+    After 3 reports the review is auto-hidden until an admin reviews it.
+    """
+    review = await db.get(Review, review_id)
+    if review is None:
+        raise HTTPException(status_code=404, detail="Review not found")
+    # Reviewer can't report their own review.
+    if review.reviewer_id == user.id:
+        raise HTTPException(status_code=400, detail="Cannot report your own review")
+
+    review.report_count = (review.report_count or 0) + 1
+    if review.report_count >= 3 and not review.is_hidden:
+        review.is_hidden = True
+        logger.info("review_auto_hidden", review_id=review.id)
+    await db.flush()
+    return MessageResponse(message="Reported", message_ar="تم الإبلاغ")

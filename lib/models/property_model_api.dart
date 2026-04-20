@@ -39,14 +39,21 @@ class OwnerBrief {
   final int id;
   final String name;
   final String? avatarUrl;
+  final bool isVerified;
 
-  const OwnerBrief({required this.id, required this.name, this.avatarUrl});
+  const OwnerBrief({
+    required this.id,
+    required this.name,
+    this.avatarUrl,
+    this.isVerified = false,
+  });
 
   factory OwnerBrief.fromJson(Map<String, dynamic> j) {
     return OwnerBrief(
       id: j['id'] ?? 0,
       name: j['name'] ?? '',
       avatarUrl: j['avatar_url'],
+      isVerified: j['is_verified'] ?? false,
     );
   }
 }
@@ -68,6 +75,7 @@ class PropertyApi {
   final double securityDeposit;
   final int totalRooms;
   final String? closingTime;
+  final int? tripDurationHours;
   final int bedrooms;
   final int bathrooms;
   final int maxGuests;
@@ -100,6 +108,7 @@ class PropertyApi {
     this.securityDeposit = 0,
     this.totalRooms = 1,
     this.closingTime,
+    this.tripDurationHours,
     this.bedrooms = 1,
     this.bathrooms = 1,
     this.maxGuests = 4,
@@ -134,6 +143,7 @@ class PropertyApi {
       securityDeposit: (j['security_deposit'] ?? 0).toDouble(),
       totalRooms: j['total_rooms'] ?? 1,
       closingTime: j['closing_time'],
+      tripDurationHours: j['trip_duration_hours'],
       bedrooms: j['bedrooms'] ?? 1,
       bathrooms: j['bathrooms'] ?? 1,
       maxGuests: j['max_guests'] ?? 4,
@@ -164,6 +174,9 @@ class PropertyApi {
 
   /// true when this is a multi-room property (hotel / resort)
   bool get isMultiRoom => totalRooms > 1;
+
+  /// true when this listing is a boat / yacht (billed per hour)
+  bool get isBoat => category == 'مركب';
 
   /// true when category has utility fees (chalet only)
   bool get hasUtilityFees => category == 'شاليه';
@@ -216,6 +229,8 @@ class PropertyApi {
         return '🌊';
       case 'بيت شاطئ':
         return '🏄';
+      case 'مركب':
+        return '⛵';
       default:
         return '🏠';
     }

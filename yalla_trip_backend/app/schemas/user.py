@@ -37,6 +37,7 @@ class UserOut(BaseModel):
     avatar_url: Optional[str] = None
     is_verified: bool
     is_active: bool
+    phone_verified: bool = False
     created_at: datetime
     updated_at: datetime
 
@@ -48,6 +49,7 @@ class UserBrief(BaseModel):
     id: int
     name: str
     avatar_url: Optional[str] = None
+    is_verified: bool = False
 
     model_config = {"from_attributes": True}
 
@@ -62,6 +64,8 @@ class TokenPayload(BaseModel):
 
 class FirebaseTokenRequest(BaseModel):
     firebase_token: str
+    # Wave 11: optional invite code from ?ref=XXX signup deep-link.
+    referral_code: str | None = None
 
 
 class RefreshTokenRequest(BaseModel):

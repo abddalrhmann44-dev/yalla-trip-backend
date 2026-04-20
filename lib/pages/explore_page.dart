@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import '../main.dart' show appSettings;
 import '../utils/app_strings.dart';
 import '../widgets/constants.dart';
+import '../widgets/favorite_button.dart';
 import 'property_details_page.dart';
 import 'area_results_page.dart';
 import '../models/property_model_api.dart';
@@ -77,9 +78,6 @@ class _ExplorePageState extends State<ExplorePage>
 
   // ── Tabs ────────────────────────────────────────────────────
   late TabController _tabCtrl;
-
-  // ── Favorites ───────────────────────────────────────────────
-  final Set<String> _favs = {};
 
   // ── View mode ───────────────────────────────────────────────
   bool _gridView = false;
@@ -775,7 +773,6 @@ class _ExplorePageState extends State<ExplorePage>
 
   // ── Property Cards ────────────────────────────────────────
   Widget _propListCard(PropertyApi p) {
-    final fav = _favs.contains(p.name);
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
       decoration: BoxDecoration(
@@ -807,21 +804,10 @@ class _ExplorePageState extends State<ExplorePage>
                         style: const TextStyle(fontSize: 60)))),
               // Fav
               PositionedDirectional(top: 10, end: 10,
-                child: GestureDetector(
-                  onTap: () => setState(() =>
-                      fav ? _favs.remove(p.name) : _favs.add(p.name)),
-                  child: Container(
-                    width: 34, height: 34,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.9),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      fav ? Icons.favorite_rounded
-                          : Icons.favorite_border_rounded,
-                      size: 17,
-                      color: fav ? Colors.red : Colors.grey),
-                  ),
+                child: FavoriteButton(
+                  propertyId: p.id,
+                  size: 17,
+                  padding: const EdgeInsets.all(8),
                 )),
               // Category
               PositionedDirectional(top: 10, start: 10,
@@ -940,7 +926,6 @@ class _ExplorePageState extends State<ExplorePage>
   }
 
   Widget _propGridCard(PropertyApi p) {
-    final fav = _favs.contains(p.name);
     return GestureDetector(
       onTap: () => Navigator.push(context,
           MaterialPageRoute(builder: (_) => PropertyDetailsPage(
@@ -974,19 +959,10 @@ class _ExplorePageState extends State<ExplorePage>
                       child: Center(child: Text(p.categoryEmoji,
                           style: const TextStyle(fontSize: 42)))),
                 PositionedDirectional(top: 6, end: 6,
-                  child: GestureDetector(
-                    onTap: () => setState(() =>
-                        fav ? _favs.remove(p.name) : _favs.add(p.name)),
-                    child: Container(
-                      width: 28, height: 28,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.9),
-                        shape: BoxShape.circle),
-                      child: Icon(
-                        fav ? Icons.favorite_rounded
-                            : Icons.favorite_border_rounded,
-                        size: 14,
-                        color: fav ? Colors.red : Colors.grey)),
+                  child: FavoriteButton(
+                    propertyId: p.id,
+                    size: 14,
+                    padding: const EdgeInsets.all(7),
                   )),
               ]),
             ),

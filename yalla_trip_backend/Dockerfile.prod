@@ -1,0 +1,73 @@
+# syntax=docker/dockerfile:1.6
+# ═══════════════════════════════════════════════════════════
+#  Talaa API — production image
+#
+#  Multi-stage build:
+#    • ``builder`` compiles wheels for every dependency.
+#    • ``runtime`` runs as an un-privileged user, carries only
+#      the runtime libs, and defaults to Gunicorn+Uvicorn-workers.
+# ═══════════════════════════════════════════════════════════
+
+# ── Build stage ───────────────────────────────────────────
+FROM python:3.11-slim AS builder
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+WORKDIR /build
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential libpq-dev curl && \
+    rm -rf /var/lib/apt/lists/*
+
+# Install dependencies into a dedicated prefix we can copy out.
+COPY requirements.txt .
+RUN pip install --prefix=/install --no-cache-dir -r requirements.txt gunicorn==22.0.0
+
+
+# ── Runtime stage ─────────────────────────────────────────
+FROM python:3.11-slim AS runtime
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PATH="/usr/local/bin:$PATH" \
+    WORKERS=4 \
+    PORT=8000
+
+# libpq for psycopg2 + curl for health probes. Nothing else.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libpq5 curl tini && \
+    rm -rf /var/lib/apt/lists/* && \
+    groupadd -g 10001 talaa && \
+    useradd -u 10001 -g talaa -ms /bin/bash talaa
+
+WORKDIR /app
+
+# Copy pre-built site-packages + any entry-point scripts (alembic, uvicorn, gunicorn).
+COPY --from=builder /install /usr/local
+
+# App source (uid/gid must match the user we created).
+COPY --chown=talaa:talaa . .
+
+USER talaa
+
+EXPOSE 8000
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD curl -fsS http://localhost:${PORT}/health/live || exit 1
+
+# ``tini`` reaps zombie children cleanly when a worker crashes.
+ENTRYPOINT ["/usr/bin/tini", "--"]
+
+# Gunicorn manages a pool of Uvicorn workers – resilient to crashes,
+# honours WORKERS env to scale horizontally on one machine.
+CMD ["sh", "-c", "gunicorn app.main:app \
+    --bind 0.0.0.0:${PORT} \
+    --workers ${WORKERS} \
+    --worker-class uvicorn.workers.UvicornWorker \
+    --timeout 60 \
+    --graceful-timeout 30 \
+    --access-logfile - \
+    --error-logfile -"]

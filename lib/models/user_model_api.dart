@@ -13,6 +13,7 @@ class UserApi {
   final String? avatarUrl;
   final bool isVerified;
   final bool isActive;
+  final bool phoneVerified;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -26,6 +27,7 @@ class UserApi {
     this.avatarUrl,
     this.isVerified = false,
     this.isActive = true,
+    this.phoneVerified = false,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -40,6 +42,7 @@ class UserApi {
         avatarUrl: j['avatar_url'],
         isVerified: j['is_verified'] ?? false,
         isActive: j['is_active'] ?? true,
+        phoneVerified: j['phone_verified'] ?? false,
         createdAt: DateTime.parse(j['created_at']),
         updatedAt: DateTime.parse(j['updated_at']),
       );

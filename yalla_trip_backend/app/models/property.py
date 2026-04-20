@@ -38,6 +38,7 @@ class Category(str, enum.Enum):
     resort = "منتجع"
     aqua_park = "أكوا بارك"
     beach_house = "بيت شاطئ"
+    boat = "مركب"
 
 
 class PropertyStatus(str, enum.Enum):
@@ -45,6 +46,17 @@ class PropertyStatus(str, enum.Enum):
     approved = "approved"
     rejected = "rejected"
     needs_edit = "needs_edit"
+
+
+class CancellationPolicy(str, enum.Enum):
+    """Airbnb-style cancellation tiers.
+
+    The Python values here control the refund calculator in
+    ``app.services.cancellation``.  UI labels live in the Flutter client.
+    """
+    flexible = "flexible"   # 100% refund if > 24h before check-in
+    moderate = "moderate"   # 100% > 5d, 50% after
+    strict = "strict"       # 100% > 7d, 50% > 24h, 0% within 24h
 
 
 class Property(Base):
@@ -71,6 +83,14 @@ class Property(Base):
     total_rooms: Mapped[int] = mapped_column(Integer, default=1, server_default="1")
     closing_time: Mapped[str | None] = mapped_column(String(5), nullable=True)  # HH:MM
 
+    # ── Boat category (Wave 22) ─────────────────────────────
+    # Hours per trip for boat listings.  Used only when
+    # ``category == Category.boat`` — otherwise NULL.  The pricing
+    # semantics for a boat are "price_per_night ≡ price per hour".
+    trip_duration_hours: Mapped[int | None] = mapped_column(
+        Integer, nullable=True,
+    )
+
     bedrooms: Mapped[int] = mapped_column(Integer, default=1)
     bathrooms: Mapped[int] = mapped_column(Integer, default=1)
     max_guests: Mapped[int] = mapped_column(Integer, default=4)
@@ -93,6 +113,13 @@ class Property(Base):
     )
     admin_note: Mapped[str | None] = mapped_column(Text, nullable=True)
 
+    cancellation_policy: Mapped[CancellationPolicy] = mapped_column(
+        Enum(CancellationPolicy),
+        default=CancellationPolicy.moderate,
+        server_default="moderate",
+        nullable=False,
+    )
+
     is_available: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
     is_featured: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     instant_booking: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
@@ -104,6 +131,27 @@ class Property(Base):
 
     latitude: Mapped[float | None] = mapped_column(Float, nullable=True)
     longitude: Mapped[float | None] = mapped_column(Float, nullable=True)
+
+    # ── KYC (owner identity documents) ───────────────────────
+    id_document_front_url: Mapped[str | None] = mapped_column(
+        String(512), nullable=True
+    )
+    id_document_back_url: Mapped[str | None] = mapped_column(
+        String(512), nullable=True
+    )
+
+    # ── iCal export token (Wave 13) ─────────────────────────
+    # Opaque, owner-rotatable secret embedded in the public feed URL so
+    # the feed is effectively an unguessable capability link.
+    ical_token: Mapped[str | None] = mapped_column(
+        String(64), nullable=True, unique=True, index=True,
+    )
+
+    # ── Verified host badge (Wave 18) ───────────────────────
+    # Flipped to True when a PropertyVerification row is approved.
+    is_verified: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default="false", nullable=False,
+    )
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
