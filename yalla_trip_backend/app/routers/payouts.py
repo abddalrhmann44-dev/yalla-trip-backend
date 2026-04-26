@@ -13,7 +13,7 @@ from datetime import date, datetime, timezone
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
-from sqlalchemy import select, update
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -121,12 +121,17 @@ async def add_bank_account(
             .values(is_default=False)
         )
     # First account always becomes default, regardless of the flag.
+    # Use COUNT(*) instead of loading every row just to check emptiness
+    # — a host with 50 retired accounts shouldn't pay 50 rows of I/O
+    # for a single "is this the first?" question.
     existing_count = (
         await db.execute(
-            select(HostBankAccount).where(HostBankAccount.host_id == user.id)
+            select(func.count(HostBankAccount.id)).where(
+                HostBankAccount.host_id == user.id
+            )
         )
-    ).scalars().all()
-    is_default = body.is_default or not existing_count
+    ).scalar() or 0
+    is_default = body.is_default or existing_count == 0
 
     row = HostBankAccount(
         host_id=user.id,
@@ -186,8 +191,28 @@ async def delete_bank_account(
     row = await db.get(HostBankAccount, account_id)
     if row is None or row.host_id != user.id:
         raise HTTPException(status_code=404, detail="Bank account not found")
-    # Guard: can't delete the default when others exist and this is
-    # the only one linked to a pending payout.
+    # Guard: refuse the delete if any non-terminal payout still points
+    # at this account.  Removing it now would orphan the payout (FK is
+    # ``ON DELETE SET NULL``) and the admin would discover the missing
+    # destination only when trying to disburse — too late.
+    pending_payouts = (
+        await db.execute(
+            select(func.count(Payout.id)).where(
+                Payout.bank_account_id == account_id,
+                Payout.status.in_(
+                    [PayoutStatus.pending, PayoutStatus.processing]
+                ),
+            )
+        )
+    ).scalar() or 0
+    if pending_payouts > 0:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                f"Cannot delete: linked to {pending_payouts} "
+                "pending/processing payout(s). Mark them paid or failed first."
+            ),
+        )
     await db.delete(row)
     await db.flush()
 
@@ -470,10 +495,16 @@ async def admin_disburse(
     — admins flip back to ``not_started`` via :func:`admin_mark_failed`
     or by editing the row directly in the support tool.
     """
+    # Lock the row so a double-click / two simultaneous admin tabs
+    # can't both pass the ``not_started`` check and call Kashier
+    # twice.  Kashier itself dedupes on ``merchantOrderId`` but we
+    # don't want to rely solely on that — a real money path needs
+    # belt-and-braces serialisation on our side too.
     row = (
         await db.execute(
             select(Payout)
             .where(Payout.id == payout_id)
+            .with_for_update()
             .options(*_EAGER, selectinload(Payout.bank_account))
         )
     ).scalar_one_or_none()
@@ -525,6 +556,11 @@ async def admin_disburse(
     row.disburse_provider = gateway.name
     row.disburse_ref = result.provider_ref
     row.disburse_status = new_status
+    # Stamp the moment we hit the gateway so the reconciliation
+    # scheduler can age this row off ``DISBURSE_SLA_HOURS`` accurately
+    # rather than relying on ``created_at`` (which is the *batch*
+    # timestamp, often days earlier).
+    row.disburse_initiated_at = datetime.now(timezone.utc)
     # Snapshot the gateway response — invaluable when reconciling a
     # missing webhook six months later.
     row.disburse_payload = {
@@ -585,9 +621,19 @@ async def disburse_webhook(
         # signatures).  Use 400 for malformed payloads.
         raise HTTPException(status_code=401, detail="Invalid webhook")
 
+    # Lock the payout row.  Gateways routinely fire the same webhook
+    # twice (once on success, once on a retry from their queue) and
+    # without a row lock both copies sail past the ``already_terminal``
+    # check, double-running ``mark_paid`` and double-sending the
+    # "تم تحويل أرباحك" notification.  ``with_for_update`` serialises
+    # the two requests so only the first one observes ``processing``
+    # and the second hits the terminal-state branch below.
     row = (
         await db.execute(
-            select(Payout).where(Payout.id == parsed.payout_id).options(*_EAGER)
+            select(Payout)
+            .where(Payout.id == parsed.payout_id)
+            .with_for_update()
+            .options(*_EAGER)
         )
     ).scalar_one_or_none()
     if row is None:
@@ -614,6 +660,39 @@ async def disburse_webhook(
         raise HTTPException(status_code=400, detail="provider_ref mismatch")
 
     if parsed.succeeded:
+        # Cross-check the gateway-claimed amount against our own
+        # records before flipping anything.  A mismatch here means
+        # either a buggy webhook or a forged one (HMAC pass with
+        # wrong values).  Either way, *do not* mark the payout paid
+        # — we'd notify the host that ``total_amount`` arrived when
+        # in reality the gateway moved a different sum.  Tolerance
+        # is 1 piastre (0.01 EGP) to absorb the rounding inherent
+        # in EGP→piastre→EGP round-trips.
+        if (
+            parsed.amount_egp is not None
+            and abs(parsed.amount_egp - row.total_amount) > 0.01
+        ):
+            logger.error(
+                "disburse_webhook_amount_mismatch",
+                payout_id=row.id,
+                provider_ref=parsed.provider_ref,
+                claimed_amount=parsed.amount_egp,
+                expected_amount=row.total_amount,
+            )
+            row.disburse_status = DisburseStatus.failed
+            row.admin_notes = (
+                f"Webhook amount mismatch: gateway said "
+                f"{parsed.amount_egp:.2f}, expected {row.total_amount:.2f}"
+            )
+            # Append the suspicious payload so support can inspect it.
+            payload_log = dict(row.disburse_payload or {})
+            mismatched = list(payload_log.get("mismatched_webhooks", []))
+            mismatched.append(parsed.raw)
+            payload_log["mismatched_webhooks"] = mismatched[-20:]
+            row.disburse_payload = payload_log
+            await db.flush()
+            return {"ok": True, "ignored": "amount_mismatch"}
+
         row.disburse_status = DisburseStatus.succeeded
         row.disbursed_at = datetime.now(timezone.utc)
         # Promote the bookkeeping side too — the host shouldn't have
@@ -648,9 +727,13 @@ async def disburse_webhook(
         row.disburse_status = DisburseStatus.processing
 
     # Append-only payload log so support can scroll through state
-    # transitions without joining the audit_log table.
+    # transitions without joining the audit_log table.  Capped at
+    # the most recent 20 entries so a misbehaving gateway can't
+    # blow up the JSONB row size (TOAST blow-up = slow reads).
     payload_log = dict(row.disburse_payload or {})
-    payload_log.setdefault("webhooks", []).append(parsed.raw)
+    webhooks = list(payload_log.get("webhooks", []))
+    webhooks.append(parsed.raw)
+    payload_log["webhooks"] = webhooks[-20:]
     row.disburse_payload = payload_log
 
     await db.flush()
@@ -666,25 +749,19 @@ async def admin_eligible_preview(
     db: AsyncSession = Depends(get_db),
 ):
     """Dry-run: how many bookings / EGP would be included in a batch
-    without creating one."""
-    stmt = await payout_service.eligible_bookings_query(
+    without creating one.
+
+    Aggregation runs in Postgres via ``GROUP BY`` rather than pulling
+    every booking row into Python — a preview window with 500 hosts
+    × 30 bookings each used to download ~15K rows just to compute
+    two sums.  Now it's one indexed scan returning at most one row
+    per host.
+    """
+    rows = await payout_service.eligible_bookings_summary(
         db, host_id=host_id, cycle_start=cycle_start, cycle_end=cycle_end,
     )
-    rows = (await db.execute(stmt)).scalars().all()
-    by_host: dict[int, dict] = {}
-    for b in rows:
-        bucket = by_host.setdefault(b.owner_id, {
-            "host_id": b.owner_id,
-            "booking_count": 0,
-            "total_amount": 0.0,
-        })
-        bucket["booking_count"] += 1
-        bucket["total_amount"] += b.owner_payout
     return {
-        "total_bookings": len(rows),
-        "total_amount": round(sum(b.owner_payout for b in rows), 2),
-        "hosts": [
-            {**v, "total_amount": round(v["total_amount"], 2)}
-            for v in by_host.values()
-        ],
+        "total_bookings": sum(r["booking_count"] for r in rows),
+        "total_amount": round(sum(r["total_amount"] for r in rows), 2),
+        "hosts": rows,
     }

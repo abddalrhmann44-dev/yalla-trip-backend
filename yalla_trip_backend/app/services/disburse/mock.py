@@ -99,28 +99,46 @@ class MockDisburseGateway(DisburseGateway):
             logger.warning("mock_disburse_webhook_missing_fields")
             return None
 
+        # ``amount`` is optional in the mock payload; tests that don't
+        # set it leave the cross-check disabled, which mirrors how the
+        # router handles real gateways that simply omit the field.
+        amount_raw = payload.get("amount")
+        try:
+            amount_egp = float(amount_raw) if amount_raw is not None else None
+        except (TypeError, ValueError):
+            amount_egp = None
+
         return DisburseWebhook(
             payout_id=payout_id,
             provider_ref=ref,
             succeeded=(status == "succeeded"),
             failed=(status == "failed"),
             message=payload.get("message"),
+            amount_egp=amount_egp,
             raw=payload,
         )
 
     # ── Test helpers (NOT part of the gateway interface) ────────
     @staticmethod
     def make_success_webhook(
-        *, payout_id: int, ref: str
+        *, payout_id: int, ref: str, amount: float | None = None
     ) -> tuple[bytes, dict[str, str]]:
-        """Build a body+headers pair the router can ingest verbatim."""
-        body_dict = {
+        """Build a body+headers pair the router can ingest verbatim.
+
+        ``amount`` (EGP) is optional; when provided it is included in
+        the payload so the router can exercise the amount-mismatch
+        cross-check.  Tests that don't care about that path can leave
+        it as ``None`` (matches gateways that omit the field).
+        """
+        body_dict: dict[str, Any] = {
             "payout_id": payout_id,
             "ref": ref,
             "status": "succeeded",
             "message": "Funds delivered (mock)",
             "ts": int(time.time()),
         }
+        if amount is not None:
+            body_dict["amount"] = amount
         body = json.dumps(body_dict).encode("utf-8")
         return body, {"X-Mock-Signature": _sign(body)}
 

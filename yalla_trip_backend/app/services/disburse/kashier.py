@@ -67,6 +67,30 @@ def _piastres(amount_egp: float) -> int:
     return int(round(amount_egp * 100))
 
 
+def _parse_amount(payload: dict[str, Any]) -> float | None:
+    """Extract the EGP amount from a Kashier webhook / status payload.
+
+    Kashier reports the amount in piastres (minor units) under one of
+    a couple of field names depending on the disbursement product.
+    Returns ``None`` when none of the known fields are present so the
+    router can skip the cross-check rather than reject a webhook that
+    otherwise looks valid.
+    """
+    # ``amount`` is the bulk-payouts field; ``amountInPiastres`` shows
+    # up in some sandbox responses; ``value`` is the wallet-only shape.
+    raw = (
+        payload.get("amount")
+        or payload.get("amountInPiastres")
+        or payload.get("value")
+    )
+    if raw is None:
+        return None
+    try:
+        return round(int(raw) / 100.0, 2)
+    except (TypeError, ValueError):
+        return None
+
+
 def _sign(secret: str, payload: dict[str, Any]) -> str:
     """HMAC-SHA256 over the JSON-canonicalised payload.
 
@@ -246,6 +270,7 @@ class KashierDisburseGateway(DisburseGateway):
             succeeded=succeeded,
             failed=failed,
             message=payload.get("message") or payload.get("errorMessage"),
+            amount_egp=_parse_amount(payload),
             raw=payload,
         )
 
@@ -316,5 +341,6 @@ class KashierDisburseGateway(DisburseGateway):
             succeeded=succeeded,
             failed=failed,
             message=payload.get("message") or payload.get("errorMessage"),
+            amount_egp=_parse_amount(payload),
             raw=payload,
         )

@@ -161,6 +161,16 @@ class Payout(Base):
         server_default="not_started",
         nullable=False,
     )
+    # Timestamp of the moment we *fired* the disburse request to the
+    # gateway (set inside ``admin_disburse``).  Used by the reconciler
+    # to decide whether enough time has passed since the initiate call
+    # to start chasing the gateway for a missing webhook — keying off
+    # ``created_at`` was wrong because an admin can batch on day 1
+    # and disburse on day 5.  ``None`` means the legacy manual flow
+    # handled this row; the reconciler skips those.
+    disburse_initiated_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     # Timestamp of the *successful* webhook — used for SLA dashboards
     # and to debounce duplicate webhooks (idempotency).
     disbursed_at: Mapped[datetime | None] = mapped_column(

@@ -20,6 +20,7 @@ import structlog
 from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
+from sqlalchemy.sql.elements import ColumnElement
 
 from app.config import get_settings
 from app.models.booking import Booking, BookingStatus, PaymentStatus
@@ -38,14 +39,19 @@ def _hold_cutoff() -> datetime:
     return datetime.now(timezone.utc) - timedelta(days=days)
 
 
-async def eligible_bookings_query(
-    db: AsyncSession,
+def _eligibility_conditions(
     *,
-    host_id: int | None = None,
-    cycle_start: date | None = None,
-    cycle_end: date | None = None,
-):
-    """Build (but don't execute) the SELECT for payable bookings."""
+    host_id: int | None,
+    cycle_start: date | None,
+    cycle_end: date | None,
+) -> list:
+    """Shared WHERE clause for ``eligible_*`` queries.
+
+    Pulled out so :func:`eligible_bookings_query` and
+    :func:`eligible_bookings_summary` can never drift apart — a host
+    seeing 5 eligible bookings in the preview must get exactly 5 in
+    the actual batch.
+    """
     conds = [
         Booking.status == BookingStatus.completed,
         Booking.payment_status == PaymentStatus.paid,
@@ -58,7 +64,60 @@ async def eligible_bookings_query(
         conds.append(Booking.check_out >= cycle_start)
     if cycle_end is not None:
         conds.append(Booking.check_out <= cycle_end)
+    return conds
+
+
+async def eligible_bookings_query(
+    db: AsyncSession,
+    *,
+    host_id: int | None = None,
+    cycle_start: date | None = None,
+    cycle_end: date | None = None,
+):
+    """Build (but don't execute) the SELECT for payable bookings."""
+    conds = _eligibility_conditions(
+        host_id=host_id, cycle_start=cycle_start, cycle_end=cycle_end,
+    )
     return select(Booking).where(and_(*conds)).order_by(Booking.owner_id, Booking.id)
+
+
+async def eligible_bookings_summary(
+    db: AsyncSession,
+    *,
+    host_id: int | None = None,
+    cycle_start: date | None = None,
+    cycle_end: date | None = None,
+) -> list[dict]:
+    """Aggregate eligible bookings by host — dry-run preview.
+
+    Returns one dict per host with ``host_id``, ``booking_count`` and
+    ``total_amount`` (rounded EGP).  The aggregation runs in Postgres
+    so we never download row-by-row data just to compute two sums.
+    """
+    conds = _eligibility_conditions(
+        host_id=host_id, cycle_start=cycle_start, cycle_end=cycle_end,
+    )
+    stmt = (
+        select(
+            Booking.owner_id,
+            func.count(Booking.id).label("booking_count"),
+            func.coalesce(
+                func.sum(Booking.owner_payout), 0
+            ).label("total_amount"),
+        )
+        .where(and_(*conds))
+        .group_by(Booking.owner_id)
+        .order_by(Booking.owner_id)
+    )
+    rows = (await db.execute(stmt)).all()
+    return [
+        {
+            "host_id": r.owner_id,
+            "booking_count": int(r.booking_count),
+            "total_amount": round(float(r.total_amount), 2),
+        }
+        for r in rows
+    ]
 
 
 async def build_batch(
@@ -73,6 +132,14 @@ async def build_batch(
 
     All mutations run in the caller's transaction.  Returns the new
     Payout rows (already flushed, with ids).
+
+    Concurrency: the eligible-bookings select takes ``FOR UPDATE
+    SKIP LOCKED``.  If two admins race to create a batch (or a single
+    admin double-clicks the button) the second caller silently skips
+    any rows the first one already grabbed instead of crashing on the
+    ``uq_payout_item_booking`` unique constraint.  The trade-off is
+    that the second batch may end up empty — by design; the work is
+    done, no need to retry.
     """
     stmt = await eligible_bookings_query(
         db,
@@ -80,6 +147,10 @@ async def build_batch(
         cycle_start=cycle_start,
         cycle_end=cycle_end,
     )
+    # ``skip_locked`` is the key bit — without it the second admin
+    # would block on the first transaction and then INSERT duplicate
+    # PayoutItems, exploding the constraint.
+    stmt = stmt.with_for_update(skip_locked=True)
     bookings: Sequence[Booking] = (await db.execute(stmt)).scalars().all()
     if not bookings:
         return []
@@ -215,25 +286,51 @@ async def mark_failed(
 
 
 async def host_summary(db: AsyncSession, host_id: int) -> dict:
-    """Compute host-facing payout totals in one round trip."""
-    rows = await db.execute(
-        select(Booking.payout_status, func.coalesce(func.sum(Booking.owner_payout), 0))
-        .where(Booking.owner_id == host_id)
-        .group_by(Booking.payout_status)
-    )
-    totals = {status: float(amount) for status, amount in rows.all()}
+    """Compute host-facing payout totals.
 
-    eligible_count = (
-        await db.execute(
-            select(func.count(Booking.id)).where(
-                Booking.owner_id == host_id,
-                Booking.status == BookingStatus.completed,
-                Booking.payment_status == PaymentStatus.paid,
-                Booking.payout_status == BookingPayoutStatus.unpaid.value,
-                Booking.check_out <= _hold_cutoff().date(),
-            )
+    Two round-trips total: one Booking aggregate (using ``FILTER``
+    clauses so all four numbers come back in a single SELECT) plus
+    one Payout lookup for ``last_paid_at``.  Down from three queries
+    in the previous iteration; that 33% reduction matters on the host
+    dashboard which polls this endpoint every 30s.
+    """
+    cutoff = _hold_cutoff().date()
+
+    # ``func.sum(...).filter(...)`` is the SQLAlchemy way to express
+    # ``SUM(...) FILTER (WHERE ...)``.  Postgres evaluates each
+    # filter while doing one pass over the index, so adding more
+    # buckets is essentially free.
+    def _sum_where(*predicates: ColumnElement) -> ColumnElement:
+        return func.coalesce(
+            func.sum(Booking.owner_payout).filter(and_(*predicates)),
+            0,
         )
-    ).scalar() or 0
+
+    eligibility_predicates = (
+        Booking.status == BookingStatus.completed,
+        Booking.payment_status == PaymentStatus.paid,
+        Booking.payout_status == BookingPayoutStatus.unpaid.value,
+        Booking.check_out <= cutoff,
+    )
+
+    agg = (
+        await db.execute(
+            select(
+                _sum_where(
+                    Booking.payout_status == BookingPayoutStatus.unpaid.value
+                ).label("unpaid_balance"),
+                _sum_where(
+                    Booking.payout_status == BookingPayoutStatus.queued.value
+                ).label("queued_balance"),
+                _sum_where(
+                    Booking.payout_status == BookingPayoutStatus.paid.value
+                ).label("paid_total"),
+                func.count(Booking.id).filter(
+                    and_(*eligibility_predicates)
+                ).label("eligible_count"),
+            ).where(Booking.owner_id == host_id)
+        )
+    ).one()
 
     last_paid = (
         await db.execute(
@@ -245,9 +342,9 @@ async def host_summary(db: AsyncSession, host_id: int) -> dict:
     ).scalar_one_or_none()
 
     return {
-        "pending_balance": totals.get(BookingPayoutStatus.unpaid.value, 0.0),
-        "queued_balance": totals.get(BookingPayoutStatus.queued.value, 0.0),
-        "paid_total": totals.get(BookingPayoutStatus.paid.value, 0.0),
+        "pending_balance": float(agg.unpaid_balance or 0.0),
+        "queued_balance": float(agg.queued_balance or 0.0),
+        "paid_total": float(agg.paid_total or 0.0),
         "last_paid_at": last_paid,
-        "eligible_booking_count": int(eligible_count),
+        "eligible_booking_count": int(agg.eligible_count or 0),
     }

@@ -91,6 +91,13 @@ class DisburseWebhook:
     succeeded: bool                    # True on terminal success
     failed: bool                       # True on terminal failure
     message: str | None = None         # gateway-side reason string
+    # Amount the gateway claims to have delivered, in EGP.  Set to
+    # ``None`` for gateways that omit it from the webhook (in which
+    # case the router skips the cross-check).  When present, the
+    # router refuses to mark a payout ``succeeded`` if the value
+    # differs from ``Payout.total_amount`` — protects us from a
+    # buggy / forged webhook claiming success at the wrong amount.
+    amount_egp: float | None = None
     raw: dict[str, Any] = field(default_factory=dict)
 
 

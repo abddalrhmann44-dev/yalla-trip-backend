@@ -353,3 +353,65 @@ async def test_reconciler_polls_stuck_payouts():
     row = await _refresh_payout(pid)
     # Status untouched — sweeper must never invent terminal state.
     assert row.disburse_status == DisburseStatus.initiated
+
+
+# ══════════════════════════════════════════════════════════════
+#  Amount cross-check (Wave 26.1 hardening)
+# ══════════════════════════════════════════════════════════════
+@pytest.mark.asyncio
+async def test_webhook_rejects_amount_mismatch(
+    admin_client: AsyncClient, guest_client: AsyncClient,
+):
+    """A webhook claiming a different amount than our records must
+    NOT mark the payout paid.  Regression test for the missing
+    cross-check that would have let a buggy or forged webhook
+    silently flip ``disburse_status = succeeded`` while the host
+    received a different sum."""
+    pid = await _seed_payout(amount=1000.0)
+    init = (await admin_client.post(f"/payouts/admin/{pid}/disburse")).json()
+    ref = init["disburse_ref"]
+
+    # Webhook claims only 1 EGP arrived even though our record says 1000.
+    body, headers = MockDisburseGateway.make_success_webhook(
+        payout_id=pid, ref=ref, amount=1.0,
+    )
+    resp = await guest_client.post(
+        "/payouts/disburse/webhook",
+        content=body,
+        headers={**headers, "Content-Type": "application/json"},
+    )
+    assert resp.status_code == 200
+    assert resp.json().get("ignored") == "amount_mismatch"
+
+    row = await _refresh_payout(pid)
+    # The payout must be flipped to *failed*, never succeeded —
+    # silently accepting the smaller amount would mean a host gets
+    # paid 1 EGP but our DB records the full 1000 as delivered.
+    assert row.disburse_status == DisburseStatus.failed
+    assert row.status != PayoutStatus.paid
+    assert "mismatch" in (row.admin_notes or "").lower()
+
+
+@pytest.mark.asyncio
+async def test_webhook_accepts_matching_amount(
+    admin_client: AsyncClient, guest_client: AsyncClient,
+):
+    """The flip side of the mismatch test — when amounts agree, the
+    payout still flows through to ``paid`` as before."""
+    pid = await _seed_payout(amount=1000.0)
+    init = (await admin_client.post(f"/payouts/admin/{pid}/disburse")).json()
+    ref = init["disburse_ref"]
+
+    body, headers = MockDisburseGateway.make_success_webhook(
+        payout_id=pid, ref=ref, amount=1000.0,
+    )
+    resp = await guest_client.post(
+        "/payouts/disburse/webhook",
+        content=body,
+        headers={**headers, "Content-Type": "application/json"},
+    )
+    assert resp.status_code == 200
+
+    row = await _refresh_payout(pid)
+    assert row.disburse_status == DisburseStatus.succeeded
+    assert row.status == PayoutStatus.paid

@@ -46,7 +46,7 @@ from contextlib import suppress
 from datetime import datetime, timedelta, timezone
 
 import structlog
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -137,11 +137,16 @@ async def sweep_once(db: AsyncSession) -> dict[str, int]:
             )
         )
         .where(Payout.disburse_ref.is_not(None))
-        # ``created_at`` is a reasonable proxy for ``initiated_at``
-        # since the disburse fires shortly after batch creation in
-        # 99% of cases.  Once we add a dedicated ``disburse_initiated_at``
-        # column we'll switch the predicate to that.
-        .where(Payout.created_at < cutoff)
+        # Age the row off the *actual* disburse timestamp.  Falling
+        # back to ``created_at`` keeps in-flight rows that pre-date
+        # the column working until the next disburse stamps the new
+        # field — see migration ``c4d9_payout_concurrency_hardening``
+        # for the backfill that handles this gracefully.
+        .where(
+            func.coalesce(
+                Payout.disburse_initiated_at, Payout.created_at
+            ) < cutoff
+        )
         .options(selectinload(Payout.items).selectinload(PayoutItem.booking))
     )
     rows = (await db.execute(stmt)).scalars().all()
