@@ -175,8 +175,18 @@ async def create_booking(
     user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
-    # lookup property
-    result = await db.execute(select(Property).where(Property.id == body.property_id))
+    # ── Concurrency guard ────────────────────────────────────
+    # ``with_for_update`` takes a Postgres row-level lock on the
+    # Property for the duration of this transaction, so two requests
+    # racing for the last available room on the same listing get
+    # serialised at the database level.  Without this lock both
+    # requests would see ``booked < total_rooms`` and INSERT, leading
+    # to overbooking.  Keep this BEFORE any availability check.
+    result = await db.execute(
+        select(Property)
+        .where(Property.id == body.property_id)
+        .with_for_update()
+    )
     prop = result.scalar_one_or_none()
     if prop is None:
         raise HTTPException(status_code=404, detail="العقار غير موجود / Property not found")

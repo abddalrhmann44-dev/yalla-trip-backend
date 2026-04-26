@@ -188,9 +188,19 @@ class Property(Base):
     )
 
     # ── relationships ─────────────────────────────────────────
+    # ``owner`` stays eager (selectin) because almost every property
+    # listing renders the owner badge, so paying for one batched IN
+    # query is cheaper than N round-trips.
+    #
+    # ``bookings`` and ``reviews`` are explicitly *lazy* (default
+    # ``select``) because they used to be ``selectin`` which made
+    # every ``select(Property)`` pull every booking + review row for
+    # each listing (potentially hundreds per property).  Routers that
+    # actually need them must opt in with ``selectinload(...)`` —
+    # see ``routers/reviews.py`` for the pattern.
     owner = relationship("User", back_populates="properties", lazy="selectin")
-    bookings = relationship("Booking", back_populates="property", lazy="selectin")
-    reviews = relationship("Review", back_populates="property", lazy="selectin")
+    bookings = relationship("Booking", back_populates="property", lazy="select")
+    reviews = relationship("Review", back_populates="property", lazy="select")
 
     def __repr__(self) -> str:
         return f"<Property id={self.id} name={self.name!r}>"
