@@ -4,6 +4,10 @@
 *.pyc
 *.swp
 .DS_Store
+
+# Local build-time secrets (Sentry DSN, etc.) — NEVER commit
+.env.flutter
+.env.local
 .atom/
 .build/
 .buildlog/

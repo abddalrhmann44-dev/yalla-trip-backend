@@ -1,0 +1,38 @@
+{
+  "//": "Workspace-root Pyright config — stops Pylance from indexing the entire Flutter/Dart tree, node_modules, build artifacts, and venvs that have nothing to do with the FastAPI backend. Only the backend Python code is analysed.",
+  "include": [
+    "yalla_trip_backend/app",
+    "yalla_trip_backend/tests",
+    "yalla_trip_backend/alembic"
+  ],
+  "exclude": [
+    "**/__pycache__",
+    "**/.venv",
+    "**/venv",
+    "**/.pytest_cache",
+    "**/.ruff_cache",
+    "**/.dart_tool",
+    "**/.gradle",
+    "**/build",
+    "**/node_modules",
+    "**/android",
+    "**/ios",
+    "**/web",
+    "**/windows",
+    "**/macos",
+    "**/linux",
+    "**/lib",
+    "**/test",
+    "**/integration_test",
+    "**/assets",
+    "**/.idea",
+    "**/.git"
+  ],
+  "venvPath": "yalla_trip_backend",
+  "venv": ".venv",
+  "pythonVersion": "3.11",
+  "typeCheckingMode": "basic",
+  "reportMissingImports": "warning",
+  "reportMissingTypeStubs": "none",
+  "useLibraryCodeForTypes": true
+}

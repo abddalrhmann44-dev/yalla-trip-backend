@@ -20,7 +20,7 @@ import 'admin_promo_codes_page.dart';
 import 'admin_payouts_page.dart';
 import 'admin_audit_log_page.dart';
 
-const _kOcean  = Color(0xFF1565C0);
+const _kOcean  = Color(0xFFFF6B35);
 const _kGreen  = Color(0xFF4CAF50);
 const _kOrange = Color(0xFFFF6D00);
 const _kPurple = Color(0xFF7E57C2);
@@ -100,7 +100,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
                   gradient: LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
-                    colors: [Color(0xFF0D47A1), _kOcean],
+                    colors: [Color(0xFFE85A24), _kOcean],
                   ),
                 ),
                 child: SafeArea(

@@ -1,0 +1,91 @@
+{
+  // ── Ignore the backend Python virtual environment (~281 MB, 98 packages) ──
+  // This stops the editor's indexer, file-watcher, search, and Pylance from
+  // scanning every file inside `.venv` — which was taking hours and pegging
+  // the CPU on first workspace load.
+  "files.watcherExclude": {
+    "**/.venv/**": true,
+    "**/.git/objects/**": true,
+    "**/build/**": true,
+    "**/.dart_tool/**": true,
+    "**/node_modules/**": true,
+    "**/android/**": true,
+    "**/ios/Pods/**": true,
+    "**/.fvm/**": true,
+    "**/__pycache__/**": true,
+    "**/.ruff_cache/**": true,
+    "**/.pytest_cache/**": true
+  },
+  "files.exclude": {
+    "**/.venv": true,
+    "**/__pycache__": true,
+    "**/.pytest_cache": true,
+    "**/.ruff_cache": true,
+    "**/.dart_tool": true,
+    "**/build": true
+  },
+  "search.exclude": {
+    "**/.venv": true,
+    "**/__pycache__": true,
+    "**/build": true,
+    "**/.dart_tool": true,
+    "**/pubspec.lock": true,
+    "**/android": true,
+    "**/ios/Pods": true,
+    "**/.fvm": true
+  },
+
+  // ── Python (Pylance) ──────────────────────────────────────────
+  // 1) Point at the backend venv so `fastapi`, `sqlalchemy`, etc. resolve.
+  // 2) Restrict analysis to the backend subfolder — Pylance was scanning the
+  //    entire Flutter workspace (.dart_tool, android, ios, build, …) which
+  //    is why the bottom status-bar spinner never finished.
+  // 3) `openFilesOnly` means we only type-check files you have open; the
+  //    whole backend is still importable for Go-to-Definition but not
+  //    eagerly diagnosed.
+  "python.defaultInterpreterPath": "yalla_trip_backend/.venv/Scripts/python.exe",
+  "python.analysis.diagnosticMode": "openFilesOnly",
+  "python.analysis.include": [
+    "yalla_trip_backend/app/**",
+    "yalla_trip_backend/tests/**",
+    "yalla_trip_backend/alembic/**"
+  ],
+  "python.analysis.extraPaths": [
+    "yalla_trip_backend"
+  ],
+  "python.analysis.exclude": [
+    "**/.venv/**",
+    "**/node_modules/**",
+    "**/build/**",
+    "**/.dart_tool/**",
+    "**/android/**",
+    "**/ios/**",
+    "**/linux/**",
+    "**/macos/**",
+    "**/windows/**",
+    "**/web/**",
+    "**/.fvm/**",
+    "**/__pycache__/**",
+    "**/.pytest_cache/**",
+    "**/.ruff_cache/**"
+  ],
+  // Heavy startup tasks → disabled or capped so the spinner stops within
+  // seconds instead of minutes.  Trade-off: cross-file auto-import
+  // suggestions are limited, but go-to-definition / hover / inline
+  // diagnostics on open files all keep working perfectly.
+  "python.analysis.indexing": false,
+  "python.analysis.userFileIndexingLimit": 1000,
+  "python.analysis.packageIndexDepths": [
+    { "name": "fastapi", "depth": 2 },
+    { "name": "sqlalchemy", "depth": 2 },
+    { "name": "pydantic", "depth": 2 }
+  ],
+  "python.analysis.autoSearchPaths": false,
+  "python.analysis.autoImportCompletions": true,
+  "python.terminal.activateEnvironment": true,
+
+  // ── Dart/Flutter: don't let its analyzer fight for CPU either ──
+  "dart.analysisExcludedFolders": [
+    "yalla_trip_backend"
+  ]
+}

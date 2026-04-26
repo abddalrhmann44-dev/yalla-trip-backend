@@ -12,6 +12,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../services/auth_service.dart';
 import '../widgets/constants.dart';
 import 'home_page.dart';
+import 'register_page.dart';
 
 class OtpPage extends StatefulWidget {
   final String phoneNumber;
@@ -122,7 +123,7 @@ class _OtpPageState extends State<OtpPage>
 
       if (mounted) {
         HapticFeedback.heavyImpact();
-        _goHome();
+        _routeAfterAuth(result);
       }
     } on FirebaseAuthException catch (e) {
       String msg = S.otpWrong;
@@ -159,8 +160,8 @@ class _OtpPageState extends State<OtpPage>
       },
 
       verificationCompleted: (PhoneAuthCredential credential) async {
-        await _auth.signInWithCredential(credential);
-        if (mounted) { _goHome(); }
+        final result = await _auth.signInWithCredential(credential);
+        if (mounted) _routeAfterAuth(result);
       },
 
       verificationFailed: (FirebaseAuthException e) {
@@ -173,9 +174,16 @@ class _OtpPageState extends State<OtpPage>
     );
   }
 
-  void _goHome() {
+  /// Route users based on whether this is their first successful auth.
+  ///
+  /// * New users   → [RegisterPage]   (collect name + optional email).
+  /// * Returning   → [HomePage]       (straight into the app).
+  void _routeAfterAuth(UserCredential result) {
+    final isNew = result.additionalUserInfo?.isNewUser ?? false;
     Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const HomePage()),
+      MaterialPageRoute(
+        builder: (_) => isNew ? const RegisterPage() : const HomePage(),
+      ),
       (_) => false,
     );
   }
@@ -235,7 +243,7 @@ class _OtpPageState extends State<OtpPage>
                   width: 80, height: 80,
                   decoration: BoxDecoration(
                     gradient: const LinearGradient(
-                        colors: [Color(0xFF1565C0), Color(0xFF1E88E5)]),
+                        colors: [Color(0xFFFF6B35), Color(0xFFFF8A3D)]),
                     shape: BoxShape.circle,
                     boxShadow: [BoxShadow(
                       color: AppColors.primary.withValues(alpha: 0.35),

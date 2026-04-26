@@ -22,13 +22,13 @@ import 'login_page.dart';
 import 'wallet_page.dart';
 import '../main.dart' show appSettings, userProvider, favoritesProvider;
 import '../utils/app_strings.dart';
+import '../utils/auth_guard.dart';
 import '../widgets/verified_badge.dart';
 import 'terms_page.dart';
 import 'phone_verification_page.dart';
 
-// Accent colors (same in light & dark)
-const _kOcean  = Color(0xFF1565C0);
-const _kOrange = Color(0xFFFF6D00);
+// Accent colors (same in light & dark) — unified brand orange.
+const _kOrange = Color(0xFFFF6B35);
 const _kGreen  = Color(0xFF4CAF50);
 const _kRed    = Color(0xFFEF5350);
 
@@ -63,6 +63,9 @@ class _ProfilePageState extends State<ProfilePage> {
   @override
   void initState() {
     super.initState();
+    if (!widget.embedded) {
+      AuthGuard.requireOrPop(context, feature: 'تدخل على ملفك');
+    }
     userProvider.addListener(_onUserChanged);
     _loadProfile();
   }
@@ -129,7 +132,7 @@ class _ProfilePageState extends State<ProfilePage> {
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
             style: ElevatedButton.styleFrom(
-              backgroundColor: _kOcean,
+              backgroundColor: _kOrange,
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12)),
             ),
@@ -184,7 +187,7 @@ class _ProfilePageState extends State<ProfilePage> {
     if (_loading) {
       return Scaffold(
         backgroundColor: context.kSand,
-        body: const Center(child: CircularProgressIndicator(color: _kOcean)),
+        body: const Center(child: CircularProgressIndicator(color: _kOrange)),
       );
     }
 
@@ -309,13 +312,13 @@ class _ProfilePageState extends State<ProfilePage> {
                       child:
                           const Row(mainAxisSize: MainAxisSize.min, children: [
                         Icon(Icons.edit_rounded,
-                            size: 13, color: _kOcean),
+                            size: 13, color: _kOrange),
                         SizedBox(width: 4),
                         Text('تعديل',
                             style: TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w700,
-                                color: _kOcean)),
+                                color: _kOrange)),
                       ]),
                     ),
                   ]),
@@ -432,7 +435,7 @@ class _ProfilePageState extends State<ProfilePage> {
                     width: double.infinity,
                     height: 52,
                     decoration: BoxDecoration(
-                      color: const Color(0xFF1565C0),
+                      color: const Color(0xFFFF6B35),
                       borderRadius: BorderRadius.circular(16),
                     ),
                     child: Center(
@@ -468,7 +471,7 @@ class _ProfilePageState extends State<ProfilePage> {
       ),
       child: Row(children: [
         const SizedBox(width: 14),
-        Icon(icon, size: 18, color: _kOcean),
+        Icon(icon, size: 18, color: _kOrange),
         const SizedBox(width: 10),
         Expanded(
             child: TextField(
@@ -547,17 +550,17 @@ class _ProfilePageState extends State<ProfilePage> {
       margin: const EdgeInsets.fromLTRB(20, 20, 20, 0),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       decoration: BoxDecoration(
-        color: _kOcean.withValues(alpha: 0.08),
+        color: _kOrange.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: _kOcean.withValues(alpha: 0.2)),
+        border: Border.all(color: _kOrange.withValues(alpha: 0.2)),
       ),
       child: Row(children: [
-        const Icon(Icons.home_work_rounded, color: _kOcean, size: 20),
+        const Icon(Icons.home_work_rounded, color: _kOrange, size: 20),
         const SizedBox(width: 10),
         Expanded(
           child: Text(S.ownerMode,
               style: const TextStyle(
-                  fontSize: 13, fontWeight: FontWeight.w800, color: _kOcean)),
+                  fontSize: 13, fontWeight: FontWeight.w800, color: _kOrange)),
         ),
         GestureDetector(
           onTap: () => Navigator.push(
@@ -567,11 +570,11 @@ class _ProfilePageState extends State<ProfilePage> {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
             decoration: BoxDecoration(
-              color: _kOcean,
+              color: _kOrange,
               borderRadius: BorderRadius.circular(10),
             ),
-            child: const Text('Host Dashboard',
-                style: TextStyle(
+            child: Text(S.hostDashboardBtn,
+                style: const TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w800,
                     color: Colors.white)),
@@ -586,7 +589,7 @@ class _ProfilePageState extends State<ProfilePage> {
               color: context.kSub.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Text('Guest Mode',
+            child: Text(S.guestModeBtn,
                 style: TextStyle(
                     fontSize: 11, fontWeight: FontWeight.w700, color: context.kSub)),
           ),
@@ -609,7 +612,7 @@ class _ProfilePageState extends State<ProfilePage> {
             border: Border.all(color: context.kBorder),
           ),
           child: Row(children: [
-            _miniStat(_listingsCount.toString(), 'عقار', _kOcean),
+            _miniStat(_listingsCount.toString(), 'عقار', _kOrange),
             _statDivider(),
             _miniStat(_bookingsCount.toString(), 'حجز', _kGreen),
             _statDivider(),
@@ -750,7 +753,7 @@ class _ProfilePageState extends State<ProfilePage> {
     Color? color,
     required VoidCallback onTap,
   }) {
-    final c = color ?? _kOcean;
+    final c = color ?? _kOrange;
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(16),
@@ -936,7 +939,7 @@ class _ProfilePageState extends State<ProfilePage> {
               width: 38,
               height: 38,
               decoration: BoxDecoration(
-                color: _kOcean.withValues(alpha: 0.08),
+                color: _kOrange.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: const Center(
@@ -967,7 +970,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 decoration: BoxDecoration(
                   color: context.kChipBg,
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: _kOcean.withValues(alpha: 0.2)),
+                  border: Border.all(color: _kOrange.withValues(alpha: 0.2)),
                 ),
                 child: Row(mainAxisSize: MainAxisSize.min, children: [
                   AnimatedContainer(
@@ -975,7 +978,7 @@ class _ProfilePageState extends State<ProfilePage> {
                     padding:
                         const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
                     decoration: BoxDecoration(
-                      color: appSettings.arabic ? _kOcean : Colors.transparent,
+                      color: appSettings.arabic ? _kOrange : Colors.transparent,
                       borderRadius: BorderRadius.circular(18),
                     ),
                     child: Text('AR',
@@ -991,7 +994,7 @@ class _ProfilePageState extends State<ProfilePage> {
                     padding:
                         const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
                     decoration: BoxDecoration(
-                      color: !appSettings.arabic ? _kOcean : Colors.transparent,
+                      color: !appSettings.arabic ? _kOrange : Colors.transparent,
                       borderRadius: BorderRadius.circular(18),
                     ),
                     child: Text('EN',
@@ -1024,7 +1027,7 @@ class _ProfilePageState extends State<ProfilePage> {
         const SizedBox(height: 20),
         _sectionTitle(S.support),
         const SizedBox(height: 10),
-        _navTile(Icons.help_outline_rounded, S.helpCenter, _kOcean,
+        _navTile(Icons.help_outline_rounded, S.helpCenter, _kOrange,
             onTap: () {}),
         _navTile(Icons.verified_user_rounded, 'سياسة الاستخدام والخصوصية',
             const Color(0xFF7E57C2),
@@ -1118,7 +1121,7 @@ class _ProfilePageState extends State<ProfilePage> {
         )),
         Switch.adaptive(
             value: val,
-            activeThumbColor: _kOcean,
+            activeThumbColor: _kOrange,
             onChanged: onChange,
             materialTapTargetSize: MaterialTapTargetSize.shrinkWrap),
       ]),
@@ -1179,7 +1182,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   onPressed: () => Navigator.pop(context),
                   child: const Text('إلغاء',
                       style: TextStyle(
-                          color: _kOcean, fontWeight: FontWeight.w700)),
+                          color: _kOrange, fontWeight: FontWeight.w700)),
                 ),
                 ElevatedButton(
                   onPressed: () async {
@@ -1233,7 +1236,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   onPressed: () => Navigator.pop(context),
                   child: const Text('إلغاء',
                       style: TextStyle(
-                          color: _kOcean, fontWeight: FontWeight.w700)),
+                          color: _kOrange, fontWeight: FontWeight.w700)),
                 ),
                 ElevatedButton(
                   onPressed: () async {

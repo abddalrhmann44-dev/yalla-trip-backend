@@ -14,7 +14,7 @@ import '../models/property_model_api.dart';
 import '../services/property_service.dart';
 
 // ── Colors (theme-dependent ones come from AppThemeX) ─────────
-const _kOcean  = Color(0xFF1565C0);
+const _kOcean  = Color(0xFFFF6B35);
 const _kOrange = Color(0xFFFF6D00);
 const _kGreen  = Color(0xFF4CAF50);
 
@@ -31,9 +31,9 @@ const _kAreas = [
   _Area('القاهرة',        'assets/images/destinations/cairo.jpg',       Color(0xFFBF360C)),
   _Area('اسكندرية',       'assets/images/destinations/alex.jpg',        Color(0xFF283593)),
   _Area('سهل حشيش',       'assets/images/destinations/shal_hashesh.jpg',Color(0xFF00838F)),
-  _Area('مرسى علم',       'assets/images/destinations/marsa_alam.jpg',  Color(0xFF1565C0)),
-  _Area('عين السخنة',     'assets/images/destinations/ain_sokhna.jpg',  Color(0xFF0288D1)),
-  _Area('الساحل الشمالي', 'assets/images/destinations/north_coast.jpg', Color(0xFF1976D2)),
+  _Area('مرسى علم',       'assets/images/destinations/marsa_alam.jpg',  Color(0xFFFF6B35)),
+  _Area('عين السخنة',     'assets/images/destinations/ain_sokhna.jpg',  Color(0xFFFF8C42)),
+  _Area('الساحل الشمالي', 'assets/images/destinations/north_coast.jpg', Color(0xFFE85A24)),
   _Area('الجونة',         'assets/images/destinations/gouna.jpg',       Color(0xFFE65100)),
   _Area('الغردقة',        'assets/images/destinations/hurghada.jpg',    Color(0xFF00695C)),
   _Area('شرم الشيخ',      'assets/images/destinations/sharm.jpg',       Color(0xFF6A1B9A)),
@@ -41,7 +41,7 @@ const _kAreas = [
 ];
 
 const _kCategories = [
-  'الكل', 'شاليهات', 'فنادق', 'منتجعات', 'فيلات', 'أكوا بارك', 'بيت شاطئ',
+  'الكل', 'شاليهات', 'فنادق', 'منتجعات', 'فيلات', 'أكوا بارك', 'رحلة يوم واحد',
 ];
 
 
@@ -189,7 +189,7 @@ class _ExplorePageState extends State<ExplorePage>
       decoration: const BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft, end: Alignment.bottomCenter,
-          colors: [Color(0xFF0A2463), Color(0xFF1565C0), Color(0xFF1E88E5)],
+          colors: [Color(0xFFB54414), Color(0xFFFF6B35), Color(0xFFFF8A3D)],
         ),
       ),
       child: SafeArea(
@@ -907,7 +907,7 @@ class _ExplorePageState extends State<ExplorePage>
                       horizontal: 20, vertical: 10),
                   decoration: BoxDecoration(
                     gradient: const LinearGradient(
-                        colors: [Color(0xFF1976D2), Color(0xFF0D47A1)]),
+                        colors: [Color(0xFFE85A24), Color(0xFFE85A24)]),
                     borderRadius: BorderRadius.circular(12),
                     boxShadow: [BoxShadow(
                         color: _kOcean.withValues(alpha: 0.4),

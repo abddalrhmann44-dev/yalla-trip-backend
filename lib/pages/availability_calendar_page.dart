@@ -11,7 +11,7 @@ import '../services/availability_service.dart';
 import '../widgets/constants.dart';
 
 // Accent colours (same light & dark)
-const _kOcean = Color(0xFF1565C0);
+const _kOcean = Color(0xFFFF6B35);
 const _kOrange = Color(0xFFFF6D00);
 const _kGreen = Color(0xFF22C55E);
 const _kRed = Color(0xFFEF4444);
@@ -94,7 +94,7 @@ class _AvailabilityCalendarPageState extends State<AvailabilityCalendarPage> {
     return Scaffold(
       backgroundColor: context.kSand,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF0A2463),
+        backgroundColor: const Color(0xFFB54414),
         foregroundColor: Colors.white,
         elevation: 0,
         title: Column(

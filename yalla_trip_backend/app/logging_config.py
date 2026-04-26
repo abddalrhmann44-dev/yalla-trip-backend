@@ -18,6 +18,7 @@ import sys
 import structlog
 
 from app.config import get_settings
+from app.log_redactor import redact_processor
 
 _settings = get_settings()
 
@@ -62,6 +63,7 @@ def configure_logging() -> None:
         processors=[
             *shared_processors,
             structlog.processors.format_exc_info,
+            redact_processor,
             renderer,
         ],
         wrapper_class=structlog.make_filtering_bound_logger(level),

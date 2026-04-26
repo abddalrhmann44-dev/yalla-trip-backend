@@ -11,9 +11,12 @@ from fastapi.responses import ORJSONResponse
 
 from app.config import get_settings
 from app.logging_config import configure_logging
+from app.middleware.body_size_limit import register as register_body_size
 from app.middleware.cors_middleware import add_cors
+from app.middleware.https_redirect import register as register_https_redirect
 from app.middleware.rate_limit import register as register_rate_limit
 from app.middleware.request_id import register as register_request_id
+from app.middleware.security_headers import register as register_security_headers
 from app.routers import (
     admin,
     analytics,
@@ -60,8 +63,22 @@ init_sentry()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("app_startup", env=settings.APP_ENV)
-    yield
-    logger.info("app_shutdown")
+    # Wave 25 — kick off the cash-on-arrival auto-dispute sweeper.
+    # Imported lazily so the scheduler module isn't pulled in at
+    # import time (keeps `python -m app.main` snappy in CI).
+    from app.services import cash_collection_scheduler
+    cash_collection_scheduler.start()
+    # Wave 26 — reconcile stuck disbursements so a missed webhook
+    # doesn't park money in flight forever.  Same lazy-import
+    # pattern: only paid for at startup.
+    from app.services import disburse_reconciler
+    disburse_reconciler.start()
+    try:
+        yield
+    finally:
+        await disburse_reconciler.stop()
+        await cash_collection_scheduler.stop()
+        logger.info("app_shutdown")
 
 
 # ── App factory ───────────────────────────────────────────
@@ -76,11 +93,20 @@ app = FastAPI(
 )
 
 # ── Middleware ────────────────────────────────────────────
-# Order matters — the last `add_middleware` runs FIRST on the way in
-# (ASGI onion).  We want: request_id (outermost) → rate_limit → CORS.
-add_cors(app)
-register_rate_limit(app)
+# Order matters — the middleware registered LAST runs FIRST on the
+# way in (ASGI onion).  The desired request-time order is:
+#   1. https_redirect    (bounce plain HTTP before anything else)
+#   2. security_headers  (sets response headers on the way out)
+#   3. cors              (pre-flight responses short-circuit here)
+#   4. body_size_limit   (reject oversized payloads before parsing)
+#   5. rate_limit        (consumes a token per request)
+#   6. request_id        (stamps every log line — outermost)
 register_request_id(app)
+register_rate_limit(app)
+register_body_size(app)
+add_cors(app)
+register_security_headers(app)
+register_https_redirect(app)
 
 
 # ── Global exception handlers ─────────────────────────────

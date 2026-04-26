@@ -11,7 +11,6 @@ import '../widgets/guests_animation_counter.dart';
 import '../models/property_model_api.dart';
 import 'payment_page.dart';
 
-const _kOcean  = Color(0xFF1565C0);
 const _kOrange = Color(0xFFFF6D00);
 const _kGreen  = Color(0xFF22C55E);
 
@@ -50,6 +49,43 @@ class _BookingFlowPageState extends State<BookingFlowPage>
 
   int get _cleaningFee => p.cleaningFee.toStringAsFixed(0) == '0' ? 0 : p.cleaningFee.toInt();
   int get _grandTotal  => _baseTotal + _cleaningFee;
+
+  // ── Wave 25: hybrid deposit + cash-on-arrival ─────────────
+  // Mirrors ``app/services/deposit.py`` server-side so the receipt
+  // the guest sees here matches what the backend will charge at
+  // checkout.  The 10 % constant tracks
+  // ``settings.PLATFORM_FEE_PERCENT`` — keep them in sync.
+  static const double _kCommissionRate = 0.10;
+
+  /// Number of nights the deposit must cover so the platform
+  /// commission is fully covered by the online portion.  Mirrors the
+  /// ``max(1, ceil(commission / price_per_night))`` rule on the
+  /// backend.
+  int get _depositNights {
+    if (!p.cashOnArrivalEnabled || _nights <= 0) return 0;
+    final commission = _grandTotal * _kCommissionRate;
+    final perNight = p.pricePerNight;
+    if (perNight <= 0) return 1;
+    final nightsNeeded = (commission / perNight).ceil();
+    return nightsNeeded.clamp(1, _nights);
+  }
+
+  /// Online deposit — what the guest pays right now via the gateway.
+  /// For listings without cash-on-arrival this is the full total so
+  /// the legacy UI rendering stays intact.
+  int get _depositAmount {
+    if (!p.cashOnArrivalEnabled) return _grandTotal;
+    final raw = (p.pricePerNight * _depositNights).toInt();
+    return raw.clamp(0, _grandTotal);
+  }
+
+  /// Remaining cash the host collects on arrival.  Always
+  /// ``total - deposit`` so the invariant
+  /// ``deposit + remaining == total`` holds.
+  int get _remainingCash {
+    if (!p.cashOnArrivalEnabled) return 0;
+    return (_grandTotal - _depositAmount).clamp(0, _grandTotal);
+  }
 
   @override
   void initState() {
@@ -119,7 +155,7 @@ class _BookingFlowPageState extends State<BookingFlowPage>
             builder: (_, __) => LinearProgressIndicator(
               value: _progressAnim.value,
               backgroundColor: context.kBorder,
-              valueColor: const AlwaysStoppedAnimation(_kOcean),
+              valueColor: const AlwaysStoppedAnimation(_kOrange),
               minHeight: 4,
             ),
           ),
@@ -190,24 +226,24 @@ class _BookingFlowPageState extends State<BookingFlowPage>
           Container(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: _kOcean.withValues(alpha: 0.06),
+              color: _kOrange.withValues(alpha: 0.06),
               borderRadius: BorderRadius.circular(14),
               border: Border.all(
-                  color: _kOcean.withValues(alpha: 0.2)),
+                  color: _kOrange.withValues(alpha: 0.2)),
             ),
             child: Row(children: [
               const Icon(Icons.nights_stay_rounded,
-                  color: _kOcean, size: 20),
+                  color: _kOrange, size: 20),
               const SizedBox(width: 10),
               Text('$_nights ليالي',
                   style: const TextStyle(
                       fontSize: 15, fontWeight: FontWeight.w900,
-                      color: _kOcean)),
+                      color: _kOrange)),
               const Spacer(),
               Text('${_baseTotal.toString()} جنيه',
                   style: const TextStyle(
                       fontSize: 15, fontWeight: FontWeight.w900,
-                      color: _kOcean)),
+                      color: _kOrange)),
             ]),
           ),
         ],
@@ -245,7 +281,7 @@ class _BookingFlowPageState extends State<BookingFlowPage>
                 ? () => _goStep(1)
                 : null,
             style: ElevatedButton.styleFrom(
-              backgroundColor: _kOcean,
+              backgroundColor: _kOrange,
               foregroundColor: Colors.white,
               disabledBackgroundColor: Colors.grey.shade300,
               elevation: 0,
@@ -320,7 +356,7 @@ class _BookingFlowPageState extends State<BookingFlowPage>
       builder: (ctx, child) => Theme(
         data: Theme.of(ctx).copyWith(
           colorScheme: const ColorScheme.light(
-            primary: _kOcean,
+            primary: _kOrange,
             onPrimary: Colors.white,
           ),
         ),
@@ -398,7 +434,7 @@ class _BookingFlowPageState extends State<BookingFlowPage>
           child: ElevatedButton(
             onPressed: () => _goStep(2),
             style: ElevatedButton.styleFrom(
-              backgroundColor: _kOcean,
+              backgroundColor: _kOrange,
               foregroundColor: Colors.white,
               elevation: 0,
               shape: RoundedRectangleBorder(
@@ -425,7 +461,7 @@ class _BookingFlowPageState extends State<BookingFlowPage>
     ),
     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Row(children: [
-        Icon(Icons.policy_rounded, color: _kOcean, size: 18),
+        Icon(Icons.policy_rounded, color: _kOrange, size: 18),
         SizedBox(width: 8),
         Text('سياسة الإلغاء والحجز',
             style: TextStyle(fontSize: 15,
@@ -459,7 +495,7 @@ class _BookingFlowPageState extends State<BookingFlowPage>
       // Booking rules
       _policyItem(
         icon: Icons.access_time_rounded,
-        color: _kOcean,
+        color: _kOrange,
         title: 'وقت الوصول والمغادرة',
         body: 'الوصول من الساعة 14:00 '
               '— وقت الإغلاق ${p.closingTime ?? "22:00"}.',
@@ -549,7 +585,7 @@ class _BookingFlowPageState extends State<BookingFlowPage>
           child: ElevatedButton(
             onPressed: _proceedToPayment,
             style: ElevatedButton.styleFrom(
-              backgroundColor: _kOcean,
+              backgroundColor: _kOrange,
               foregroundColor: Colors.white,
               elevation: 0,
               shape: RoundedRectangleBorder(
@@ -569,9 +605,14 @@ class _BookingFlowPageState extends State<BookingFlowPage>
                     color: Colors.white.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Text('$_grandTotal جنيه',
-                      style: const TextStyle(
-                          fontSize: 13, fontWeight: FontWeight.w900)),
+                  // For cash-on-arrival listings the button shows
+                  // the *deposit* (= what's about to leave the
+                  // guest's card right now), not the grand total.
+                  child: Text(
+                    '${p.cashOnArrivalEnabled ? _depositAmount : _grandTotal} جنيه',
+                    style: const TextStyle(
+                        fontSize: 13, fontWeight: FontWeight.w900),
+                  ),
                 ),
               ],
             ),
@@ -600,8 +641,64 @@ class _BookingFlowPageState extends State<BookingFlowPage>
         _priceRow(S.cleaningFee, '$_cleaningFee جنيه'),
       Divider(height: 20, color: context.kBorder),
       _priceRow(S.totalPrice, '$_grandTotal جنيه', bold: true),
+      // ── Wave 25 — hybrid deposit + cash split ───────────────
+      // Surface this only for opted-in listings; legacy ones keep
+      // showing just the grand total exactly like before.
+      if (p.cashOnArrivalEnabled) ...[
+        const SizedBox(height: 14),
+        _depositSplitCard(),
+      ],
     ]),
   );
+
+  /// Highlights the "you pay X online now, Y in cash on arrival"
+  /// split.  Designed to be unmissable so guests aren't surprised at
+  /// check-in by an extra cash demand.
+  Widget _depositSplitCard() {
+    final depositLabel = _depositNights > 0
+        ? (_depositNights == 1
+            ? 'ليلة واحدة'
+            : 'ليالى $_depositNights')
+        : '';
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFFE8F5E9), Color(0xFFF1F8E9)],
+        ),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFF66BB6A), width: 1.2),
+      ),
+      child: Column(children: [
+        Row(children: const [
+          Text('💵', style: TextStyle(fontSize: 18)),
+          SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'دفع جزئى — استلم الباقى للمضيف عند الوصول',
+              style: TextStyle(
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w900,
+                  color: Color(0xFF1B5E20)),
+            ),
+          ),
+        ]),
+        const SizedBox(height: 10),
+        _priceRow(
+          depositLabel.isNotEmpty
+              ? 'تدفع الآن (عربون $depositLabel)'
+              : 'تدفع الآن (عربون)',
+          '$_depositAmount جنيه',
+          bold: true,
+        ),
+        if (_remainingCash > 0)
+          _priceRow(
+            'تدفع كاش للمضيف عند الوصول',
+            '$_remainingCash جنيه',
+          ),
+      ]),
+    );
+  }
 
   Widget _priceRow(String label, String val, {bool bold = false}) =>
     Padding(
@@ -613,7 +710,7 @@ class _BookingFlowPageState extends State<BookingFlowPage>
         Text(val, style: TextStyle(
             fontSize: bold ? 15 : 13,
             fontWeight: bold ? FontWeight.w900 : FontWeight.w700,
-            color: bold ? _kOcean : context.kText)),
+            color: bold ? _kOrange : context.kText)),
       ]),
     );
 
@@ -623,15 +720,20 @@ class _BookingFlowPageState extends State<BookingFlowPage>
 
     Navigator.push(context, MaterialPageRoute(
       builder: (_) => PaymentPage(
-        property:     p,
-        checkIn:      checkInStr,
-        checkOut:     checkOutStr,
-        nights:       _nights,
-        guests:       _guests,
-        guestNote:    _guestNote,
-        baseAmount:   _baseTotal,
-        cleaningFee:  _cleaningFee,
-        totalAmount:  _grandTotal,
+        property:        p,
+        checkIn:         checkInStr,
+        checkOut:        checkOutStr,
+        nights:          _nights,
+        guests:          _guests,
+        guestNote:       _guestNote,
+        baseAmount:      _baseTotal,
+        cleaningFee:     _cleaningFee,
+        totalAmount:     _grandTotal,
+        // Wave 25 — for hybrid listings the gateway only charges the
+        // deposit; ``totalAmount`` stays as the grand total so the
+        // receipt UI keeps showing the trip-wide cost.
+        depositAmount:   _depositAmount,
+        remainingCash:   _remainingCash,
       ),
     ));
   }
@@ -650,16 +752,16 @@ class _BookingFlowPageState extends State<BookingFlowPage>
         borderRadius: BorderRadius.circular(10),
         child: p.images.isEmpty
             ? Container(width: 60, height: 60,
-                color: _kOcean.withValues(alpha: 0.1),
+                color: _kOrange.withValues(alpha: 0.1),
                 child: const Icon(Icons.villa_rounded,
-                    color: _kOcean, size: 28))
+                    color: _kOrange, size: 28))
             : Image.network(p.images[0], width: 60,
                 height: 60, fit: BoxFit.cover,
                 errorBuilder: (_, __, ___) => Container(
                     width: 60, height: 60,
-                    color: _kOcean.withValues(alpha: 0.1),
+                    color: _kOrange.withValues(alpha: 0.1),
                     child: const Icon(Icons.villa_rounded,
-                        color: _kOcean, size: 28))),
+                        color: _kOrange, size: 28))),
       ),
       const SizedBox(width: 12),
       Expanded(child: Column(
@@ -688,7 +790,7 @@ class _BookingFlowPageState extends State<BookingFlowPage>
       Text('${p.pricePerNight.toStringAsFixed(0)}\nجنيه/ليلة',
           textAlign: TextAlign.center,
           style: const TextStyle(fontSize: 13,
-              fontWeight: FontWeight.w900, color: _kOcean)),
+              fontWeight: FontWeight.w900, color: _kOrange)),
     ]),
   );
 
@@ -716,7 +818,7 @@ class _BookingFlowPageState extends State<BookingFlowPage>
             _kOrange),
         Container(width: 1, height: 40, color: context.kBorder),
         _summaryItem(Icons.nights_stay_rounded,
-            'ليالي', '$_nights', _kOcean),
+            'ليالي', '$_nights', _kOrange),
         Container(width: 1, height: 40, color: context.kBorder),
         _summaryItem(Icons.people_rounded,
             'ضيوف', '$_guests', context.kSub),

@@ -9,6 +9,7 @@ from app.services.gateways.base import (
 from app.services.gateways.fawry import FawryGateway
 from app.services.gateways.paymob import PaymobGateway
 from app.services.gateways.cod import CODGateway
+from app.services.gateways.mock import MockGateway
 from app.services.gateways.registry import get_gateway
 
 __all__ = [
@@ -19,5 +20,6 @@ __all__ = [
     "FawryGateway",
     "PaymobGateway",
     "CODGateway",
+    "MockGateway",
     "get_gateway",
 ]

@@ -14,7 +14,7 @@ import '../utils/error_handler.dart';
 import '../widgets/constants.dart';
 import '../widgets/star_rating.dart';
 
-const _kOcean = Color(0xFF1B4D5C);
+const _kOcean = Color(0xFFB54414);
 
 class WriteReviewPage extends StatefulWidget {
   final PendingReview pending;

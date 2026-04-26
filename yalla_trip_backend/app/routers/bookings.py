@@ -16,7 +16,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import get_settings
 from app.database import get_db
 from app.middleware.auth_middleware import get_current_active_user, require_role
-from app.models.booking import Booking, BookingStatus, DepositStatus, PaymentStatus
+from app.models.booking import (
+    Booking,
+    BookingStatus,
+    CashCollectionStatus,
+    DepositStatus,
+    PaymentStatus,
+)
 from app.models.availability_rule import AvailabilityRule, RuleType
 from app.models.calendar import CalendarBlock
 from app.models.notification import NotificationType
@@ -31,6 +37,7 @@ from app.schemas.booking import (
 )
 from app.schemas.common import PaginatedResponse
 from app.services.cancellation import quote_refund
+from app.services.deposit import compute_deposit_breakdown
 from app.services.gateways import GatewayError, get_gateway
 from app.services.notification_service import create_notification
 from app.services.promo_service import redeem_for_booking
@@ -94,8 +101,8 @@ def _calc_price(
         nights_total += rate
         day += timedelta(days=1)
 
-    # Cleaning fee: chalets, villas, beach houses only
-    _has_cleaning = prop.category in (Category.chalet, Category.villa, Category.beach_house)
+    # Cleaning fee: chalets, villas, day-use only
+    _has_cleaning = prop.category in (Category.chalet, Category.villa, Category.day_use)
     cleaning_fee = (prop.cleaning_fee or 0.0) if _has_cleaning else 0.0
 
     # Utility fees & security deposit apply to chalets only
@@ -308,6 +315,25 @@ async def create_booking(
                 max(0.0, platform_fee_final - wallet_discount), 2,
             )
 
+    # ── Wave 25 — hybrid deposit + cash-on-arrival split ────
+    # Compute the up-front deposit (sized so it always covers our
+    # commission and at least one nightly rate) and the cash leg the
+    # host will collect on arrival.  Hosts who left
+    # ``cash_on_arrival_enabled`` off get the legacy 100 %-online
+    # split where ``deposit == effective_total`` and ``remaining_cash
+    # == 0`` — see ``services/deposit.py`` for the full contract.
+    deposit_break = compute_deposit_breakdown(
+        total_price=effective_total,
+        price_per_night=prop.price_per_night,
+        commission_rate=settings.PLATFORM_FEE_PERCENT / 100.0,
+        cash_on_arrival_enabled=prop.cash_on_arrival_enabled,
+    )
+    initial_cash_status = (
+        CashCollectionStatus.pending
+        if prop.cash_on_arrival_enabled
+        else CashCollectionStatus.not_applicable
+    )
+
     booking = Booking(
         booking_code=code,
         property_id=prop.id,
@@ -323,6 +349,9 @@ async def create_booking(
         total_price=effective_total,
         platform_fee=platform_fee_final,
         owner_payout=owner_payout_final,
+        deposit_amount=deposit_break.deposit_amount,
+        remaining_cash_amount=deposit_break.remaining_cash_amount,
+        cash_collection_status=initial_cash_status,
         promo_discount=promo_discount,
         wallet_discount=wallet_discount,
         status=initial_status,
@@ -660,6 +689,277 @@ async def cancel_booking(
             notif_type=NotificationType.booking_cancelled,
         )
 
+    return BookingOut.model_validate(booking)
+
+
+# ── Hybrid cash-on-arrival workflow (Wave 25) ─────────────────
+#
+# When the property's host opted into ``cash_on_arrival_enabled``,
+# the booking is paid in two legs:
+#   1. ``deposit_amount`` was charged online via the gateway.
+#   2. ``remaining_cash_amount`` is settled in cash on arrival.
+#
+# Releasing the host's online payout requires *both* parties to
+# acknowledge the cash collection — the host marks "received" and the
+# guest marks "paid & arrived".  This avoids the two pathological
+# cases:
+#   • Host claims they never got the cash to keep the deposit AND
+#     re-bill the guest.
+#   • Guest claims they paid cash when they actually didn't, leaving
+#     the host out-of-pocket while the platform releases funds.
+#
+# A scheduled job (Phase 3) flips one-sided confirmations to
+# ``disputed`` after 48 h so admin can step in.
+
+
+def _release_payout_if_both_confirmed(booking: Booking) -> None:
+    """Bump ``cash_collection_status`` to ``confirmed`` when both
+    sides have signed off, and unblock the host's payout pipeline.
+
+    No-op if either confirmation is still missing or the booking
+    isn't a cash-on-arrival one in the first place.
+    """
+
+    if (
+        booking.owner_cash_confirmed_at is not None
+        and booking.guest_arrival_confirmed_at is not None
+        and booking.cash_collection_status != CashCollectionStatus.confirmed
+    ):
+        booking.cash_collection_status = CashCollectionStatus.confirmed
+        # Mark the booking as completed so it enters the next payout
+        # batch — the host has fulfilled their side of the deal.
+        if booking.status == BookingStatus.confirmed:
+            booking.status = BookingStatus.completed
+
+
+@router.post("/{booking_id}/confirm-cash-received", response_model=BookingOut)
+async def confirm_cash_received(
+    booking_id: int,
+    user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Host confirms they received the cash leg from the guest.
+
+    Only the host (or an admin) may call this.  Pairs with
+    ``confirm_arrival`` so the platform never releases the online
+    payout on a single, unilateral claim.
+    """
+
+    booking = await _load_booking_or_403(db, booking_id, user)
+    if booking.owner_id != user.id and user.role != UserRole.admin:
+        raise HTTPException(
+            status_code=403,
+            detail="هذا الإجراء للمضيف فقط / Host-only action",
+        )
+    if booking.cash_collection_status == CashCollectionStatus.not_applicable:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "الحجز مدفوع بالكامل أونلاين / "
+                "Booking was fully prepaid online"
+            ),
+        )
+    if booking.cash_collection_status in (
+        CashCollectionStatus.confirmed,
+        CashCollectionStatus.no_show,
+    ):
+        raise HTTPException(
+            status_code=409,
+            detail="الحجز محسوم بالفعل / Already settled",
+        )
+    if booking.payment_status != PaymentStatus.paid:
+        raise HTTPException(
+            status_code=400,
+            detail="العربون لم يُدفع بعد / Deposit not paid yet",
+        )
+    today = date.today()
+    if booking.check_in > today:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "لا يمكن التأكيد قبل تاريخ الوصول / "
+                "Cannot confirm before check-in date"
+            ),
+        )
+
+    booking.owner_cash_confirmed_at = datetime.now(timezone.utc)
+    if booking.cash_collection_status == CashCollectionStatus.pending:
+        booking.cash_collection_status = CashCollectionStatus.owner_confirmed
+    _release_payout_if_both_confirmed(booking)
+    await db.flush()
+    await db.refresh(booking)
+
+    await create_notification(
+        db,
+        booking.guest_id,
+        title="المضيف أكد استلام المبلغ",
+        body=f"يرجى تأكيد وصولك ودفعك للمبلغ النقدى لحجز {booking.booking_code}.",
+        notif_type=NotificationType.booking_confirmed,
+    )
+    logger.info(
+        "cash_owner_confirmed",
+        booking_id=booking.id,
+        status=booking.cash_collection_status.value,
+    )
+    return BookingOut.model_validate(booking)
+
+
+@router.post("/{booking_id}/confirm-arrival", response_model=BookingOut)
+async def confirm_arrival(
+    booking_id: int,
+    user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Guest confirms they arrived and handed over the cash leg.
+
+    Mirror endpoint of ``confirm_cash_received`` — guest-only.
+    """
+
+    booking = await _load_booking_or_403(db, booking_id, user)
+    if booking.guest_id != user.id and user.role != UserRole.admin:
+        raise HTTPException(
+            status_code=403,
+            detail="هذا الإجراء للضيف فقط / Guest-only action",
+        )
+    if booking.cash_collection_status == CashCollectionStatus.not_applicable:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "الحجز مدفوع بالكامل أونلاين / "
+                "Booking was fully prepaid online"
+            ),
+        )
+    if booking.cash_collection_status in (
+        CashCollectionStatus.confirmed,
+        CashCollectionStatus.no_show,
+    ):
+        raise HTTPException(
+            status_code=409,
+            detail="الحجز محسوم بالفعل / Already settled",
+        )
+    if booking.payment_status != PaymentStatus.paid:
+        raise HTTPException(
+            status_code=400,
+            detail="العربون لم يُدفع بعد / Deposit not paid yet",
+        )
+    today = date.today()
+    if booking.check_in > today:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "لا يمكن التأكيد قبل تاريخ الوصول / "
+                "Cannot confirm before check-in date"
+            ),
+        )
+
+    booking.guest_arrival_confirmed_at = datetime.now(timezone.utc)
+    if booking.cash_collection_status == CashCollectionStatus.pending:
+        booking.cash_collection_status = CashCollectionStatus.guest_confirmed
+    _release_payout_if_both_confirmed(booking)
+    await db.flush()
+    await db.refresh(booking)
+
+    await create_notification(
+        db,
+        booking.owner_id,
+        title="الضيف أكد الوصول",
+        body=f"يرجى تأكيد استلامك للمبلغ النقدى لحجز {booking.booking_code}.",
+        notif_type=NotificationType.booking_confirmed,
+    )
+    logger.info(
+        "cash_guest_confirmed",
+        booking_id=booking.id,
+        status=booking.cash_collection_status.value,
+    )
+    return BookingOut.model_validate(booking)
+
+
+@router.post("/{booking_id}/report-no-show", response_model=BookingOut)
+async def report_no_show(
+    booking_id: int,
+    user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Host marks the guest as a no-show after the check-in date.
+
+    The host keeps the deposit minus a single night's commission —
+    the platform doesn't double-dip on a stay that never happened.
+    Cannot be filed once the guest has already confirmed arrival.
+    """
+
+    booking = await _load_booking_or_403(db, booking_id, user)
+    if booking.owner_id != user.id and user.role != UserRole.admin:
+        raise HTTPException(
+            status_code=403,
+            detail="هذا الإجراء للمضيف فقط / Host-only action",
+        )
+    if booking.cash_collection_status == CashCollectionStatus.not_applicable:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "الحجز مدفوع بالكامل أونلاين — استخدم سياسة الإلغاء / "
+                "Online-only booking — use the cancellation policy"
+            ),
+        )
+    if booking.cash_collection_status in (
+        CashCollectionStatus.confirmed,
+        CashCollectionStatus.guest_confirmed,
+        CashCollectionStatus.no_show,
+    ):
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "لا يمكن الإبلاغ بعد تأكيد الضيف / "
+                "Cannot report no-show after the guest confirmed"
+            ),
+        )
+    today = date.today()
+    if booking.check_in > today:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "لا يمكن الإبلاغ قبل تاريخ الوصول / "
+                "Cannot report before the check-in date"
+            ),
+        )
+
+    # Recompute the no-show split using the property's nightly rate
+    # so the math always matches the breakdown the guest saw at
+    # checkout, even if the property's price changed afterwards.
+    prop = await db.get(Property, booking.property_id)
+    one_night_commission = round(
+        (prop.price_per_night if prop else booking.deposit_amount)
+        * (settings.PLATFORM_FEE_PERCENT / 100.0),
+        2,
+    )
+    # Cap the commission at the deposit so we never produce a
+    # negative payout for low-priced single-night stays.
+    one_night_commission = min(one_night_commission, booking.deposit_amount)
+
+    booking.platform_fee = one_night_commission
+    booking.owner_payout = round(booking.deposit_amount - one_night_commission, 2)
+    booking.cash_collection_status = CashCollectionStatus.no_show
+    booking.no_show_reported_at = datetime.now(timezone.utc)
+    booking.status = BookingStatus.completed
+    await db.flush()
+    await db.refresh(booking)
+
+    await create_notification(
+        db,
+        booking.guest_id,
+        title="تم الإبلاغ عن عدم الوصول",
+        body=(
+            f"المضيف أبلغ أنك لم تصل لحجز {booking.booking_code}. "
+            "تواصل مع الدعم فى حال وجود اعتراض."
+        ),
+        notif_type=NotificationType.booking_cancelled,
+    )
+    logger.info(
+        "cash_no_show_reported",
+        booking_id=booking.id,
+        owner_payout=booking.owner_payout,
+        platform_fee=booking.platform_fee,
+    )
     return BookingOut.model_validate(booking)
 
 

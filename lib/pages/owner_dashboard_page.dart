@@ -19,7 +19,7 @@ import '../services/user_role_service.dart';
 import 'availability_calendar_page.dart';
 
 // Accent colors (same in light & dark)
-const _kOcean  = Color(0xFF1565C0);
+const _kOcean  = Color(0xFFFF6B35);
 const _kOrange = Color(0xFFFF6D00);
 const _kGreen  = Color(0xFF22C55E);
 
@@ -109,7 +109,7 @@ class _OwnerDashboardPageState extends State<OwnerDashboardPage>
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
             style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red, foregroundColor: Colors.white,
+                backgroundColor: const Color(0xFFE53935), foregroundColor: Colors.white,
                 elevation: 0,
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12))),
@@ -178,7 +178,7 @@ class _OwnerDashboardPageState extends State<OwnerDashboardPage>
       expandedHeight: 200,
       pinned: true,
       stretch: true,
-      backgroundColor: const Color(0xFF0A2463),
+      backgroundColor: const Color(0xFFB54414),
       leading: IconButton(
         onPressed: () => Navigator.pop(context),
         icon: Container(
@@ -204,9 +204,9 @@ class _OwnerDashboardPageState extends State<OwnerDashboardPage>
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  Color(0xFF0A2463),
-                  Color(0xFF1565C0),
-                  Color(0xFF1E88E5),
+                  Color(0xFFB54414),
+                  Color(0xFFFF6B35),
+                  Color(0xFFFF8A3D),
                 ],
               ),
             ),
@@ -303,7 +303,7 @@ class _OwnerDashboardPageState extends State<OwnerDashboardPage>
   Widget _buildStatsBar() {
     return SliverToBoxAdapter(
       child: Container(
-        color: const Color(0xFF0A2463),
+        color: const Color(0xFFB54414),
         child: Container(
           margin: const EdgeInsets.only(top: 1),
           padding: const EdgeInsets.symmetric(vertical: 20),
@@ -374,7 +374,7 @@ class _OwnerDashboardPageState extends State<OwnerDashboardPage>
         icon: Icons.add_home_work_rounded,
         title: 'Add New Chalet / Hotel',
         subtitle: 'Publish a new listing with photos, pricing, and location.',
-        gradient: const [Color(0xFF1565C0), Color(0xFF42A5F5)],
+        gradient: const [Color(0xFFFF6B35), Color(0xFFFFB347)],
         onTap: () async {
           await Navigator.push(context,
               MaterialPageRoute(builder: (_) => const OwnerAddPropertyPage()));
@@ -464,7 +464,13 @@ class _OwnerDashboardPageState extends State<OwnerDashboardPage>
                 crossAxisCount: 2,
                 mainAxisSpacing: 14,
                 crossAxisSpacing: 14,
-                childAspectRatio: 1.05,
+                // 0.92 instead of 1.05 — the card content (icon + 2-line
+                // title + 2-line subtitle + arrow + paddings) needs ~165px
+                // of vertical space.  At 1.05 the cell was 1.8px short on
+                // small screens and Flutter painted the yellow overflow
+                // ribbon.  Going slightly portrait kills the warning and
+                // keeps the layout balanced on tablets too.
+                childAspectRatio: 0.92,
               ),
               itemBuilder: (_, i) {
                 final o = options[i];
@@ -933,7 +939,7 @@ class _OwnerOptionCardState extends State<_OwnerOptionCard>
     final cardBg = widget.isDark
         ? const Color(0xFF1A2234)
         : Colors.white;
-    final titleColor = widget.isDark ? Colors.white : const Color(0xFF1A1A2E);
+    final titleColor = widget.isDark ? Colors.white : const Color(0xFF2A1F1A);
     final subColor = widget.isDark
         ? const Color(0xFF9CA3AF)
         : const Color(0xFF6B7280);

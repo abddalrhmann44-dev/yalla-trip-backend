@@ -178,7 +178,7 @@ ${s.referralLink}
           child: _statCard(
               label: 'الإجمالي',
               value: '${s.totalReferrals}',
-              color: Colors.blueGrey)),
+              color: const Color(0xFF8B7B6E))), // warm grey (was blueGrey)
       const SizedBox(width: 8),
       Expanded(
           child: _statCard(

@@ -3,9 +3,9 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../utils/api_config.dart';
+import '../utils/secure_token_storage.dart';
 
 /// Central API service for communicating with the FastAPI backend.
 ///
@@ -30,21 +30,18 @@ class ApiService {
 
   Future<String?> _getToken() async {
     if (_token != null) return _token;
-    final prefs = await SharedPreferences.getInstance();
-    _token = prefs.getString('auth_token');
+    _token = await SecureTokenStorage.readAccessToken();
     return _token;
   }
 
   Future<void> setToken(String token) async {
     _token = token;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('auth_token', token);
+    await SecureTokenStorage.writeTokens(accessToken: token);
   }
 
   Future<void> clearToken() async {
     _token = null;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('auth_token');
+    await SecureTokenStorage.clear();
   }
 
   Future<Map<String, String>> _authHeaders() async {

@@ -87,6 +87,35 @@ class BookingService {
     return BookingModel.fromJson(data as Map<String, dynamic>);
   }
 
+  // ── Cash-on-arrival workflow (Wave 25) ────────────────────
+  // Three mirror endpoints that drive the deposit + cash settlement
+  // handshake.  All three return the updated ``BookingModel`` so
+  // the caller can rebuild the UI without a second fetch.
+
+  /// Host confirms they received the cash leg from the guest.
+  /// Pairs with [confirmArrival]; both must fire before the
+  /// platform releases the host's online payout.
+  static Future<BookingModel> confirmCashReceived(int id) async {
+    final data = await _api.post(
+      '/bookings/$id/confirm-cash-received',
+      {},
+    );
+    return BookingModel.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// Guest confirms they arrived and handed over the cash leg.
+  static Future<BookingModel> confirmArrival(int id) async {
+    final data = await _api.post('/bookings/$id/confirm-arrival', {});
+    return BookingModel.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// Host reports the guest as a no-show.  Backend forfeits the
+  /// deposit minus a single night's commission.
+  static Future<BookingModel> reportNoShow(int id) async {
+    final data = await _api.post('/bookings/$id/report-no-show', {});
+    return BookingModel.fromJson(data as Map<String, dynamic>);
+  }
+
   // ── Refund security deposit (owner action) ────────────────
   static Future<BookingModel> refundDeposit(int id) async {
     final data = await _api.post('/bookings/$id/deposit/refund', {});

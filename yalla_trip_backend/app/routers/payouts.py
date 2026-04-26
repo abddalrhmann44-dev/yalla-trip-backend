@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import csv
 import io
-from datetime import date
+from datetime import date, datetime, timezone
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
@@ -22,7 +22,7 @@ from app.middleware.auth_middleware import (
     get_current_active_user, require_role,
 )
 from app.models.payout import (
-    BankAccountType, HostBankAccount, Payout, PayoutStatus,
+    BankAccountType, DisburseStatus, HostBankAccount, Payout, PayoutStatus,
 )
 from app.models.user import User, UserRole
 from app.schemas.payout import (
@@ -33,6 +33,11 @@ from app.schemas.payout import (
 from app.models.payout import PayoutItem
 from app.services import payout_service
 from app.services.audit_service import log_action
+from app.services.disburse import (
+    DisburseChannel, DisburseRequest, DisburseResultStatus, get_disburse_gateway,
+)
+from app.services.notification_service import create_notification
+from app.models.notification import NotificationType
 
 logger = structlog.get_logger(__name__)
 router = APIRouter(prefix="/payouts", tags=["Host Payouts"])
@@ -67,6 +72,13 @@ def _serialize_payout(p: Payout) -> PayoutOut:
         processed_at=p.processed_at,
         created_at=p.created_at,
         items=items,
+        # Wave 26 — disbursement leg.  Falls back to ``not_started`` for
+        # legacy rows that pre-date the column.
+        disburse_provider=p.disburse_provider,
+        disburse_ref=p.disburse_ref,
+        disburse_status=p.disburse_status,
+        disbursed_at=p.disbursed_at,
+        disburse_receipt_url=p.disburse_receipt_url,
     )
 
 
@@ -429,6 +441,220 @@ async def admin_export_csv(
             "Content-Disposition": f'attachment; filename="payout-{row.id}.csv"',
         },
     )
+
+
+# ══════════════════════════════════════════════════════════════
+#  Wave 26 — automated disbursement (Kashier / mock)
+# ══════════════════════════════════════════════════════════════
+def _channel_for(account: HostBankAccount) -> DisburseChannel:
+    """Map a bank account row to the gateway's channel enum."""
+    if account.type == BankAccountType.iban:
+        return DisburseChannel.iban
+    if account.type == BankAccountType.wallet:
+        return DisburseChannel.wallet
+    return DisburseChannel.instapay
+
+
+@router.post("/admin/{payout_id}/disburse", response_model=PayoutOut)
+async def admin_disburse(
+    payout_id: int,
+    request: Request,
+    admin: User = Depends(_admin_only),
+    db: AsyncSession = Depends(get_db),
+):
+    """Fire the configured disbursement gateway for one payout.
+
+    Idempotent: a payout already in ``initiated`` / ``processing`` /
+    ``succeeded`` is rejected so the admin can't double-pay by
+    refreshing the dashboard.  Failed disbursements *can* be retried
+    — admins flip back to ``not_started`` via :func:`admin_mark_failed`
+    or by editing the row directly in the support tool.
+    """
+    row = (
+        await db.execute(
+            select(Payout)
+            .where(Payout.id == payout_id)
+            .options(*_EAGER, selectinload(Payout.bank_account))
+        )
+    ).scalar_one_or_none()
+    if row is None:
+        raise HTTPException(status_code=404, detail="Payout not found")
+
+    if row.disburse_status in (
+        DisburseStatus.initiated,
+        DisburseStatus.processing,
+        DisburseStatus.succeeded,
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Disburse already in state '{row.disburse_status.value}'. "
+                "Wait for the webhook or mark the payout failed first."
+            ),
+        )
+    if row.bank_account is None:
+        raise HTTPException(
+            status_code=400,
+            detail="Payout has no bank account on file — host must add one.",
+        )
+
+    gateway = get_disburse_gateway()
+    req = DisburseRequest(
+        payout_id=row.id,
+        amount_egp=row.total_amount,
+        channel=_channel_for(row.bank_account),
+        account_name=row.bank_account.account_name,
+        iban=row.bank_account.iban,
+        wallet_phone=row.bank_account.wallet_phone,
+        instapay_address=row.bank_account.instapay_address,
+        note=f"Talaa payout #{row.id}",
+    )
+    result = await gateway.initiate(req)
+
+    # Map the gateway-layer status onto our DB enum.  ``succeeded`` is
+    # rare on the sync path (mock can return it; Kashier almost never
+    # does) but we honour it so the receipt UI can light up
+    # immediately when it happens.
+    if result.status == DisburseResultStatus.failed:
+        new_status = DisburseStatus.failed
+    elif result.status == DisburseResultStatus.succeeded:
+        new_status = DisburseStatus.succeeded
+    else:
+        new_status = DisburseStatus.initiated
+
+    row.disburse_provider = gateway.name
+    row.disburse_ref = result.provider_ref
+    row.disburse_status = new_status
+    # Snapshot the gateway response — invaluable when reconciling a
+    # missing webhook six months later.
+    row.disburse_payload = {
+        "request": {
+            "channel": req.channel.value,
+            "amount_egp": req.amount_egp,
+            "note": req.note,
+        },
+        "response": result.raw,
+    }
+    await db.flush()
+
+    await log_action(
+        db, request=request, actor=admin,
+        action="payout.disburse_initiated",
+        target_type="payout", target_id=payout_id,
+        after={
+            "provider": gateway.name,
+            "provider_ref": result.provider_ref,
+            "amount": row.total_amount,
+            "status": new_status.value,
+            "message": result.provider_message,
+        },
+    )
+
+    if new_status == DisburseStatus.failed:
+        # Loud failure — admin needs to know to fall back to manual.
+        raise HTTPException(
+            status_code=502,
+            detail=result.provider_message or "Disbursement gateway rejected the request",
+        )
+
+    await db.refresh(row)
+    return _serialize_payout(row)
+
+
+@router.post("/disburse/webhook", status_code=status.HTTP_200_OK)
+async def disburse_webhook(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    """Inbound notification from the disbursement gateway.
+
+    Public endpoint — authenticated by HMAC signature inside the
+    gateway's :meth:`parse_webhook` (we never trust the network).
+    On a verified success/failure we flip ``disburse_status`` and,
+    on success, automatically mark the payout ``paid`` so the host
+    sees the green check immediately.
+    """
+    body = await request.body()
+    headers = {k: v for k, v in request.headers.items()}
+    gateway = get_disburse_gateway()
+    parsed = await gateway.parse_webhook(headers, body)
+    if parsed is None:
+        # Bad signature, malformed payload, or unknown order id —
+        # respond 401 so the gateway will retry (most retry on 5xx
+        # but very few on 401, which is what we want for *bad*
+        # signatures).  Use 400 for malformed payloads.
+        raise HTTPException(status_code=401, detail="Invalid webhook")
+
+    row = (
+        await db.execute(
+            select(Payout).where(Payout.id == parsed.payout_id).options(*_EAGER)
+        )
+    ).scalar_one_or_none()
+    if row is None:
+        # Webhook arrived for a payout we don't know — log and 200
+        # so the gateway stops retrying.
+        logger.warning("disburse_webhook_unknown_payout", payout_id=parsed.payout_id)
+        return {"ok": True, "ignored": "unknown_payout"}
+
+    # Idempotency: webhooks can fire twice (once on success, once on
+    # a retry from the gateway's side).  Bail if we've already
+    # processed a terminal state for this provider_ref.
+    if row.disburse_status in (DisburseStatus.succeeded, DisburseStatus.failed):
+        return {"ok": True, "ignored": "already_terminal"}
+
+    # Cross-check the provider_ref.  A mismatch usually means a
+    # replay from a different payout — refuse loudly.
+    if row.disburse_ref and parsed.provider_ref and row.disburse_ref != parsed.provider_ref:
+        logger.warning(
+            "disburse_webhook_ref_mismatch",
+            payout_id=row.id,
+            stored_ref=row.disburse_ref,
+            webhook_ref=parsed.provider_ref,
+        )
+        raise HTTPException(status_code=400, detail="provider_ref mismatch")
+
+    if parsed.succeeded:
+        row.disburse_status = DisburseStatus.succeeded
+        row.disbursed_at = datetime.now(timezone.utc)
+        # Promote the bookkeeping side too — the host shouldn't have
+        # to wait for a separate admin click once the gateway has
+        # confirmed delivery.  Reuse the gateway's own ref as the
+        # ``reference_number`` so the host sees one consistent id.
+        if row.status != PayoutStatus.paid:
+            await payout_service.mark_paid(
+                db, row,
+                reference_number=row.disburse_ref or "auto-disbursed",
+                admin_id=None,  # system-driven; audit_service handles None
+                admin_notes=parsed.message,
+            )
+        # Notify the host so they don't have to refresh the app.
+        try:
+            await create_notification(
+                db, row.host_id,
+                title="تم تحويل أرباحك ✅",
+                body=(
+                    f"تم تحويل {row.total_amount:.2f} ج.م لحسابك. "
+                    f"رقم العملية: {row.disburse_ref or '—'}"
+                ),
+                notif_type=NotificationType.booking_confirmed,
+                data={"payout_id": str(row.id)},
+            )
+        except Exception:  # pragma: no cover — notifications are best-effort
+            pass
+    elif parsed.failed:
+        row.disburse_status = DisburseStatus.failed
+    else:
+        # Intermediate status (e.g. PROCESSING after a queue update).
+        row.disburse_status = DisburseStatus.processing
+
+    # Append-only payload log so support can scroll through state
+    # transitions without joining the audit_log table.
+    payload_log = dict(row.disburse_payload or {})
+    payload_log.setdefault("webhooks", []).append(parsed.raw)
+    row.disburse_payload = payload_log
+
+    await db.flush()
+    return {"ok": True}
 
 
 @router.get("/admin/eligible/preview")

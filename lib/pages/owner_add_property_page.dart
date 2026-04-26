@@ -15,7 +15,7 @@ import '../widgets/constants.dart';
 import 'home_page.dart';
 import 'phone_verification_page.dart';
 
-const _kOcean  = Color(0xFF1565C0);
+const _kOcean  = Color(0xFFFF6B35);
 const _kOrange = Color(0xFFFF6D00);
 const _kGreen = Color(0xFF4CAF50);
 const _kRed = Color(0xFFEF5350);
@@ -46,14 +46,14 @@ class _PropType {
 
 const _kPropTypes = [
   _PropType(
-      'شاليه', 'شاليه', '🏖️', 'شاليه بحر أو حمام سباحة', Color(0xFF1565C0)),
+      'شاليه', 'شاليه', '🏖️', 'شاليه بحر أو حمام سباحة', Color(0xFFFF6B35)),
   _PropType('فندق', 'فندق', '🏨', 'فندق خدمة كاملة', Color(0xFF6A1B9A)),
   _PropType('منتجع', 'منتجع', '🏝️', 'منتجع متكامل', Color(0xFF00695C)),
   _PropType('فيلا', 'فيلا', '🏡', 'فيلا فاخرة خاصة', Color(0xFFE65100)),
   _PropType(
-      'بيت شاطئ', 'بيت شاطئ', '🌊', 'بيت على الشاطئ مباشرة', Color(0xFF0097A7)),
+      'رحلة يوم واحد', 'رحلة يوم واحد', '☀️', 'دخول وخروج في نفس اليوم بدون مبيت', Color(0xFF0097A7)),
   _PropType(
-      'مركب', 'مركب / يخت', '⛵', 'رحلات بحرية بالساعة', Color(0xFF0277BD)),
+      'مركب', 'مركب / يخت', '⛵', 'رحلات بحرية بالساعة', Color(0xFFE65100)),
 ];
 
 const _kLocations = [
@@ -136,6 +136,15 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
   String _bookingMode = 'instant';
   bool _autoConfirm = true;
   bool _requireId = false;
+  // Wave 24 — owner opt-in for chat-based price haggling.  When this
+  // is true, guests see a "فاوض" button on the property page that
+  // opens a price-negotiation thread (Wave 23).
+  bool _negotiable = false;
+  // Wave 25 — owner opt-in for hybrid deposit + cash-on-arrival.
+  // When true the guest only pays a deposit online (sized to cover
+  // the platform commission + at least one nightly rate); the
+  // remainder is collected in cash by the host on arrival.
+  bool _cashOnArrival = false;
   int _minNights = 1;
   int _maxNights = 30;
 
@@ -152,7 +161,7 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('⚠️ هذه الصفحة للملاك فقط'),
-          backgroundColor: Colors.red,
+          backgroundColor: Color(0xFFE53935),
         ),
       );
     }
@@ -245,9 +254,12 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
         }
         return null;
 
-      case 1: // الصور
-        if (_pickedFiles.isEmpty) {
-          return 'أضف صورة واحدة على الأقل للعقار';
+      case 1: // الصور — Wave 26: الحد الأدنى 6 صور والحد الأقصى 40
+        if (_pickedFiles.length < 6) {
+          return 'أضف 6 صور على الأقل (المتبقي: ${6 - _pickedFiles.length})';
+        }
+        if (_pickedFiles.length > 40) {
+          return 'الحد الأقصى 40 صورة (لديك ${_pickedFiles.length})';
         }
         return null;
 
@@ -365,11 +377,19 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
   // ── Pick Images ─────────────────────────────────────────────
   Future<void> _pickImages() async {
     if (_isPicking) return;
+    final remaining = 40 - _pickedFiles.length;
+    if (remaining <= 0) {
+      _showValidationError('وصلت للحد الأقصى 40 صورة');
+      return;
+    }
     _isPicking = true;
     try {
-      final files = await _picker.pickMultiImage(imageQuality: 80, limit: 10);
+      // imageQuality:80 forces image_picker to recompress to JPEG,
+      // which sidesteps the iPhone HEIC issue entirely.
+      final files =
+          await _picker.pickMultiImage(imageQuality: 80, limit: remaining);
       if (files.isEmpty) return;
-      setState(() => _pickedFiles.addAll(files));
+      setState(() => _pickedFiles.addAll(files.take(remaining)));
     } finally {
       _isPicking = false;
     }
@@ -377,6 +397,10 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
 
   Future<void> _pickFromCamera() async {
     if (_isPicking) return;
+    if (_pickedFiles.length >= 40) {
+      _showValidationError('وصلت للحد الأقصى 40 صورة');
+      return;
+    }
     _isPicking = true;
     try {
       final file =
@@ -462,6 +486,8 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
             .map((a) => a.label)
             .toList(),
         'instant_booking': _bookingMode == 'instant',
+        'negotiable': _negotiable,
+        'cash_on_arrival_enabled': _cashOnArrival,
       };
 
       // Create property via API
@@ -494,7 +520,7 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
       });
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('حصل خطأ: $e'), backgroundColor: Colors.red),
+        SnackBar(content: Text('حصل خطأ: $e'), backgroundColor: const Color(0xFFE53935)),
       );
     }
   }
@@ -998,10 +1024,10 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
         Container(
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            color: const Color(0xFF0277BD).withValues(alpha: 0.06),
+            color: const Color(0xFFE65100).withValues(alpha: 0.06),
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-                color: const Color(0xFF0277BD).withValues(alpha: 0.25)),
+                color: const Color(0xFFE65100).withValues(alpha: 0.25)),
           ),
           child: Row(children: [
             const Text('⛵', style: TextStyle(fontSize: 28)),
@@ -1012,7 +1038,7 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
                 style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
-                    color: Color(0xFF0277BD)),
+                    color: Color(0xFFE65100)),
               ),
             ),
           ]),
@@ -1366,6 +1392,8 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
           (v) => setState(() => _autoConfirm = v)),
       _switchRow(
           'طلب إثبات هوية', _requireId, (v) => setState(() => _requireId = v)),
+      _negotiableRow(),
+      _cashOnArrivalRow(),
       if (!_isBoat) ...[
         const SizedBox(height: 16),
         _counter('🌙  أقل ليالي', _minNights,
@@ -1391,7 +1419,7 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           gradient: const LinearGradient(
-            colors: [Color(0xFF1565C0), Color(0xFF0D47A1)],
+            colors: [Color(0xFFFF6B35), Color(0xFFE85A24)],
           ),
           borderRadius: BorderRadius.circular(18),
         ),
@@ -1680,6 +1708,117 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
           value: value,
           activeThumbColor: _kOcean,
           onChanged: onChanged,
+          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        ),
+      ]),
+    );
+  }
+
+  /// Cash-on-arrival toggle — explains the hybrid model so the
+  /// host knows exactly what they're opting into before flipping it.
+  Widget _cashOnArrivalRow() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      decoration: BoxDecoration(
+        color: _cashOnArrival
+            ? const Color(0xFFE8F5E9)
+            : context.kCard,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: _cashOnArrival
+              ? const Color(0xFF2E7D32)
+              : context.kBorder,
+          width: _cashOnArrival ? 1.5 : 1,
+        ),
+      ),
+      child: Row(children: [
+        const Text('💵', style: TextStyle(fontSize: 22)),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'استلم الباقى كاش عند الوصول',
+                style: TextStyle(
+                  fontSize: 14.5,
+                  fontWeight: FontWeight.w800,
+                  color: context.kText,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                'الضيف يدفع عربون أونلاين (= ليلة واحدة على الأقل + عمولة المنصة) ويدفعلك الباقى كاش لما يوصل — توافق أنت وهو على التسليم داخل التطبيق',
+                style: TextStyle(
+                  fontSize: 11.5,
+                  color: context.kSub,
+                  height: 1.4,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 8),
+        Switch.adaptive(
+          value: _cashOnArrival,
+          activeThumbColor: const Color(0xFF2E7D32),
+          onChanged: (v) => setState(() => _cashOnArrival = v),
+          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        ),
+      ]),
+    );
+  }
+
+  /// Negotiation toggle — same shape as ``_switchRow`` but with an
+  /// emoji + secondary line so the owner understands what enabling
+  /// haggling actually does to their listing.
+  Widget _negotiableRow() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      decoration: BoxDecoration(
+        color: _negotiable
+            ? const Color(0xFFFFF3E0)
+            : context.kCard,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: _negotiable ? const Color(0xFFFF6D00) : context.kBorder,
+          width: _negotiable ? 1.5 : 1,
+        ),
+      ),
+      child: Row(children: [
+        const Text('💬', style: TextStyle(fontSize: 22)),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'اقبل التفاوض على السعر',
+                style: TextStyle(
+                  fontSize: 14.5,
+                  fontWeight: FontWeight.w800,
+                  color: context.kText,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                'الضيف يقدر يبعتلك عرض سعر مخصوص — تقبل أو ترفض أو ترد بعرض مضاد',
+                style: TextStyle(
+                  fontSize: 11.5,
+                  color: context.kSub,
+                  height: 1.4,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 8),
+        Switch.adaptive(
+          value: _negotiable,
+          activeThumbColor: const Color(0xFFFF6D00),
+          onChanged: (v) => setState(() => _negotiable = v),
           materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
         ),
       ]),

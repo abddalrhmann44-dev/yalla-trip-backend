@@ -2,12 +2,11 @@
 //  TALAA — Payment Page  v2
 //  إلكتروني بس: فيزا · ميزة · فوري Pay · فودافون كاش · اتصالات كاش
 //  Escrow model: held → released 24h after check-in → paid to owner
-//  Commission: 8% platform, 92% owner
+//  Commission: 10% platform, 90% owner
 // ═══════════════════════════════════════════════════════════════
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../main.dart' show appSettings;
 import '../models/payment_model.dart';
@@ -17,30 +16,99 @@ import '../services/payment_service.dart';
 import '../services/promo_code_service.dart';
 import '../utils/api_client.dart';
 import '../utils/app_strings.dart';
+import '../utils/device_integrity.dart';
 import '../utils/error_handler.dart';
 import '../widgets/constants.dart';
 import 'payment_status_page.dart';
+import 'payment_webview_page.dart';
 
-const _kOcean = Color(0xFF1565C0);
-const _kGreen = Color(0xFF22C55E);
+const _kOrange = Color(0xFFFF6D00);
+const _kGreen  = Color(0xFF22C55E);
 
 // ── Payment Method ─────────────────────────────────────────────
+/// One row in the "اختر طريقة الدفع" list.
+///
+/// [logos] is a list of asset paths so the row can show one OR two
+/// logos side-by-side (Visa + Mastercard share a single row per
+/// product decision — the gateway routes the payment automatically
+/// based on the card's BIN).
 class _PayMethod {
-  final String id, name, desc, logo;
-  final Color color, bg;
-  const _PayMethod(
-      this.id, this.name, this.desc, this.logo, this.color, this.bg);
+  final String id;
+  final String name;
+  final String desc;
+  final List<String> logos;
+  final Color color;
+  final Color bg;
+  const _PayMethod({
+    required this.id,
+    required this.name,
+    required this.desc,
+    required this.logos,
+    required this.color,
+    required this.bg,
+  });
 }
 
-// Payment methods — card payments only.  Cash / mobile-wallet
-// methods were intentionally removed: bookings confirm instantly via
-// Visa / Mastercard / Meeza so the escrow ledger always opens with
-// cleared funds.
+// Payment methods.  Three groups, mapped server-side to Paymob:
+//   1. Cards          → method=card        (Visa + Mastercard merged + Meeza)
+//   2. Mobile wallets → method=wallet      (Vodafone / Orange / e& Money)
+// The backend reads `extra.wallet_type` to route wallet payments to
+// the correct Paymob integration ID.
+const _kCardsBlue   = Color(0xFFFF6B35);
+const _kCardsBlueBg = Color(0xFFEEF2FF);
+const _kMeezaGreen  = Color(0xFF6A1B9A); // Meeza brand purple
+const _kMeezaBg     = Color(0xFFF3E5F5);
+const _kVfRed       = Color(0xFFE60000);
+const _kVfBg        = Color(0xFFFFEBEE);
+const _kOrangeBrand = Color(0xFFFF7900);
+const _kOrangeBg    = Color(0xFFFFF3E0);
+const _kEtisalat    = Color(0xFF6F1F2C);
+const _kEtisalatBg  = Color(0xFFFCE4EC);
+
 List<_PayMethod> get _kMethods => [
-      _PayMethod('visa', S.visaMaster, S.visaDesc, '💳',
-          const Color(0xFF1565C0), const Color(0xFFEEF2FF)),
-      _PayMethod('meeza', S.meeza, S.meezaDesc, '🇪🇬',
-          const Color(0xFF006633), const Color(0xFFE8F5E9)),
+      _PayMethod(
+        id: 'card',
+        name: 'فيزا / ماستر كارد',
+        desc: 'الدفع بالكارت — أى بنك مصرى أو أجنبى',
+        logos: const [
+          'assets/images/payment/visa.jpeg',
+          'assets/images/payment/mastercard.jpeg',
+        ],
+        color: _kCardsBlue,
+        bg: _kCardsBlueBg,
+      ),
+      _PayMethod(
+        id: 'meeza',
+        name: 'ميزة',
+        desc: 'كروت ميزة الوطنية المصرية',
+        logos: const ['assets/images/payment/meeza.jpeg'],
+        color: _kMeezaGreen,
+        bg: _kMeezaBg,
+      ),
+      _PayMethod(
+        id: 'vodafone_cash',
+        name: 'فودافون كاش',
+        desc: 'ادفع من محفظة فودافون كاش',
+        logos: const ['assets/images/payment/vodafone_cash.jpeg'],
+        color: _kVfRed,
+        bg: _kVfBg,
+      ),
+      _PayMethod(
+        id: 'orange_cash',
+        name: 'اورنچ كاش',
+        desc: 'ادفع من محفظة Orange Cash',
+        logos: const ['assets/images/payment/orange_cash.jpeg'],
+        color: _kOrangeBrand,
+        bg: _kOrangeBg,
+      ),
+      _PayMethod(
+        id: 'etisalat_cash',
+        name: 'e& money',
+        desc: 'ادفع من محفظة اتصالات الجديدة',
+        logos: const ['assets/images/payment/etisalat_money.jpeg'],
+        color: _kEtisalat,
+        bg: _kEtisalatBg,
+      ),
     ];
 
 // ══════════════════════════════════════════════════════════════
@@ -50,6 +118,12 @@ class PaymentPage extends StatefulWidget {
   final PropertyApi property;
   final String checkIn, checkOut, guestNote;
   final int nights, guests, baseAmount, cleaningFee, totalAmount;
+  // Wave 25 — hybrid deposit + cash-on-arrival.  Optional so legacy
+  // call-sites keep working; when present the page renders a
+  // "you pay X online, Y in cash on arrival" split and the gateway
+  // only charges ``depositAmount``.
+  final int depositAmount;
+  final int remainingCash;
 
   const PaymentPage({
     super.key,
@@ -62,7 +136,22 @@ class PaymentPage extends StatefulWidget {
     required this.baseAmount,
     required this.cleaningFee,
     required this.totalAmount,
+    this.depositAmount = 0,
+    this.remainingCash = 0,
   });
+
+  /// True when the host enabled cash-on-arrival and the booking flow
+  /// passed a non-zero deposit + remainder split.  Centralising the
+  /// check here keeps every render-site consistent.
+  bool get isCashOnArrival =>
+      property.cashOnArrivalEnabled &&
+      depositAmount > 0 &&
+      remainingCash > 0;
+
+  /// Amount we actually charge the gateway.  Falls back to the full
+  /// total for legacy 100 %-online listings.
+  int get chargeableAmount =>
+      isCashOnArrival ? depositAmount : totalAmount;
 
   @override
   State<PaymentPage> createState() => _PaymentPageState();
@@ -85,8 +174,26 @@ class _PaymentPageState extends State<PaymentPage> {
   bool _validatingPromo = false;
   String? _promoError;
 
+  // Device integrity — assume trusted until proven otherwise so the
+  // page renders instantly; the native probe runs in the background
+  // and rebuilds with a warning if the device is rooted / jailbroken.
+  bool _deviceTrusted = true;
+
   void _onLangChange() {
     if (mounted) setState(() {});
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    appSettings.addListener(_onLangChange);
+    _checkDeviceIntegrity();
+  }
+
+  Future<void> _checkDeviceIntegrity() async {
+    final trusted = await DeviceIntegrity.isTrusted();
+    if (!mounted || trusted == _deviceTrusted) return;
+    setState(() => _deviceTrusted = trusted);
   }
 
   @override
@@ -149,8 +256,13 @@ class _PaymentPageState extends State<PaymentPage> {
     });
   }
 
+  // Wave 25 — for hybrid bookings the gateway only collects the
+  // online deposit, so the "amount due now" the page advertises must
+  // be the deposit (minus any promo) rather than the full grand total.
   int get _finalAmount =>
-      (widget.totalAmount - _discount).clamp(0, double.infinity).toInt();
+      (widget.chargeableAmount - _discount)
+          .clamp(0, double.infinity)
+          .toInt();
 
   // ─────────────────────────────────────────────────────────────
   @override
@@ -181,6 +293,10 @@ class _PaymentPageState extends State<PaymentPage> {
               _promoCard(),
               const SizedBox(height: 16),
               _escrowBanner(),
+              if (!_deviceTrusted) ...[
+                const SizedBox(height: 16),
+                _tamperedDeviceBanner(),
+              ],
               const SizedBox(height: 24),
               Text('اختر طريقة الدفع',
                   style: TextStyle(
@@ -188,11 +304,17 @@ class _PaymentPageState extends State<PaymentPage> {
                       fontWeight: FontWeight.w900,
                       color: context.kText)),
               const SizedBox(height: 6),
-              Text('مدفوعاتك مؤمّنة بتشفير البنوك الدولي — فيزا وماستر كارد و ميزة فقط',
-                  style: TextStyle(fontSize: 12, color: context.kSub)),
+              Text(
+                'كل المعاملات مؤمّنة بتشفير البنوك الدولى وفق معايير PCI-DSS',
+                style: TextStyle(fontSize: 12, color: context.kSub),
+              ),
               const SizedBox(height: 14),
               ..._kMethods.map(_methodTile),
-              if (_sel == 'visa' || _sel == 'meeza') ...[
+              // Manual card form is shown only when the user picks the
+              // Card row.  Wallet payments (Vodafone / Orange / e&) and
+              // Meeza go straight to Paymob's hosted iframe, no PAN
+              // entry on our side.
+              if (_deviceTrusted && _sel == 'card') ...[
                 const SizedBox(height: 16),
                 _cardForm(),
               ],
@@ -206,12 +328,55 @@ class _PaymentPageState extends State<PaymentPage> {
     );
   }
 
+  // ── Tampered Device Banner ─────────────────────────────────────
+  // Shown in place of the card form when flutter_jailbreak_detection
+  // flags the device as rooted / jailbroken.  We don't block the user
+  // from paying entirely — they can still use Fawry voucher or wallet
+  // — but we refuse to render a PAN entry field on a compromised OS.
+  Widget _tamperedDeviceBanner() => Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+              colors: [Color(0xFFB91C1C), Color(0xFFEF4444)]),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Row(children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(10)),
+            child: const Icon(Icons.gpp_bad_rounded,
+                color: Colors.white, size: 22),
+          ),
+          const SizedBox(width: 12),
+          const Expanded(
+              child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('جهازك غير آمن لإدخال بيانات البطاقة ⚠️',
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w900)),
+              SizedBox(height: 4),
+              Text(
+                  'عشان حماية فلوسك من الاختراق — الدفع بالكارت '
+                  'غير متاح على أجهزة Root/Jailbreak. '
+                  'يمكنك الدفع بـ فوري أو المحفظة بأمان.',
+                  style: TextStyle(color: Colors.white, fontSize: 11, height: 1.5)),
+            ],
+          )),
+        ]),
+      );
+
   // ── Escrow Banner ─────────────────────────────────────────────
   Widget _escrowBanner() => Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           gradient: const LinearGradient(
-              colors: [Color(0xFF0D47A1), Color(0xFF1565C0)]),
+              colors: [Color(0xFFE65100), Color(0xFFFF6D00)]),
           borderRadius: BorderRadius.circular(16),
         ),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -305,8 +470,8 @@ class _PaymentPageState extends State<PaymentPage> {
                   ? Container(
                       width: 56,
                       height: 56,
-                      color: _kOcean.withValues(alpha: 0.1),
-                      child: const Icon(Icons.villa_rounded, color: _kOcean))
+                      color: _kOrange.withValues(alpha: 0.1),
+                      child: const Icon(Icons.villa_rounded, color: _kOrange))
                   : Image.network(p.images[0],
                       width: 56,
                       height: 56,
@@ -314,9 +479,9 @@ class _PaymentPageState extends State<PaymentPage> {
                       errorBuilder: (_, __, ___) => Container(
                           width: 56,
                           height: 56,
-                          color: _kOcean.withValues(alpha: 0.1),
+                          color: _kOrange.withValues(alpha: 0.1),
                           child:
-                              const Icon(Icons.villa_rounded, color: _kOcean))),
+                              const Icon(Icons.villa_rounded, color: _kOrange))),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -351,9 +516,58 @@ class _PaymentPageState extends State<PaymentPage> {
               color: _kGreen,
             ),
           Divider(height: 14, color: context.kBorder),
-          _row(S.totalPrice, '$_finalAmount جنيه', bold: true),
+          // For cash-on-arrival listings the visible "total" stays
+          // the trip-wide grand total — the deposit + cash split
+          // lives below in its own card so the guest sees both
+          // numbers at once and isn't surprised on arrival.
+          _row(S.totalPrice, '${widget.totalAmount} جنيه', bold: true),
+          if (widget.isCashOnArrival) ...[
+            const SizedBox(height: 12),
+            _depositSplitBox(),
+          ] else ...[
+            // Legacy 100 %-online flow keeps the original "amount due
+            // now" line right under the total.
+            const SizedBox(height: 4),
+            _row('المطلوب الآن', '$_finalAmount جنيه', bold: true,
+                color: _kOrange),
+          ],
         ]),
       );
+
+  /// Card that highlights the "you pay X online now, Y in cash on
+  /// arrival" split for hybrid bookings.  Mirrors the breakdown the
+  /// guest already saw on the previous booking flow page.
+  Widget _depositSplitBox() {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFFE8F5E9), Color(0xFFF1F8E9)],
+        ),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFF66BB6A), width: 1.2),
+      ),
+      child: Column(children: [
+        Row(children: const [
+          Text('💵', style: TextStyle(fontSize: 16)),
+          SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'دفع جزئى — الباقى كاش للمضيف عند الوصول',
+              style: TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w900,
+                  color: Color(0xFF1B5E20)),
+            ),
+          ),
+        ]),
+        const SizedBox(height: 8),
+        _row('تدفع الآن (عربون)', '$_finalAmount جنيه', bold: true),
+        _row('تدفع كاش عند الوصول',
+            '${widget.remainingCash} جنيه'),
+      ]),
+    );
+  }
 
   // ── Promo-code card ───────────────────────────────────────────
   Widget _promoCard() {
@@ -434,7 +648,7 @@ class _PaymentPageState extends State<PaymentPage> {
               height: 40,
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: _kOcean,
+                  backgroundColor: _kOrange,
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10),
@@ -477,7 +691,7 @@ class _PaymentPageState extends State<PaymentPage> {
               style: TextStyle(
                   fontSize: bold ? 16 : 13,
                   fontWeight: bold ? FontWeight.w900 : FontWeight.w700,
-                  color: color ?? (bold ? _kOcean : context.kText))),
+                  color: color ?? (bold ? _kOrange : context.kText))),
         ]),
       );
 
@@ -493,8 +707,8 @@ class _PaymentPageState extends State<PaymentPage> {
         decoration: BoxDecoration(
           color: sel ? m.bg : context.kCard,
           borderRadius: BorderRadius.circular(16),
-          border:
-              Border.all(color: sel ? m.color : context.kBorder, width: sel ? 2 : 1.5),
+          border: Border.all(
+              color: sel ? m.color : context.kBorder, width: sel ? 2 : 1.5),
           boxShadow: [
             BoxShadow(
               color: sel
@@ -506,18 +720,7 @@ class _PaymentPageState extends State<PaymentPage> {
           ],
         ),
         child: Row(children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: sel
-                  ? m.color.withValues(alpha: 0.15)
-                  : const Color(0xFFF3F4F6),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Center(
-                child: Text(m.logo, style: const TextStyle(fontSize: 22))),
-          ),
+          _logoCluster(m, sel),
           const SizedBox(width: 14),
           Expanded(
               child: Column(
@@ -528,7 +731,9 @@ class _PaymentPageState extends State<PaymentPage> {
                       fontSize: 14,
                       fontWeight: FontWeight.w800,
                       color: sel ? m.color : context.kText)),
-              Text(m.desc, style: TextStyle(fontSize: 12, color: context.kSub)),
+              const SizedBox(height: 2),
+              Text(m.desc,
+                  style: TextStyle(fontSize: 11.5, color: context.kSub)),
             ],
           )),
           AnimatedContainer(
@@ -538,13 +743,52 @@ class _PaymentPageState extends State<PaymentPage> {
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: sel ? m.color : Colors.transparent,
-              border: Border.all(color: sel ? m.color : context.kBorder, width: 2),
+              border:
+                  Border.all(color: sel ? m.color : context.kBorder, width: 2),
             ),
             child: sel
                 ? const Icon(Icons.check_rounded, size: 14, color: Colors.white)
                 : null,
           ),
         ]),
+      ),
+    );
+  }
+
+  /// Renders the brand logo(s) on the left of a method tile.
+  ///
+  /// One logo → 56×40 white card with the asset centred.
+  /// Two logos (Visa+Mastercard) → both stacked side-by-side in the
+  /// same card so the row reads as a single "cards" choice.
+  Widget _logoCluster(_PayMethod m, bool selected) {
+    return Container(
+      width: m.logos.length > 1 ? 76 : 56,
+      height: 44,
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: selected
+              ? m.color.withValues(alpha: 0.35)
+              : const Color(0xFFE5E7EB),
+        ),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          for (int i = 0; i < m.logos.length; i++) ...[
+            if (i > 0) const SizedBox(width: 4),
+            Expanded(
+              child: Image.asset(
+                m.logos[i],
+                fit: BoxFit.contain,
+                errorBuilder: (_, __, ___) =>
+                    const Icon(Icons.payment_rounded, size: 22),
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }
@@ -597,7 +841,7 @@ class _PaymentPageState extends State<PaymentPage> {
           decoration: InputDecoration(
             hintText: hint,
             hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 13),
-            prefixIcon: Icon(icon, size: 18, color: _kOcean),
+            prefixIcon: Icon(icon, size: 18, color: _kOrange),
             border: InputBorder.none,
             counterText: '',
             contentPadding:
@@ -631,7 +875,7 @@ class _PaymentPageState extends State<PaymentPage> {
             child: ElevatedButton(
               onPressed: (_sel != null && !_loading) ? _pay : null,
               style: ElevatedButton.styleFrom(
-                backgroundColor: _kOcean,
+                backgroundColor: _kOrange,
                 foregroundColor: Colors.white,
                 disabledBackgroundColor: Colors.grey.shade300,
                 elevation: 0,
@@ -655,7 +899,10 @@ class _PaymentPageState extends State<PaymentPage> {
                         decoration: BoxDecoration(
                             color: Colors.white.withValues(alpha: 0.25),
                             borderRadius: BorderRadius.circular(10)),
-                        child: Text('${widget.totalAmount} جنيه',
+                        // Wave 25 — show the deposit (= what's
+                        // actually leaving the card) for hybrid
+                        // bookings, the full total otherwise.
+                        child: Text('$_finalAmount جنيه',
                             style: const TextStyle(
                                 fontSize: 14, fontWeight: FontWeight.w900)),
                       ),
@@ -668,12 +915,43 @@ class _PaymentPageState extends State<PaymentPage> {
   // ═══════════════════════════════════════
   //  PAY — create booking → initiate payment → open gateway
   // ═══════════════════════════════════════
-  /// Map the UI method id to a backend (provider, method) tuple.
-  ({PayProvider provider, PayMethod method})? _mapSelection() {
+  /// Map the UI method id to a backend (provider, method) tuple plus
+  /// any extra metadata the gateway needs to disambiguate (e.g. which
+  /// wallet brand for a `wallet` payment).
+  ///
+  /// All methods route through Paymob — the difference is the
+  /// `method` enum and the `wallet_type` hint in `extra`.
+  ({
+    PayProvider provider,
+    PayMethod method,
+    Map<String, dynamic> extra,
+  })? _mapSelection() {
     switch (_sel) {
-      case 'visa':
+      case 'card':
       case 'meeza':
-        return (provider: PayProvider.paymob, method: PayMethod.card);
+        return (
+          provider: PayProvider.paymob,
+          method: PayMethod.card,
+          extra: const {},
+        );
+      case 'vodafone_cash':
+        return (
+          provider: PayProvider.paymob,
+          method: PayMethod.wallet,
+          extra: const {'wallet_type': 'vodafone_cash'},
+        );
+      case 'orange_cash':
+        return (
+          provider: PayProvider.paymob,
+          method: PayMethod.wallet,
+          extra: const {'wallet_type': 'orange_cash'},
+        );
+      case 'etisalat_cash':
+        return (
+          provider: PayProvider.paymob,
+          method: PayMethod.wallet,
+          extra: const {'wallet_type': 'etisalat_cash'},
+        );
     }
     return null;
   }
@@ -682,14 +960,17 @@ class _PaymentPageState extends State<PaymentPage> {
     final mapped = _mapSelection();
     if (mapped == null) return;
 
-    // Card forms are gateway-hosted now, but we still sanity-check
-    // the local fields if the user filled them in.
-    if (mapped.method == PayMethod.card) {
-      if (_numCtrl.text.isNotEmpty &&
-          (_numCtrl.text.length < 16 ||
-              _expCtrl.text.length < 5 ||
-              _cvvCtrl.text.length < 3 ||
-              _nameCtrl.text.trim().isEmpty)) {
+    // The card form is only relevant for the merged Visa/Mastercard
+    // row — Meeza and the wallets all delegate the PAN entry to
+    // Paymob's hosted iframe, so we don't pre-validate anything for
+    // them here.  When the user did opt into our local card form we
+    // sanity-check the four fields are complete before calling the
+    // gateway.
+    if (_sel == 'card' && _numCtrl.text.isNotEmpty) {
+      if (_numCtrl.text.length < 16 ||
+          _expCtrl.text.length < 5 ||
+          _cvvCtrl.text.length < 3 ||
+          _nameCtrl.text.trim().isEmpty) {
         _snack('يرجى إدخال بيانات البطاقة كاملة', isError: true);
         return;
       }
@@ -718,15 +999,30 @@ class _PaymentPageState extends State<PaymentPage> {
         bookingId: booking.id,
         provider: mapped.provider,
         method: mapped.method,
+        extra: mapped.extra,
       );
 
-      // ── 3. Open checkout URL (Paymob iframe / Fawry hosted) ──
+      // ── 3. Open checkout URL inside an in-app WebView ────────
+      // Fawry vouchers and COD have no iframe — they jump straight
+      // to the status screen which shows the reference number.  For
+      // every other provider we host the gateway iframe in-app so
+      // the user never leaves Talaa.
       final url = result.checkoutUrl;
-      if (url != null && url.isNotEmpty) {
-        final uri = Uri.tryParse(url);
-        if (uri != null) {
-          await launchUrl(uri, mode: LaunchMode.externalApplication);
-        }
+      final hasIframe = url != null && url.isNotEmpty;
+
+      if (hasIframe) {
+        if (!mounted) return;
+        await Navigator.of(context).push<PaymentWebViewOutcome>(
+          MaterialPageRoute(
+            fullscreenDialog: true,
+            builder: (_) => PaymentWebViewPage(checkoutUrl: url),
+          ),
+        );
+        // We deliberately ignore the WebView outcome here — the
+        // PaymentStatusPage poller is the source of truth and will
+        // reflect the gateway webhook once it lands on the backend.
+        // The outcome is just a UX hint; success/failure UI is owned
+        // by the status screen.
       }
 
       HapticFeedback.mediumImpact();

@@ -15,8 +15,8 @@ import '../utils/api_client.dart';
 
 Color _areaColor(String area) {
   switch (area) {
-    case 'عين السخنة':     return const Color(0xFF0288D1);
-    case 'الساحل الشمالي': return const Color(0xFF1976D2);
+    case 'عين السخنة':     return const Color(0xFFFF8C42);
+    case 'الساحل الشمالي': return const Color(0xFFE85A24);
     case 'الجونة':         return const Color(0xFFE65100);
     case 'الغردقة':        return const Color(0xFF00695C);
     case 'شرم الشيخ':      return const Color(0xFF6A1B9A);
@@ -24,8 +24,8 @@ Color _areaColor(String area) {
     case 'القاهرة':        return const Color(0xFFBF360C);
     case 'اسكندرية':       return const Color(0xFF283593);
     case 'سهل حشيش':       return const Color(0xFF00838F);
-    case 'مرسى علم':       return const Color(0xFF1565C0);
-    default:               return const Color(0xFF1565C0);
+    case 'مرسى علم':       return const Color(0xFFFF6B35);
+    default:               return const Color(0xFFFF6B35);
   }
 }
 
@@ -54,27 +54,27 @@ IconData _catIcon(String key) {
     case 'فيلا':        return Icons.villa_rounded;
     case 'منتجع':       return Icons.spa_rounded;
     case 'أكوا بارك':   return Icons.pool_rounded;
-    case 'بيت شاطئ':    return Icons.beach_access_rounded;
+    case 'رحلة يوم واحد':    return Icons.wb_sunny_rounded;
     default:            return Icons.home_rounded;
   }
 }
 
 
-const _kCatKeysDefault = ['الكل', 'شاليه', 'فندق', 'فيلا', 'منتجع', 'أكوا بارك', 'بيت شاطئ'];
+const _kCatKeysDefault = ['الكل', 'شاليه', 'فندق', 'فيلا', 'منتجع', 'أكوا بارك', 'رحلة يوم واحد'];
 const _kCatKeysCairo   = ['الكل', 'غرف سكنية', 'فندق', 'فيلا', 'منتجع', 'أكوا بارك'];
 
 List<String> _catKeysForArea(String area) =>
     area == 'القاهرة' ? _kCatKeysCairo : _kCatKeysDefault;
 
 const _kCatColors = {
-  'الكل':         Color(0xFF1565C0),
-  'شاليه':        Color(0xFF0288D1),
-  'غرف سكنية':    Color(0xFF0288D1),
+  'الكل':         Color(0xFFFF6B35),
+  'شاليه':        Color(0xFFFF8C42),
+  'غرف سكنية':    Color(0xFFFF8C42),
   'فندق':         Color(0xFF7B1FA2),
   'فيلا':         Color(0xFFE65100),
   'منتجع':        Color(0xFF00695C),
   'أكوا بارك':    Color(0xFFD32F2F),
-  'بيت شاطئ':     Color(0xFF0097A7),
+  'رحلة يوم واحد':     Color(0xFF0097A7),
 };
 
 
@@ -113,7 +113,7 @@ class _AreaResultsPageState extends State<AreaResultsPage> {
       'Villas':'فيلا','Villa':'فيلا',
       'Resorts':'منتجع','Resort':'منتجع',
       'Aqua Park':'أكوا بارك',
-      'Beach House':'بيت شاطئ',
+      'Day Use':'رحلة يوم واحد',
       'All':'الكل',
     };
     return map[s] ?? s;

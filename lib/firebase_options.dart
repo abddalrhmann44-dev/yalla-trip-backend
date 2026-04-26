@@ -69,7 +69,7 @@ class DefaultFirebaseOptions {
     storageBucket: 'login-d47c7.firebasestorage.app',
     androidClientId: '862731638391-3cla4s11nugdb4ac8g3qmd257h0vdrm0.apps.googleusercontent.com',
     iosClientId: '862731638391-a52fmiv08r65o68c367aogktc70u5jci.apps.googleusercontent.com',
-    iosBundleId: 'com.example.yallaTrip',
+    iosBundleId: 'com.yallatrip.app',
   );
 
   static const FirebaseOptions windows = FirebaseOptions(

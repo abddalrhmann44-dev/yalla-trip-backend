@@ -92,7 +92,8 @@ class S {
   static String get resorts => _ar ? 'منتجعات' : 'Resorts';
   static String get villas => _ar ? 'فيلات' : 'Villas';
   static String get aquaPark => _ar ? 'أكوا بارك' : 'Aqua Park';
-  static String get beachHouse => _ar ? 'بيت شاطئ' : 'Beach House';
+  static String get beachHouse =>
+      _ar ? 'رحلة يوم واحد' : 'Day Use';
   static String get beach => _ar ? 'شاطئ' : 'Beach';
   static String get seaSports => _ar ? 'رياضات بحرية' : 'Sea Sports';
   static String get diving => _ar ? 'غوص' : 'Diving';
@@ -118,8 +119,8 @@ class S {
         return _ar ? ar : 'Resorts';
       case 'أكوا بارك':
         return _ar ? ar : 'Aqua Park';
-      case 'بيت شاطئ':
-        return _ar ? ar : 'Beach House';
+      case 'رحلة يوم واحد':
+        return _ar ? ar : 'Day Use';
       case 'الكل':
         return _ar ? ar : 'All';
       case 'غوص':
@@ -146,9 +147,15 @@ class S {
   static String get browseGuest => _ar ? 'تصفح كزائر' : 'Browse as Guest';
 
   // ── LOGIN / REGISTER ────────────────────────────────────────
-  static String get loginTitle => _ar ? 'تسجيل الدخول' : 'Sign In';
+  static String get loginTitle =>
+      _ar ? 'تسجيل الدخول أو إنشاء حساب' : 'Log in or sign up';
   static String get loginSubtitle =>
-      _ar ? 'أهلاً بك مجدداً في Talaa' : 'Welcome back to Talaa';
+      _ar ? 'أهلاً بك في Talaa' : 'Welcome to Talaa';
+  static String get continueBtn => _ar ? 'متابعة' : 'Continue';
+  static String get smsHint => _ar
+      ? 'هنبعتلك كود تحقق على رقمك عبر رسالة قصيرة.'
+      : 'We\'ll send a confirmation code to your phone by SMS.';
+  static String get privacyLink => _ar ? 'سياسة الخصوصية' : 'Privacy Policy';
   static String get phoneTab => _ar ? 'الهاتف' : 'Phone';
   static String get emailTab => _ar ? 'البريد' : 'Email';
   static String get namePlaceholder => _ar ? 'الاسم الكامل' : 'Full Name';
@@ -161,7 +168,7 @@ class S {
   static String get forgotPass =>
       _ar ? 'نسيت كلمة المرور؟' : 'Forgot password?';
   static String get loginAction => _ar ? 'تسجيل الدخول' : 'Sign In';
-  static String get orWith => _ar ? 'أو تابع مع' : 'Or continue with';
+  static String get orWith => _ar ? 'أو' : 'OR';
   static String get guestBtn => _ar ? 'تصفح كزائر' : 'Browse as Guest';
   static String get noAccount =>
       _ar ? 'مش عندك حساب؟' : 'Don\'t have an account?';
@@ -169,11 +176,21 @@ class S {
   static String get hasAccount =>
       _ar ? 'عندك حساب بالفعل؟' : 'Already have an account?';
   static String get loginLink => _ar ? 'تسجيل الدخول' : 'Sign In';
-  static String get registerTitle => _ar ? 'إنشاء حساب' : 'Create Account';
+  static String get registerTitle =>
+      _ar ? 'يلا نكمّل بياناتك' : 'Let\'s finish your account';
   static String get registerSub => _ar
-      ? 'انضم لـ Talaa واكتشف أجمل الوجهات'
-      : 'Join Talaa and discover top destinations';
-  static String get registerAction => _ar ? 'إنشاء الحساب' : 'Create Account';
+      ? 'محتاجين بيانات بسيطة عشان تقدر تحجز وتستمتع بالتجربة'
+      : 'A few quick details so you can book and enjoy the experience';
+  static String get registerAction =>
+      _ar ? 'متابعة' : 'Agree and continue';
+  static String get emailOptional =>
+      _ar ? 'البريد الإلكتروني (اختياري)' : 'Email (optional)';
+  static String get emailWhy => _ar
+      ? 'هنبعت تأكيدات الحجز والإيصالات على البريد.'
+      : 'We\'ll email booking confirmations and receipts.';
+  static String get termsAgreeText => _ar
+      ? 'بالضغط على متابعة، أنت توافق على شروط الخدمة وسياسة الخصوصية.'
+      : 'By tapping Continue, you agree to our Terms and Privacy Policy.';
 
   // ── OTP PAGE ────────────────────────────────────────────────
   static String get otpTitle => _ar ? 'التحقق من الهاتف' : 'Phone Verification';
@@ -226,8 +243,8 @@ class S {
       _ar ? 'جنة الغطس والاسترخاء' : 'Diving & relaxation paradise';
 
   static List<String> get ainSokhnaCategories => _ar
-      ? ['شاليهات', 'فيلات', 'منتجعات', 'بيت شاطئ']
-      : ['Chalets', 'Villas', 'Resorts', 'Beach House'];
+      ? ['شاليهات', 'فيلات', 'منتجعات', 'رحلة يوم واحد']
+      : ['Chalets', 'Villas', 'Resorts', 'Day Use'];
   static List<String> get hurghadaCategories => _ar
       ? ['غوص', 'فنادق', 'منتجعات', 'رياضات بحرية']
       : ['Diving', 'Hotels', 'Resorts', 'Sea Sports'];
@@ -355,9 +372,9 @@ class S {
       _ar ? 'تم الدفع بنجاح 🎉' : 'Payment Successful 🎉';
   static String get paymentFailed => _ar ? 'فشل الدفع' : 'Payment Failed';
   static String get platformFee =>
-      _ar ? 'رسوم المنصة (8%)' : 'Platform Fee (8%)';
+      _ar ? 'رسوم المنصة (10%)' : 'Platform Fee (10%)';
   static String get ownerReceives =>
-      _ar ? 'يستلم المالك (92%)' : 'Owner receives (92%)';
+      _ar ? 'يستلم المالك (90%)' : 'Owner receives (90%)';
   static String get bookingConfirmed =>
       _ar ? 'تم تأكيد الحجز ✅' : 'Booking Confirmed ✅';
 
@@ -434,14 +451,19 @@ class S {
   static String get deleteConfirm => _ar
       ? 'هل أنت متأكد من حذف حسابك؟'
       : 'Are you sure? This cannot be undone.';
-  static String get becomeOwner => _ar ? 'هل عندك عقار؟' : 'Own a Property?';
+  static String get becomeOwner =>
+      _ar ? 'أجّر مكانك معانا' : 'Rent out your place';
   static String get becomeOwnerSub => _ar
-      ? 'حوّل حسابك لمالك وضيف عقارك الآن'
-      : 'List your property and start earning';
+      ? 'شاليه، فيلا، شقة أو رحلة يوم واحد — أضفه واكسب'
+      : 'Chalet, villa, apartment or day-use — list it and earn';
   static String get switchGuest =>
       _ar ? 'التبديل لوضع العميل' : 'Switch to Guest Mode';
   static String get ownerMode =>
       _ar ? 'أنت في وضع المالك' : 'You\'re in Owner Mode';
+  static String get hostDashboardBtn =>
+      _ar ? 'لوحة المالك' : 'Host Dashboard';
+  static String get guestModeBtn =>
+      _ar ? 'وضع الضيف' : 'Guest Mode';
   static String get tripsCount => _ar ? 'رحلاتي' : 'My Trips';
   static String get reviewsCountL => _ar ? 'تقييماتي' : 'My Reviews';
   static String get listingsCount => _ar ? 'عقاراتي' : 'My Listings';

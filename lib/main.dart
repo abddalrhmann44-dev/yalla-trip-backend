@@ -3,11 +3,9 @@ import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'firebase_options.dart';
 
-import 'pages/welcome_page.dart';
 import 'pages/login_page.dart';
 import 'pages/register_page.dart';
 import 'pages/home_page.dart';
@@ -29,8 +27,6 @@ import 'pages/admin/admin_main_page.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'providers/user_provider.dart';
 import 'providers/favorites_provider.dart';
-import 'pages/terms_acceptance_page.dart';
-import 'pages/splash_screen.dart';
 
 class AppSettings extends ChangeNotifier {
   bool _darkMode = false;
@@ -77,11 +73,7 @@ final userProvider = UserProvider();
 final favoritesProvider = FavoritesProvider();
 
 void main() async {
-  final widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
-  FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
-
-  // ✅ شيل الـ native splash فوراً — Flutter splash بيظهر بدله فوراً
-  FlutterNativeSplash.remove();
+  WidgetsFlutterBinding.ensureInitialized();
 
   try {
     await Firebase.initializeApp(
@@ -162,7 +154,6 @@ class _TalaaAppState extends State<TalaaApp> {
       },
       home: const _AuthGate(),
       routes: {
-        '/welcome': (_) => const WelcomePage(),
         '/login': (_) => const LoginPage(),
         '/register': (_) => const RegisterPage(),
         '/onboarding': (_) => const OnboardingPage(),
@@ -173,7 +164,6 @@ class _TalaaAppState extends State<TalaaApp> {
         '/host': (_) => const HostDashboardPage(),
         '/profile': (_) => const ProfilePage(),
         '/admin': (_) => const AdminMainPage(),
-        '/splash': (_) => const SplashScreen(),
       },
       onGenerateRoute: (settings) {
         switch (settings.name) {
@@ -194,7 +184,7 @@ class _TalaaAppState extends State<TalaaApp> {
           case '/payment':
             return MaterialPageRoute(builder: (_) => const HomePage());
           default:
-            return MaterialPageRoute(builder: (_) => const WelcomePage());
+            return MaterialPageRoute(builder: (_) => const LoginPage());
         }
       },
     );
@@ -202,12 +192,13 @@ class _TalaaAppState extends State<TalaaApp> {
 
   ThemeData _buildTheme(Brightness brightness) {
     final isDark = brightness == Brightness.dark;
-    final scaffoldBg = isDark ? const Color(0xFF0B0F14) : Colors.white;
-    final surface = isDark ? const Color(0xFF111827) : const Color(0xFFF8F7F4);
-    final card = isDark ? const Color(0xFF161F2E) : Colors.white;
-    final onBg = isDark ? const Color(0xFFE6EDF3) : const Color(0xFF0D1B2A);
-    final onSurface = isDark ? const Color(0xFFE6EDF3) : const Color(0xFF0D1B2A);
-    final outline = isDark ? const Color(0xFF2B3445) : const Color(0xFFE5E7EB);
+    // All neutrals are warm-tinted (browns / off-whites) — no navy / slate.
+    final scaffoldBg = isDark ? const Color(0xFF14100C) : Colors.white;
+    final surface = isDark ? const Color(0xFF1A140F) : const Color(0xFFFFF8F4);
+    final card = isDark ? const Color(0xFF221A14) : Colors.white;
+    final onBg = isDark ? const Color(0xFFF4EDE6) : const Color(0xFF2A1F1A);
+    final onSurface = isDark ? const Color(0xFFF4EDE6) : const Color(0xFF2A1F1A);
+    final outline = isDark ? const Color(0xFF3A2E26) : const Color(0xFFEFE3D8);
 
     final schemeBase = ColorScheme.fromSeed(
       seedColor: AppColors.primary,
@@ -215,10 +206,15 @@ class _TalaaAppState extends State<TalaaApp> {
     );
 
     final scheme = schemeBase.copyWith(
+      // Pin primary to the exact brand orange — fromSeed sometimes
+      // shifts it toward red/amber and we need pixel-perfect parity.
+      primary: AppColors.primary,
+      onPrimary: Colors.white,
+      secondary: AppColors.accent,
+      onSecondary: Colors.white,
       surface: surface,
       onSurface: onSurface,
       outline: outline,
-      onPrimary: Colors.white,
     );
 
     final base = ThemeData(
@@ -235,7 +231,7 @@ class _TalaaAppState extends State<TalaaApp> {
         displayColor: onBg,
       ),
       appBarTheme: AppBarTheme(
-        backgroundColor: isDark ? const Color(0xFF0F172A) : Colors.white,
+        backgroundColor: isDark ? const Color(0xFF1A140F) : Colors.white,
         foregroundColor: isDark ? onBg : AppColors.primary,
         elevation: 0,
         centerTitle: false,
@@ -256,7 +252,7 @@ class _TalaaAppState extends State<TalaaApp> {
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF3F4F6),
+        fillColor: isDark ? const Color(0xFF221A14) : const Color(0xFFFFF4EC),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
           borderSide: BorderSide(color: outline),
@@ -273,9 +269,9 @@ class _TalaaAppState extends State<TalaaApp> {
         labelStyle: TextStyle(color: onSurface),
       ),
       bottomNavigationBarTheme: BottomNavigationBarThemeData(
-        backgroundColor: isDark ? const Color(0xFF0F172A) : Colors.white,
+        backgroundColor: isDark ? const Color(0xFF1A140F) : Colors.white,
         selectedItemColor: scheme.primary,
-        unselectedItemColor: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
+        unselectedItemColor: isDark ? const Color(0xFF9C8E83) : const Color(0xFF8B7B6E),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
@@ -297,53 +293,14 @@ class _AuthGate extends StatefulWidget {
   State<_AuthGate> createState() => _AuthGateState();
 }
 
-class _AuthGateState extends State<_AuthGate>
-    with SingleTickerProviderStateMixin {
-  bool _showSplash = true;
+class _AuthGateState extends State<_AuthGate> {
   bool _checkedVersion = false;
   bool _profileLoaded = false;
   bool? _onboardingSeen;
 
-  late AnimationController _controller;
-  late Animation<double> _logoScale;
-  late Animation<double> _logoOpacity;
-  late Animation<double> _textSlide;
-  late Animation<double> _textOpacity;
-  late Animation<double> _exitFade;
-
   @override
   void initState() {
     super.initState();
-
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 2800),
-    );
-
-    _logoScale = Tween<double>(begin: 0.4, end: 1.0).animate(CurvedAnimation(
-        parent: _controller,
-        curve: const Interval(0.0, 0.35, curve: Curves.elasticOut)));
-
-    _logoOpacity = Tween<double>(begin: 0.0, end: 1.0).animate(CurvedAnimation(
-        parent: _controller,
-        curve: const Interval(0.0, 0.20, curve: Curves.easeIn)));
-
-    _textSlide = Tween<double>(begin: 30.0, end: 0.0).animate(CurvedAnimation(
-        parent: _controller,
-        curve: const Interval(0.25, 0.55, curve: Curves.easeOut)));
-
-    _textOpacity = Tween<double>(begin: 0.0, end: 1.0).animate(CurvedAnimation(
-        parent: _controller,
-        curve: const Interval(0.25, 0.50, curve: Curves.easeIn)));
-
-    _exitFade = Tween<double>(begin: 1.0, end: 0.0).animate(CurvedAnimation(
-        parent: _controller,
-        curve: const Interval(0.78, 1.0, curve: Curves.easeInOut)));
-
-    _controller.forward().then((_) {
-      if (mounted) setState(() => _showSplash = false);
-    });
-
     _loadOnboardingFlag();
   }
 
@@ -375,72 +332,7 @@ class _AuthGateState extends State<_AuthGate>
   }
 
   @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    if (_showSplash) {
-      return AnimatedBuilder(
-        animation: _controller,
-        builder: (context, _) => FadeTransition(
-          opacity: _exitFade,
-          child: Scaffold(
-            backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-            body: Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  FadeTransition(
-                    opacity: _logoOpacity,
-                    child: ScaleTransition(
-                      scale: _logoScale,
-                      child: Image.asset(
-                        'assets/images/splash.png',
-                        width: 180,
-                        height: 180,
-                        fit: BoxFit.contain,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  FadeTransition(
-                    opacity: _textOpacity,
-                    child: Transform.translate(
-                      offset: Offset(0, _textSlide.value),
-                      child: Text(S.appName.toUpperCase(),
-                          style: TextStyle(
-                              fontSize: 28,
-                              fontWeight: FontWeight.w800,
-                              color: Color(0xFF1B4D5C),
-                              letterSpacing: 4,
-                              fontFamily: 'Outfit')),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  FadeTransition(
-                    opacity: _textOpacity,
-                    child: Transform.translate(
-                      offset: Offset(0, _textSlide.value),
-                      child: const Text('اكتشف أجمل الشاليهات',
-                          style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w400,
-                              color: Color(0xFFB8A05A),
-                              letterSpacing: 1,
-                              fontFamily: 'Outfit')),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      );
-    }
-
     return StreamBuilder<User?>(
       stream: FirebaseAuth.instance.authStateChanges(),
       builder: (context, snapshot) {
@@ -471,7 +363,7 @@ class _AuthGateState extends State<_AuthGate>
         }
 
         if (snapshot.hasData && snapshot.data != null) {
-          return const _TermsOrHome();
+          return const HomePage();
         }
         // Not logged in — onboarding first (if not seen yet).
         if (_onboardingSeen == null) {
@@ -485,42 +377,16 @@ class _AuthGateState extends State<_AuthGate>
             ),
           );
         }
+        // Not logged in — show onboarding the first time only,
+        // otherwise drop straight into HomePage as a guest. Login
+        // screen is pushed on-demand when a gated action is tapped.
         return _onboardingSeen!
-            ? const WelcomePage()
+            ? const HomePage()
             : const OnboardingPage();
       },
     );
   }
 }
 
-// ── Terms gate: shows acceptance page on first login ──────────
-class _TermsOrHome extends StatefulWidget {
-  const _TermsOrHome();
-  @override
-  State<_TermsOrHome> createState() => _TermsOrHomeState();
-}
-
-class _TermsOrHomeState extends State<_TermsOrHome> {
-  bool? _accepted;
-
-  @override
-  void initState() {
-    super.initState();
-    _check();
-  }
-
-  Future<void> _check() async {
-    final ok = await TermsAcceptancePage.hasAccepted();
-    if (mounted) setState(() => _accepted = ok);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (_accepted == null) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator(strokeWidth: 2)),
-      );
-    }
-    return _accepted! ? const HomePage() : const TermsAcceptancePage();
-  }
-}
+// Terms acceptance is enforced inline on the Register screen via an
+// explicit checkbox. No additional post-login gate is needed.

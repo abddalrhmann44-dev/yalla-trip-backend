@@ -12,7 +12,7 @@ import '../main.dart' show appSettings;
 import '../models/property_model_api.dart';
 import '../services/admin_service.dart';
 
-const _kOcean  = Color(0xFF1565C0);
+const _kOcean  = Color(0xFFFF6B35);
 const _kGreen  = Color(0xFF4CAF50);
 const _kRed    = Color(0xFFEF5350);
 const _kOrange = Color(0xFFFF6D00);

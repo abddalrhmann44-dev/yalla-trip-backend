@@ -13,6 +13,12 @@ import os
 from datetime import datetime, timezone
 from typing import AsyncGenerator
 
+# Tests still rely on the legacy "trust-the-client" behaviour of
+# ``/wallet/me/topup`` (no webhook loop in the test harness), so flip
+# the safety flag on before ``app.config.Settings`` is instantiated.
+# Production / Railway default remains ``False`` (secure).
+os.environ.setdefault("ALLOW_UNVERIFIED_WALLET_TOPUP", "true")
+
 import pytest
 import pytest_asyncio
 from fastapi import Depends, Request

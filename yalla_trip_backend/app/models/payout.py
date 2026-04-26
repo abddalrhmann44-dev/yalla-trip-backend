@@ -25,6 +25,7 @@ from sqlalchemy import (
     Boolean, Date, DateTime, Enum, Float, ForeignKey, String, Text,
     UniqueConstraint, func,
 )
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -48,6 +49,21 @@ class BookingPayoutStatus(str, enum.Enum):
     queued = "queued"       # currently inside a pending/processing Payout
     paid = "paid"           # Payout succeeded
     blocked = "blocked"     # refund/dispute — not payable
+
+
+class DisburseStatus(str, enum.Enum):
+    """State of the *automated* disbursement leg of a payout.
+
+    Mirrors :class:`PayoutStatus` but tracks the gateway round-trip
+    independently — a payout can be ``paid`` from the bookkeeping side
+    while the disburse webhook is still ``processing`` (rare, but
+    possible if the admin races the gateway).
+    """
+    not_started = "not_started"   # legacy / manual flow — no gateway call yet
+    initiated = "initiated"       # we sent the request, waiting for ack
+    processing = "processing"     # gateway accepted, money in flight
+    succeeded = "succeeded"       # webhook confirmed delivery
+    failed = "failed"             # gateway rejected — admin can retry / fall back
 
 
 # ════════════════════════════════════════════════════════════════
@@ -129,6 +145,35 @@ class Payout(Base):
     # once the money actually moves.
     reference_number: Mapped[str | None] = mapped_column(String(100), nullable=True)
     admin_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    # ── Wave 26 — automated disbursement (Kashier / mock) ────
+    # ``disburse_provider`` records *which* gateway moved the money so
+    # the audit trail can survive a future provider switch.  ``None``
+    # means the legacy manual flow handled this batch.
+    disburse_provider: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    # Gateway-side identifier — Kashier returns it as ``transactionId``.
+    # We surface it to the host alongside ``reference_number`` so they
+    # can cross-check against their bank/wallet SMS.
+    disburse_ref: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    disburse_status: Mapped[DisburseStatus] = mapped_column(
+        Enum(DisburseStatus, name="disburse_status"),
+        default=DisburseStatus.not_started,
+        server_default="not_started",
+        nullable=False,
+    )
+    # Timestamp of the *successful* webhook — used for SLA dashboards
+    # and to debounce duplicate webhooks (idempotency).
+    disbursed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    # Raw provider payload (request + last webhook) for forensic
+    # debugging.  Stored as JSONB so admins can query it from psql.
+    disburse_payload: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    # Optional S3 URL for a PDF / image receipt — populated either by
+    # the admin (manual flow) or by the gateway when it returns one.
+    disburse_receipt_url: Mapped[str | None] = mapped_column(
+        String(500), nullable=True
+    )
 
     processed_by_id: Mapped[int | None] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL"), nullable=True,

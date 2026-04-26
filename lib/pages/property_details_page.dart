@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 import '../main.dart' show appSettings;
 import '../services/sharing_service.dart';
 import '../utils/app_strings.dart';
+import '../utils/auth_guard.dart';
 import '../widgets/constants.dart';
 import '../widgets/favorite_button.dart';
 import '../models/property_model_api.dart';
@@ -24,7 +25,6 @@ import 'chat_page.dart';
 import '../widgets/review_card.dart';
 import '../widgets/verified_badge.dart';
 
-const _kOcean  = Color(0xFF1565C0);
 const _kOrange = Color(0xFFFF6D00);
 
 class PropertyDetailsPage extends StatefulWidget {
@@ -129,14 +129,14 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
     if (_loading) {
       return Scaffold(
         backgroundColor: context.kSand,
-        appBar: AppBar(backgroundColor: _kOcean, elevation: 0),
-        body: const Center(child: CircularProgressIndicator(color: _kOcean)),
+        appBar: AppBar(backgroundColor: _kOrange, elevation: 0),
+        body: const Center(child: CircularProgressIndicator(color: _kOrange)),
       );
     }
     if (_error != null || _prop == null) {
       return Scaffold(
         backgroundColor: context.kSand,
-        appBar: AppBar(backgroundColor: _kOcean, elevation: 0),
+        appBar: AppBar(backgroundColor: _kOrange, elevation: 0),
         body: Center(child: Text(_error ?? 'العقار غير موجود',
             style: TextStyle(fontSize: 16, color: context.kSub))),
       );
@@ -151,7 +151,7 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
           SliverAppBar(
             expandedHeight: 320,
             pinned: true,
-            backgroundColor: _kOcean,
+            backgroundColor: _kOrange,
             leading: GestureDetector(
               onTap: () => Navigator.pop(context),
               child: Container(
@@ -190,11 +190,18 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
                 ),
               ),
               GestureDetector(
-                onTap: () => showReportSheet(
-                  context,
-                  target: ReportTarget.property,
-                  targetId: p.id,
-                ),
+                onTap: () async {
+                  if (!await AuthGuard.require(context,
+                      feature: 'تبلّغ عن العقار')) {
+                    return;
+                  }
+                  if (!context.mounted) return;
+                  showReportSheet(
+                    context,
+                    target: ReportTarget.property,
+                    targetId: p.id,
+                  );
+                },
                 child: Container(
                   margin: const EdgeInsets.only(right: 12, left: 8, top: 8, bottom: 8),
                   padding: const EdgeInsets.all(8),
@@ -211,7 +218,7 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
               background: Stack(children: [
                 // Images PageView
                 p.images.isEmpty
-                    ? Container(color: const Color(0xFF1565C0),
+                    ? Container(color: const Color(0xFFFF6B35),
                         child: const Icon(Icons.villa_rounded,
                             color: Colors.white54, size: 80))
                     : PageView.builder(
@@ -226,7 +233,7 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
                               p.images[i],
                               fit: BoxFit.cover,
                               errorBuilder: (_, __, ___) => Container(
-                                color: const Color(0xFF1565C0),
+                                color: const Color(0xFFFF6B35),
                                 child: const Icon(Icons.villa_rounded,
                                     color: Colors.white54, size: 80)),
                             ),
@@ -423,7 +430,7 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
                         child: Text(
                             _descExpand ? 'عرض أقل ↑' : 'قرأة المزيد ↓',
                             style: const TextStyle(
-                                fontSize: 13, color: _kOcean,
+                                fontSize: 13, color: _kOrange,
                                 fontWeight: FontWeight.w700)),
                       ),
                     ],
@@ -480,30 +487,53 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
               Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text('${p.pricePerNight.toStringAsFixed(0)} جنيه',
                     style: TextStyle(
-                      fontSize: 22, fontWeight: FontWeight.w900,
-                      color: _kOcean,
+                      fontSize: 20, fontWeight: FontWeight.w900,
+                      color: _kOrange,
                     )),
                 Text('/ الليلة',
-                    style: TextStyle(fontSize: 12, color: context.kSub)),
+                    style: TextStyle(fontSize: 11, color: context.kSub)),
               ]),
               const Spacer(),
+              // ── Negotiate button (chalets + boats only) ──
+              if (p.isAvailable && _chatEligible) ...[
+                SizedBox(
+                  height: 52,
+                  child: OutlinedButton.icon(
+                    onPressed: _openNegotiation,
+                    icon: const Icon(Icons.chat_bubble_outline_rounded,
+                        size: 18, color: _kOrange),
+                    label: const Text('فاوض',
+                        style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w900,
+                            color: _kOrange)),
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: _kOrange, width: 1.8),
+                      padding: const EdgeInsets.symmetric(horizontal: 14),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16)),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+              ],
               // Book button
               SizedBox(
                 height: 52,
                 child: ElevatedButton(
                   onPressed: p.isAvailable ? _startBooking : null,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: p.isAvailable ? _kOcean : Colors.grey,
+                    backgroundColor: p.isAvailable ? _kOrange : Colors.grey,
                     foregroundColor: Colors.white,
                     elevation: 0,
-                    padding: const EdgeInsets.symmetric(horizontal: 32),
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16)),
                   ),
                   child: Text(
                     p.isAvailable ? 'احجز الآن 🏖️' : 'غير متاح',
                     style: const TextStyle(
-                        fontSize: 15, fontWeight: FontWeight.w900),
+                        fontSize: 14, fontWeight: FontWeight.w900),
                   ),
                 ),
               ),
@@ -514,9 +544,25 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
     );
   }
 
-  void _startBooking() {
+  Future<void> _startBooking() async {
+    if (!await AuthGuard.require(context, feature: 'تحجز العقار')) return;
+    if (!mounted) return;
     Navigator.push(context, MaterialPageRoute(
       builder: (_) => BookingFlowPage(propertyApi: p),
+    ));
+  }
+
+  /// Chat-based price negotiation is opt-in per listing.  Owners
+  /// flip the ``negotiable`` flag from the property edit screen — if
+  /// they didn't, the listing is sticker-priced and the "فاوض" button
+  /// stays hidden.
+  bool get _chatEligible => p.negotiable;
+
+  Future<void> _openNegotiation() async {
+    if (!await AuthGuard.require(context, feature: 'تتفاوض مع المالك')) return;
+    if (!mounted) return;
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => ChatPage(propertyId: p.id),
     ));
   }
 
@@ -576,13 +622,13 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
     children: items.map((item) => Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
       decoration: BoxDecoration(
-        color: _kOcean.withValues(alpha: 0.06),
+        color: _kOrange.withValues(alpha: 0.06),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-            color: _kOcean.withValues(alpha: 0.2)),
+            color: _kOrange.withValues(alpha: 0.2)),
       ),
       child: Text(item, style: const TextStyle(
-          fontSize: 12, color: _kOcean, fontWeight: FontWeight.w600)),
+          fontSize: 12, color: _kOrange, fontWeight: FontWeight.w600)),
     )).toList(),
   );
 
@@ -637,7 +683,7 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
         Text(val, style: TextStyle(
             fontSize: 13,
             fontWeight: bold ? FontWeight.w900 : FontWeight.w700,
-            color: bold ? _kOcean : context.kText)),
+            color: bold ? _kOrange : context.kText)),
       ]),
     );
 
@@ -700,7 +746,7 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
       if (_reviewsLoading && _reviews.isEmpty)
         const Padding(
           padding: EdgeInsets.symmetric(vertical: 16),
-          child: Center(child: CircularProgressIndicator(color: _kOcean)),
+          child: Center(child: CircularProgressIndicator(color: _kOrange)),
         )
       else
         ..._reviews.map((r) => ReviewCard(review: r)),
@@ -714,13 +760,13 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
       Container(
         width: 54, height: 54,
         decoration: BoxDecoration(
-          color: _kOcean.withValues(alpha: 0.1),
+          color: _kOrange.withValues(alpha: 0.1),
           shape: BoxShape.circle,
         ),
         child: Center(child: Text(
           ownerName.isNotEmpty ? ownerName[0].toUpperCase() : 'م',
           style: const TextStyle(fontSize: 22,
-              fontWeight: FontWeight.w900, color: _kOcean),
+              fontWeight: FontWeight.w900, color: _kOrange),
         )),
       ),
       const SizedBox(width: 14),
@@ -749,18 +795,25 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
         ],
       )),
       GestureDetector(
-        onTap: () => Navigator.of(context).push(MaterialPageRoute(
-          builder: (_) => ChatPage(propertyId: p.id),
-        )),
+        onTap: () async {
+          if (!await AuthGuard.require(context,
+              feature: 'تتواصل مع المالك')) {
+            return;
+          }
+          if (!mounted) return;
+          Navigator.of(context).push(MaterialPageRoute(
+            builder: (_) => ChatPage(propertyId: p.id),
+          ));
+        },
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
           decoration: BoxDecoration(
-            border: Border.all(color: _kOcean),
+            border: Border.all(color: _kOrange),
             borderRadius: BorderRadius.circular(12),
           ),
           child: const Text('تواصل',
               style: TextStyle(fontSize: 13,
-                  fontWeight: FontWeight.w700, color: _kOcean)),
+                  fontWeight: FontWeight.w700, color: _kOrange)),
         ),
       ),
     ]);
@@ -931,7 +984,7 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
               : 'Property link copied — paste it anywhere to share',
           style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
         ),
-        backgroundColor: _kOcean,
+        backgroundColor: _kOrange,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12)),

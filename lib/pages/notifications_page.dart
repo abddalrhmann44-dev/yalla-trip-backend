@@ -4,12 +4,13 @@
 
 import 'package:flutter/material.dart';
 import '../main.dart' show appSettings;
+import '../utils/auth_guard.dart';
 import '../services/notification_api_service.dart';
 import '../utils/app_strings.dart';
 import '../widgets/constants.dart';
 
 // Accent colors (same in light & dark)
-const _kOcean  = Color(0xFF1565C0);
+const _kOcean  = Color(0xFFFF6B35);
 const _kOrange = Color(0xFFFF6D00);
 const _kGreen  = Color(0xFF22C55E);
 
@@ -92,6 +93,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
   @override
   void initState() {
     super.initState();
+    AuthGuard.requireOrPop(context, feature: 'تشوف إشعاراتك');
     appSettings.addListener(_onLangChange);
 
     _loadNotifs();

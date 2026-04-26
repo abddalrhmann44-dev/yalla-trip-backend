@@ -13,7 +13,7 @@ import '../utils/error_handler.dart';
 import '../widgets/constants.dart';
 import 'write_review_page.dart';
 
-const _kOcean = Color(0xFF1B4D5C);
+const _kOcean = Color(0xFFB54414);
 const _kAmber = Color(0xFFF59E0B);
 
 class PendingReviewsPage extends StatefulWidget {

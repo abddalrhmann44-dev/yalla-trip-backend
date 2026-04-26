@@ -6,7 +6,7 @@ from datetime import date, datetime
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-from app.models.payout import BankAccountType, PayoutStatus
+from app.models.payout import BankAccountType, DisburseStatus, PayoutStatus
 
 
 # ══════════════════════════════════════════════════════════════
@@ -109,6 +109,13 @@ class PayoutOut(BaseModel):
     processed_at: datetime | None
     created_at: datetime
     items: list[PayoutItemOut] = []
+
+    # ── Wave 26: automated disbursement (Kashier / mock) ─────
+    disburse_provider: str | None = None
+    disburse_ref: str | None = None
+    disburse_status: DisburseStatus = DisburseStatus.not_started
+    disbursed_at: datetime | None = None
+    disburse_receipt_url: str | None = None
 
     class Config:
         from_attributes = True

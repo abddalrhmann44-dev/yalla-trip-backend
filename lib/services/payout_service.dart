@@ -39,6 +39,36 @@ extension PayoutStatusX on PayoutStatus {
   }
 }
 
+/// Wave 26 — automated disbursement (Kashier / mock) state machine.
+/// Mirrors `app.models.payout.DisburseStatus` on the backend.
+///
+/// Names are intentionally `snake_case` so `enum.name` matches the
+/// wire format coming from the FastAPI server without a mapping
+/// table — keeping JSON deserialisation a one-liner.
+// ignore: constant_identifier_names
+enum DisburseStatus { not_started, initiated, processing, succeeded, failed }
+
+extension DisburseStatusX on DisburseStatus {
+  String get labelAr {
+    switch (this) {
+      case DisburseStatus.not_started:
+        return 'لم يبدأ';
+      case DisburseStatus.initiated:
+        return 'تم إرسال الطلب';
+      case DisburseStatus.processing:
+        return 'قيد التحويل';
+      case DisburseStatus.succeeded:
+        return 'تم التحويل ✅';
+      case DisburseStatus.failed:
+        return 'فشل التحويل';
+    }
+  }
+
+  /// Whether the row should display the "received" affirmation in the
+  /// host wallet — used for the green checkmark + reference card.
+  bool get isTerminalSuccess => this == DisburseStatus.succeeded;
+}
+
 // ── Models ────────────────────────────────────────────────
 class BankAccount {
   final int id;
@@ -127,6 +157,18 @@ class PayoutModel {
   final DateTime createdAt;
   final List<PayoutItem> items;
 
+  // ── Wave 26 — automated disbursement ───────────────────
+  /// Gateway slug (`kashier`, `mock`, …) — null for legacy manual rows.
+  final String? disburseProvider;
+  /// Gateway-side transaction id; the host can quote this to support
+  /// or to their bank to chase a missing deposit.
+  final String? disburseRef;
+  final DisburseStatus disburseStatus;
+  final DateTime? disbursedAt;
+  /// Optional S3 URL for a PDF / image receipt the host can download
+  /// straight from the app — strongest possible proof of payment.
+  final String? disburseReceiptUrl;
+
   PayoutModel({
     required this.id,
     required this.hostId,
@@ -140,6 +182,11 @@ class PayoutModel {
     required this.processedAt,
     required this.createdAt,
     required this.items,
+    required this.disburseProvider,
+    required this.disburseRef,
+    required this.disburseStatus,
+    required this.disbursedAt,
+    required this.disburseReceiptUrl,
   });
 
   factory PayoutModel.fromJson(Map<String, dynamic> j) => PayoutModel(
@@ -160,6 +207,18 @@ class PayoutModel {
         items: (j['items'] as List? ?? [])
             .map((e) => PayoutItem.fromJson(e as Map<String, dynamic>))
             .toList(),
+        disburseProvider: j['disburse_provider'] as String?,
+        disburseRef: j['disburse_ref'] as String?,
+        // Default to ``not_started`` for legacy rows where the column
+        // is missing or null in the response.
+        disburseStatus: DisburseStatus.values.firstWhere(
+          (s) => s.name == (j['disburse_status'] ?? 'not_started'),
+          orElse: () => DisburseStatus.not_started,
+        ),
+        disbursedAt: j['disbursed_at'] != null
+            ? DateTime.parse(j['disbursed_at'] as String)
+            : null,
+        disburseReceiptUrl: j['disburse_receipt_url'] as String?,
       );
 }
 
@@ -319,6 +378,16 @@ class PayoutService {
     final res = await _api.post('/payouts/admin/$payoutId/mark-failed', {
       'admin_notes': notes,
     });
+    return PayoutModel.fromJson(res as Map<String, dynamic>);
+  }
+
+  /// Wave 26 — fire the configured disbursement gateway (Kashier in
+  /// prod, mock in dev) for a single payout.  Returns the updated row
+  /// with `disburseStatus = initiated`; the success state arrives
+  /// later via webhook.  Throws on gateway-rejection (HTTP 502) so
+  /// the admin can fall back to manual.
+  static Future<PayoutModel> adminDisburse(int payoutId) async {
+    final res = await _api.post('/payouts/admin/$payoutId/disburse', {});
     return PayoutModel.fromJson(res as Map<String, dynamic>);
   }
 

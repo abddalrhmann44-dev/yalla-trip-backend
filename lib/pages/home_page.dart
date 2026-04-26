@@ -13,6 +13,7 @@ import '../widgets/constants.dart';
 import 'explore_page.dart';
 import 'area_results_page.dart';
 import '../utils/app_strings.dart';
+import '../utils/auth_guard.dart';
 import 'best_trip_page.dart';
 import 'profile_page.dart';
 import 'property_details_page.dart';
@@ -20,6 +21,7 @@ import '../models/property_model_api.dart';
 import '../services/property_service.dart';
 import 'chat_inbox_page.dart';
 import 'favorites_page.dart';
+import 'notifications_page.dart';
 
 // ────────────────────────────────────────────────────────────────
 //  MODELS
@@ -112,13 +114,13 @@ const _kDestinations = [
       'assets/images/destinations/cairo.jpg'),
   _Dest('سهل حشيش', '🏝️', [Color(0xFF00838F), Color(0xFF004D57)],
       'assets/images/destinations/shal_hashesh.jpg'),
-  _Dest('مرسى علم', '🐬', [Color(0xFF1565C0), Color(0xFF0D3B6F)],
+  _Dest('مرسى علم', '🐬', [Color(0xFFFF6B35), Color(0xFF0D3B6F)],
       'assets/images/destinations/marsa_alam.jpg'),
   _Dest('اسكندرية', '🌊', [Color(0xFF283593), Color(0xFF1A237E)],
       'assets/images/destinations/alex.jpg'),
-  _Dest('عين السخنة', '🏖️', [Color(0xFF0288D1), Color(0xFF015F86)],
+  _Dest('عين السخنة', '🏖️', [Color(0xFFFF8C42), Color(0xFF015F86)],
       'assets/images/destinations/ain_sokhna.jpg'),
-  _Dest('الساحل الشمالي', '🌴', [Color(0xFF1976D2), Color(0xFF0D47A1)],
+  _Dest('الساحل الشمالي', '🌴', [Color(0xFFE85A24), Color(0xFFE85A24)],
       'assets/images/destinations/north_coast.jpg'),
   _Dest('الجونة', '⛵', [Color(0xFFE65100), Color(0xFFBF360C)],
       'assets/images/destinations/gouna.jpg'),
@@ -409,7 +411,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           image: const AssetImage('assets/images/hero/hero_3.jpg'),
           fit: BoxFit.cover,
           colorFilter: ColorFilter.mode(
-            const Color(0xFF0A2463).withValues(alpha: 0.70),
+            const Color(0xFFB54414).withValues(alpha: 0.70),
             BlendMode.darken,
           ),
           onError: (_, __) {},
@@ -418,9 +420,9 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           begin: Alignment.topLeft,
           end: Alignment.bottomCenter,
           colors: [
-            Color(0xFF0A2463),
-            Color(0xFF1565C0),
-            Color(0xFF1E88E5),
+            Color(0xFFB54414),
+            Color(0xFFFF6B35),
+            Color(0xFFFF8A3D),
           ],
           stops: [0.0, 0.55, 1.0],
         ),
@@ -450,90 +452,63 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   ]),
                 ),
 
-                // Action icons — end side
-                _hdrIcon(Icons.favorite_border_rounded, onTap: () {
+                // Action icons — end side.  All three require an
+                // authenticated session; guests get the login prompt
+                // instead of an opaque 401/empty screen.
+                _hdrIcon(Icons.favorite_border_rounded, onTap: () async {
+                  if (!await AuthGuard.require(context,
+                      feature: 'تشوف عقاراتك المفضلة')) {
+                    return;
+                  }
+                  if (!mounted) return;
                   Navigator.push(context, MaterialPageRoute(
                       builder: (_) => const FavoritesPage()));
                 }),
                 const SizedBox(width: 8),
-                _hdrIcon(Icons.chat_bubble_outline_rounded, onTap: () {
-                  Navigator.push(context, MaterialPageRoute(builder: (_) => const ChatInboxPage()));
+                _hdrIcon(Icons.chat_bubble_outline_rounded, onTap: () async {
+                  if (!await AuthGuard.require(context,
+                      feature: 'تتواصل مع الملاك')) {
+                    return;
+                  }
+                  if (!mounted) return;
+                  Navigator.push(context, MaterialPageRoute(
+                      builder: (_) => const ChatInboxPage()));
                 }),
                 const SizedBox(width: 8),
-                _hdrIcon(Icons.notifications_outlined, notif: true),
+                _hdrIcon(Icons.notifications_outlined, notif: true,
+                    onTap: () async {
+                  if (!await AuthGuard.require(context,
+                      feature: 'تشوف إشعاراتك')) {
+                    return;
+                  }
+                  if (!mounted) return;
+                  Navigator.push(context, MaterialPageRoute(
+                      builder: (_) => const NotificationsPage()));
+                }),
               ]),
 
               const SizedBox(height: 16),
 
-              // ── Search bar ───────────────────────────
-              GestureDetector(
-                onTap: () => _openSearch(),
-                child: Container(
-                  height: 54,
-                  margin: const EdgeInsets.only(bottom: 20),
-                  decoration: BoxDecoration(
-                    color: context.kCard,
-                    borderRadius: BorderRadius.circular(18),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.18),
-                        blurRadius: 24,
-                        offset: const Offset(0, 8),
-                      ),
-                    ],
-                  ),
-                  child: Row(children: [
-                    const SizedBox(width: 16),
-                    const Icon(Icons.search_rounded,
-                        color: Color(0xFF1565C0), size: 22),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        S.searchHint,
-                        style: TextStyle(
-                            color: context.kSub, fontSize: 14),
-                      ),
+              // ── Search bar (inline, animated) ──────────
+              _HomeSearchBar(
+                filterActive: _filterActive,
+                onFilterTap: _openFilter,
+                onSubmit: (q) {
+                  setState(() {
+                    if (!_recentSearches.contains(q)) {
+                      _recentSearches.insert(0, q);
+                      if (_recentSearches.length > 6) {
+                        _recentSearches.removeLast();
+                      }
+                    }
+                  });
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => ExplorePage(initialSearch: q),
                     ),
-                    // Filter pill
-                    GestureDetector(
-                      onTap: _openFilter,
-                      child: Stack(children: [
-                        Container(
-                          margin: const EdgeInsets.all(7),
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: _filterActive
-                                ? const Color(0xFFFF6D00)
-                                : const Color(0xFF1565C0),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: const Row(children: [
-                            Icon(Icons.tune_rounded,
-                                color: Colors.white, size: 14),
-                            SizedBox(width: 4),
-                            Text('Filter',
-                                style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w700)),
-                          ]),
-                        ),
-                        if (_filterActive)
-                          PositionedDirectional(
-                              top: 4,
-                              end: 4,
-                              child: Container(
-                                width: 8,
-                                height: 8,
-                                decoration: const BoxDecoration(
-                                    color: Colors.white,
-                                    shape: BoxShape.circle),
-                              )),
-                      ]),
-                    ),
-                  ]),
-                ),
+                  );
+                },
               ),
             ]),
           ),
@@ -610,7 +585,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   },
                   child: Text(S.clearAll,
                       style: const TextStyle(
-                          color: Color(0xFF1565C0),
+                          color: Color(0xFFFF6B35),
                           fontWeight: FontWeight.w700)),
                 ),
               ]),
@@ -639,12 +614,12 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                         horizontal: 14, vertical: 8),
                                     decoration: BoxDecoration(
                                       color: tmpArea == a
-                                          ? const Color(0xFF1565C0)
+                                          ? const Color(0xFFFF6B35)
                                           : context.kChipBg,
                                       borderRadius: BorderRadius.circular(20),
                                       border: Border.all(
                                           color: tmpArea == a
-                                              ? const Color(0xFF1565C0)
+                                              ? const Color(0xFFFF6B35)
                                               : context.kBorder),
                                     ),
                                     child: Text(a,
@@ -713,7 +688,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                         min: 0,
                         max: 10000,
                         divisions: 100,
-                        activeColor: const Color(0xFF1565C0),
+                        activeColor: const Color(0xFFFF6B35),
                         inactiveColor: context.kBorder,
                         onChanged: (v) => setSheet(() => tmpPrice = v),
                       ),
@@ -820,7 +795,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 height: 52,
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF1565C0),
+                    backgroundColor: const Color(0xFFFF6B35),
                     foregroundColor: Colors.white,
                     elevation: 0,
                     shape: RoundedRectangleBorder(
@@ -878,13 +853,13 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           color: context.kChipBg,
           borderRadius: BorderRadius.circular(10),
           border:
-              Border.all(color: const Color(0xFF1565C0).withValues(alpha: 0.3)),
+              Border.all(color: const Color(0xFFFF6B35).withValues(alpha: 0.3)),
         ),
         child: Text(label,
             style: const TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
-                color: Color(0xFF1565C0))),
+                color: Color(0xFFFF6B35))),
       );
 
   Widget _counterRow({
@@ -909,10 +884,10 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               color: context.kChipBg,
               borderRadius: BorderRadius.circular(10),
               border: Border.all(
-                  color: const Color(0xFF1565C0).withValues(alpha: 0.3)),
+                  color: const Color(0xFFFF6B35).withValues(alpha: 0.3)),
             ),
             child: Icon(Icons.remove_rounded,
-                size: 18, color: const Color(0xFF1565C0)),
+                size: 18, color: const Color(0xFFFF6B35)),
           ),
         ),
         Padding(
@@ -929,7 +904,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             width: 34,
             height: 34,
             decoration: BoxDecoration(
-              color: const Color(0xFF1565C0),
+              color: const Color(0xFFFF6B35),
               borderRadius: BorderRadius.circular(10),
             ),
             child: const Icon(Icons.add_rounded, size: 18, color: Colors.white),
@@ -944,10 +919,10 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           duration: const Duration(milliseconds: 180),
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           decoration: BoxDecoration(
-            color: selected ? const Color(0xFF1565C0) : context.kChipBg,
+            color: selected ? const Color(0xFFFF6B35) : context.kChipBg,
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
-                color: selected ? const Color(0xFF1565C0) : context.kBorder),
+                color: selected ? const Color(0xFFFF6B35) : context.kBorder),
           ),
           child: Text(label,
               style: TextStyle(
@@ -999,7 +974,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               decoration: BoxDecoration(
                 color: const Color(0xFFFF6D00),
                 shape: BoxShape.circle,
-                border: Border.all(color: const Color(0xFF1565C0), width: 1.5),
+                border: Border.all(color: const Color(0xFFFF6B35), width: 1.5),
               ),
             )),
     ]),
@@ -1036,7 +1011,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               width: sel ? 22 : 6,
               height: 6,
               decoration: BoxDecoration(
-                color: sel ? const Color(0xFF1565C0) : context.kBorder,
+                color: sel ? const Color(0xFFFF6B35) : context.kBorder,
                 borderRadius: BorderRadius.circular(3),
               ),
             );
@@ -1044,46 +1019,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         ),
       ),
     ]);
-  }
-
-  // ── Search with suggestions ─────────────────────────────
-  void _openSearch() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => _SearchSheet(
-        recentSearches: _recentSearches,
-        onSearch: (query, {area, type}) {
-          setState(() {
-            if (query.isNotEmpty && !_recentSearches.contains(query)) {
-              _recentSearches.insert(0, query);
-              if (_recentSearches.length > 6) _recentSearches.removeLast();
-            }
-          });
-          Navigator.pop(context);
-          if (area != null && area.isNotEmpty) {
-            Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => AreaResultsPage(
-                    area: area,
-                    initialType: type,
-                  ),
-                ));
-          } else {
-            Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => ExplorePage(
-                    initialSearch: query,
-                    initialType: type,
-                  ),
-                ));
-          }
-        },
-      ),
-    );
   }
 
   void _openAreaResults(String area) {
@@ -1323,25 +1258,30 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                             Shadow(color: Colors.black54, blurRadius: 6)
                           ],
                         )),
-                    const SizedBox(height: 5),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 9, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.22),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.3)),
+                    // Hide the badge entirely for empty areas — the
+                    // old "قريباً" copy made live destinations like
+                    // العين السخنة look unavailable when the cache
+                    // hadn't hydrated yet.  Showing nothing is the
+                    // less confusing default.
+                    if ((_areaCounts[d.name] ?? 0) > 0) ...[
+                      const SizedBox(height: 5),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 9, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.22),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.3)),
+                        ),
+                        child: Text(
+                            '${_areaCounts[d.name]} عقار',
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700)),
                       ),
-                      child: Text(
-                          (_areaCounts[d.name] ?? 0) > 0
-                              ? '${_areaCounts[d.name]} عقار'
-                              : 'قريباً',
-                          style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700)),
-                    ),
+                    ],
                   ]),
             ),
           ]),
@@ -1435,11 +1375,11 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           Container(
             width: 64, height: 64,
             decoration: BoxDecoration(
-              color: const Color(0xFF1565C0).withValues(alpha: 0.08),
+              color: const Color(0xFFFF6B35).withValues(alpha: 0.08),
               shape: BoxShape.circle,
             ),
             child: const Icon(Icons.local_offer_outlined,
-                color: Color(0xFF1565C0), size: 32),
+                color: Color(0xFFFF6B35), size: 32),
           ),
           const SizedBox(height: 16),
           Text('لا توجد عروض حالياً',
@@ -1597,8 +1537,22 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               final sel = _navIdx == i;
               final inactiveColor = context.kSub;
               return GestureDetector(
-                onTap: () {
+                onTap: () async {
                   if (_navIdx == i) return;
+                  // Tabs 1..3 (Bookings / Chat / Profile) all need
+                  // a logged-in user — bounce guests to login first.
+                  if (i != 0) {
+                    final feature = i == 1
+                        ? 'تشوف حجوزاتك'
+                        : i == 2
+                            ? 'تتواصل مع الملاك'
+                            : 'تدخل على ملفك';
+                    if (!await AuthGuard.require(context,
+                        feature: feature)) {
+                      return;
+                    }
+                    if (!mounted) return;
+                  }
                   setState(() => _navIdx = i);
                 },
                 child: Padding(
@@ -1651,14 +1605,14 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
         decoration: BoxDecoration(
-          color: const Color(0xFF1565C0).withValues(alpha: 0.08),
+          color: const Color(0xFFFF6B35).withValues(alpha: 0.08),
           borderRadius: BorderRadius.circular(20),
         ),
         child: Text(label,
             style: const TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
-                color: Color(0xFF1565C0))),
+                color: Color(0xFFFF6B35))),
       ),
     );
   }
@@ -1758,12 +1712,12 @@ class _SearchSheetState extends State<_SearchSheet> {
               color: context.kInputFill,
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                  color: const Color(0xFF1565C0).withValues(alpha: 0.25)),
+                  color: const Color(0xFFFF6B35).withValues(alpha: 0.25)),
             ),
             child: Row(children: [
               const SizedBox(width: 14),
               const Icon(Icons.search_rounded,
-                  color: Color(0xFF1565C0), size: 22),
+                  color: Color(0xFFFF6B35), size: 22),
               const SizedBox(width: 10),
               Expanded(
                   child: TextField(
@@ -1831,13 +1785,13 @@ class _SearchSheetState extends State<_SearchSheet> {
           padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
           child: Row(children: [
             Icon(_query.isEmpty ? Icons.bolt_rounded : Icons.search_rounded,
-                size: 16, color: const Color(0xFF1565C0)),
+                size: 16, color: const Color(0xFFFF6B35)),
             const SizedBox(width: 6),
             Text(_query.isEmpty ? S.suggestions : S.searchHint,
                 style: const TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
-                    color: Color(0xFF1565C0))),
+                    color: Color(0xFFFF6B35))),
           ]),
         ),
 
@@ -1853,7 +1807,7 @@ class _SearchSheetState extends State<_SearchSheet> {
                   width: 42,
                   height: 42,
                   decoration: BoxDecoration(
-                    color: const Color(0xFF1565C0).withValues(alpha: 0.07),
+                    color: const Color(0xFFFF6B35).withValues(alpha: 0.07),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Center(
@@ -1880,6 +1834,253 @@ class _SearchSheetState extends State<_SearchSheet> {
               );
             },
           ),
+        ),
+      ]),
+    );
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+//  INLINE ANIMATED SEARCH BAR (home page)
+//  - Static prefix "بحث عن" / "Search for"
+//  - Rotating keyword that slides up every ~1.6s
+//  - No modal sheet: tapping focuses a real TextField in place
+//  - Filter button stays on the right, always orange
+// ══════════════════════════════════════════════════════════════
+class _HomeSearchBar extends StatefulWidget {
+  final bool filterActive;
+  final VoidCallback onFilterTap;
+  final void Function(String query) onSubmit;
+  const _HomeSearchBar({
+    required this.filterActive,
+    required this.onFilterTap,
+    required this.onSubmit,
+  });
+
+  @override
+  State<_HomeSearchBar> createState() => _HomeSearchBarState();
+}
+
+class _HomeSearchBarState extends State<_HomeSearchBar> {
+  static const _kBrand = Color(0xFFFF6B35);
+  static const _kBrandDark = Color(0xFFE85A24);
+
+  // Rotating keywords (Arabic + English pairs).
+  static const _keywordsAr = [
+    'شاليه',
+    'فيلا',
+    'شاطئ',
+    'أكوا بارك',
+    'منتجع',
+    'فندق',
+    'الساحل الشمالي',
+    'الجونة',
+  ];
+  static const _keywordsEn = [
+    'Chalet',
+    'Villa',
+    'Beach',
+    'Aqua Park',
+    'Resort',
+    'Hotel',
+    'Sahel',
+    'Gouna',
+  ];
+
+  final TextEditingController _ctrl = TextEditingController();
+  final FocusNode _focus = FocusNode();
+  Timer? _rotator;
+  int _idx = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    appSettings.addListener(_onLangChange);
+    _focus.addListener(() => setState(() {}));
+    _rotator = Timer.periodic(const Duration(milliseconds: 1600), (_) {
+      if (!mounted) return;
+      // Don't rotate while the user is typing / field is focused with text.
+      if (_focus.hasFocus || _ctrl.text.isNotEmpty) return;
+      setState(() => _idx = (_idx + 1) % _keywordsAr.length);
+    });
+  }
+
+  void _onLangChange() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    appSettings.removeListener(_onLangChange);
+    _rotator?.cancel();
+    _ctrl.dispose();
+    _focus.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final q = _ctrl.text.trim();
+    if (q.isEmpty) return;
+    _focus.unfocus();
+    widget.onSubmit(q);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ar = appSettings.arabic;
+    final keywords = ar ? _keywordsAr : _keywordsEn;
+    final prefix = ar ? 'بحث عن ' : 'Search for ';
+    final showRotator = !_focus.hasFocus && _ctrl.text.isEmpty;
+
+    return Container(
+      height: 54,
+      margin: const EdgeInsets.only(bottom: 20),
+      decoration: BoxDecoration(
+        color: context.kCard,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.18),
+            blurRadius: 24,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Row(children: [
+        const SizedBox(width: 16),
+        const Icon(Icons.search_rounded, color: _kBrand, size: 22),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Stack(
+            alignment: AlignmentDirectional.centerStart,
+            children: [
+              // Real text field — always present so tap works instantly.
+              TextField(
+                controller: _ctrl,
+                focusNode: _focus,
+                onChanged: (_) => setState(() {}),
+                onSubmitted: (_) => _submit(),
+                textInputAction: TextInputAction.search,
+                style: TextStyle(fontSize: 14, color: context.kText),
+                decoration: const InputDecoration(
+                  isCollapsed: true,
+                  contentPadding: EdgeInsets.symmetric(vertical: 14),
+                  border: InputBorder.none,
+                ),
+              ),
+
+              // Animated hint overlay — ignores pointer so TextField receives taps.
+              if (showRotator)
+                IgnorePointer(
+                  child: Row(children: [
+                    Text(
+                      prefix,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: context.kText,
+                      ),
+                    ),
+                    Expanded(
+                      child: ClipRect(
+                        child: AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 450),
+                          switchInCurve: Curves.easeOutCubic,
+                          switchOutCurve: Curves.easeInCubic,
+                          transitionBuilder: (child, anim) {
+                            final inTween = Tween<Offset>(
+                              begin: const Offset(0, 1),
+                              end: Offset.zero,
+                            ).animate(anim);
+                            return ClipRect(
+                              child: SlideTransition(
+                                position: inTween,
+                                child: FadeTransition(
+                                    opacity: anim, child: child),
+                              ),
+                            );
+                          },
+                          layoutBuilder: (current, previous) => Stack(
+                            alignment: AlignmentDirectional.centerStart,
+                            children: [...previous, if (current != null) current],
+                          ),
+                          child: Text(
+                            keywords[_idx % keywords.length],
+                            key: ValueKey('${ar}_$_idx'),
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w800,
+                              color: _kBrand,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ]),
+                ),
+            ],
+          ),
+        ),
+
+        // Clear button when user has typed something.
+        if (_ctrl.text.isNotEmpty)
+          GestureDetector(
+            onTap: () {
+              _ctrl.clear();
+              setState(() {});
+            },
+            child: Padding(
+              padding: const EdgeInsetsDirectional.only(end: 4),
+              child: Icon(Icons.close_rounded, color: context.kSub, size: 18),
+            ),
+          ),
+
+        // Filter pill — always orange.
+        GestureDetector(
+          onTap: widget.onFilterTap,
+          child: Stack(children: [
+            Container(
+              margin: const EdgeInsets.all(7),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: widget.filterActive ? _kBrandDark : _kBrand,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: _kBrand.withValues(alpha: 0.35),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
+              child: Row(children: [
+                const Icon(Icons.tune_rounded,
+                    color: Colors.white, size: 14),
+                const SizedBox(width: 4),
+                Text(
+                  ar ? 'فلتر' : 'Filter',
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700),
+                ),
+              ]),
+            ),
+            if (widget.filterActive)
+              PositionedDirectional(
+                top: 4,
+                end: 4,
+                child: Container(
+                  width: 8,
+                  height: 8,
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ),
+          ]),
         ),
       ]),
     );

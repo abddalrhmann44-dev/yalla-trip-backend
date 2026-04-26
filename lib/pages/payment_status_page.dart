@@ -8,7 +8,6 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../models/payment_model.dart';
 import '../services/payment_service.dart';
@@ -16,8 +15,9 @@ import '../utils/api_client.dart';
 import '../utils/error_handler.dart';
 import '../widgets/constants.dart';
 import 'home_page.dart';
+import 'payment_webview_page.dart';
 
-const _kOcean = Color(0xFF1B4D5C);
+const _kOcean = Color(0xFFB54414);
 const _kGreen = Color(0xFF2E7D32);
 const _kRed = Color(0xFFD32F2F);
 const _kAmber = Color(0xFFF57C00);
@@ -97,8 +97,16 @@ class _PaymentStatusPageState extends State<PaymentStatusPage> {
   Future<void> _reopenCheckout() async {
     final url = widget.checkoutUrl ?? _status?.checkoutUrl;
     if (url == null || url.isEmpty) return;
-    final uri = Uri.parse(url);
-    await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!mounted) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        fullscreenDialog: true,
+        builder: (_) => PaymentWebViewPage(checkoutUrl: url),
+      ),
+    );
+    // Force an immediate poll on return so the UI snaps to the new
+    // state without waiting up to 4 seconds for the timer.
+    if (mounted) await _fetchOnce();
   }
 
   void _goHome() {

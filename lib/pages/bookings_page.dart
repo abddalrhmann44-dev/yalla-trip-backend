@@ -5,6 +5,7 @@
 import 'package:flutter/material.dart';
 import '../main.dart' show appSettings;
 import '../utils/app_strings.dart';
+import '../utils/auth_guard.dart';
 import '../widgets/cancel_booking_sheet.dart';
 import '../widgets/constants.dart';
 import '../models/booking_model.dart';
@@ -30,14 +31,14 @@ String _categoryEmoji(String category) {
     case 'فندق':      return '🏨';
     case 'منتجع':     return '🌺';
     case 'أكوا بارك': return '🌊';
-    case 'بيت شاطئ':  return '🏄';
+    case 'رحلة يوم واحد':  return '☀️';
     default:          return '🏠';
   }
 }
 
 Color _areaColor(String area) {
-  if (area == 'عين السخنة')     return const Color(0xFF0288D1);
-  if (area == 'الساحل الشمالي') return const Color(0xFF1976D2);
+  if (area == 'عين السخنة')     return const Color(0xFFFF8C42);
+  if (area == 'الساحل الشمالي') return const Color(0xFFE85A24);
   if (area == 'الجونة')         return const Color(0xFFE65100);
   if (area == 'الغردقة')        return const Color(0xFF00695C);
   if (area == 'شرم الشيخ')      return const Color(0xFF6A1B9A);
@@ -87,6 +88,11 @@ class _BookingsPageState extends State<BookingsPage>
   @override
   void initState() {
     super.initState();
+    // When opened directly (deep-link, /bookings route, push notification),
+    // bounce guests through the login prompt before we hit the API.
+    if (!widget.embedded) {
+      AuthGuard.requireOrPop(context, feature: 'تشوف حجوزاتك');
+    }
     appSettings.addListener(_onLangChange);
     _tabCtrl = TabController(length: 3, vsync: this);
     _loadBookings();
@@ -143,6 +149,118 @@ class _BookingsPageState extends State<BookingsPage>
     if (updated != null) _loadBookings();
   }
 
+  /// Wave 25 — guest confirms they arrived and paid the cash leg.
+  ///
+  /// Wraps the network call in an explicit confirm dialog so a
+  /// fat-finger tap doesn't prematurely release the host's payout
+  /// (which we'd then have to chase if the cash never actually
+  /// changed hands).
+  Future<void> _confirmArrival(BookingModel b) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('تأكيد الوصول والدفع'),
+        content: Text(
+          'هل وصلت العقار ودفعت ${b.remainingCashAmount.toStringAsFixed(0)} '
+          'جنيه كاش للمضيف؟ بمجرد التأكيد لا يمكن التراجع.',
+          textAlign: TextAlign.right,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('إلغاء'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(backgroundColor: _kGreen),
+            child: const Text('نعم، أكد'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    try {
+      await BookingService.confirmArrival(b.id);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('تم تأكيد وصولك. شكراً!'),
+          backgroundColor: _kGreen,
+        ),
+      );
+      _loadBookings();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('تعذر التأكيد: $e'),
+          backgroundColor: _kRed,
+        ),
+      );
+    }
+  }
+
+  /// True when the guest can still file an arrival confirmation.
+  /// Mirrors the backend guards in ``confirm_arrival`` so we never
+  /// bother the user with a button that's about to 4xx.
+  bool _canConfirmArrival(BookingModel b) {
+    if (!b.isCashOnArrival) return false;
+    if (!b.isPaid) return false;
+    if (b.cashGuestConfirmed) return false;
+    if (b.cashFullyConfirmed || b.noShowReported) return false;
+    final today = DateTime.now();
+    return !b.checkIn.isAfter(DateTime(today.year, today.month, today.day));
+  }
+
+  /// Compact pill summarising where the cash-on-arrival handshake
+  /// stands.  Colour-coded so the guest sees green = settled,
+  /// amber = waiting, red = trouble at a glance.
+  Widget _cashStatusBadge(BookingModel b) {
+    final bg = switch (b.cashCollectionStatus) {
+      'confirmed' => _kGreen.withValues(alpha: 0.12),
+      'no_show' || 'disputed' => _kRed.withValues(alpha: 0.12),
+      _ => const Color(0xFFFFF3E0),
+    };
+    final fg = switch (b.cashCollectionStatus) {
+      'confirmed' => _kGreen,
+      'no_show' || 'disputed' => _kRed,
+      _ => const Color(0xFFEF6C00),
+    };
+    final icon = switch (b.cashCollectionStatus) {
+      'confirmed' => Icons.verified_rounded,
+      'no_show' => Icons.person_off_rounded,
+      'disputed' => Icons.gavel_rounded,
+      _ => Icons.payments_rounded,
+    };
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: fg.withValues(alpha: 0.4)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: fg),
+          const SizedBox(width: 6),
+          Text(
+            b.cashStatusAr,
+            style: TextStyle(
+                fontSize: 11.5, fontWeight: FontWeight.w800, color: fg),
+          ),
+          if (b.remainingCashAmount > 0 &&
+              !b.cashFullyConfirmed &&
+              !b.noShowReported) ...[
+            const SizedBox(width: 6),
+            Text('· ${b.remainingCashAmount.toStringAsFixed(0)} جنيه',
+                style: TextStyle(fontSize: 11, color: fg)),
+          ],
+        ],
+      ),
+    );
+  }
+
   List<BookingModel> _byStatus(String s) =>
       _bookings.where((b) => _statusGroup(b.status) == s).toList();
 
@@ -182,7 +300,7 @@ class _BookingsPageState extends State<BookingsPage>
       decoration: const BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft, end: Alignment.bottomCenter,
-          colors: [Color(0xFF0A2463), Color(0xFF1565C0), Color(0xFF1E88E5)],
+          colors: [Color(0xFFB54414), Color(0xFFFF6B35), Color(0xFFFF8A3D)],
         ),
       ),
       child: SafeArea(bottom: false, child: Column(children: [
@@ -413,6 +531,41 @@ class _BookingsPageState extends State<BookingsPage>
                     style: TextStyle(fontSize: 16,
                         fontWeight: FontWeight.w900, color: context.kText)),
               ]),
+              // ── Wave 25 — cash-on-arrival status + action ─────
+              // Render a status pill for hybrid bookings, plus the
+              // "confirm arrival" button when it's the guest's turn
+              // to act and the check-in date has arrived.  This is
+              // the single most-used action of the new flow, so we
+              // surface it inline rather than burying it behind a
+              // tap into a details sheet.
+              if (b.isCashOnArrival) ...[
+                const SizedBox(height: 10),
+                _cashStatusBadge(b),
+                if (_canConfirmArrival(b)) ...[
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 40,
+                    child: FilledButton.icon(
+                      onPressed: () => _confirmArrival(b),
+                      icon: const Icon(Icons.check_circle_rounded,
+                          size: 18),
+                      label: Text(
+                        'أكد وصولك ودفعك '
+                        '(${b.remainingCashAmount.toStringAsFixed(0)} جنيه كاش)',
+                        style: const TextStyle(
+                            fontSize: 12.5, fontWeight: FontWeight.w900),
+                      ),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: _kGreen,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                      ),
+                    ),
+                  ),
+                ],
+              ],
               if (b.isCompleted && _pendingReviewIds.contains(b.id)) ...[
                 const SizedBox(height: 10),
                 SizedBox(

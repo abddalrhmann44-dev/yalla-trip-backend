@@ -10,7 +10,7 @@ import '../services/offer_service.dart';
 import '../services/property_service.dart';
 import '../widgets/constants.dart';
 
-const _kOcean  = Color(0xFF1565C0);
+const _kOcean  = Color(0xFFFF6B35);
 const _kOrange = Color(0xFFFF6D00);
 const _kGreen  = Color(0xFF22C55E);
 const _kRed    = Color(0xFFEF4444);
@@ -248,7 +248,7 @@ class _OfferCreationPageState extends State<OfferCreationPage> {
       decoration: const BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft, end: Alignment.bottomRight,
-          colors: [Color(0xFF0A2463), Color(0xFF1565C0)],
+          colors: [Color(0xFFB54414), Color(0xFFFF6B35)],
         ),
       ),
       child: SafeArea(
@@ -627,7 +627,7 @@ class _OfferCreationPageState extends State<OfferCreationPage> {
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           begin: Alignment.topLeft, end: Alignment.bottomRight,
-          colors: [Color(0xFF0A2463), Color(0xFF1565C0)],
+          colors: [Color(0xFFB54414), Color(0xFFFF6B35)],
         ),
         borderRadius: BorderRadius.circular(20),
         boxShadow: [

@@ -12,8 +12,9 @@ import 'owner_analytics_page.dart';
 import 'owner_dashboard_page.dart';
 import 'bookings_page.dart';
 import 'host_payouts_page.dart';
+import 'host_reservations_page.dart';
 
-const _kOcean  = Color(0xFF1565C0);
+const _kOcean  = Color(0xFFFF6B35);
 const _kGreen  = Color(0xFF22C55E);
 const _kOrange = Color(0xFFFF6D00);
 const _kPurple = Color(0xFF7C3AED);
@@ -121,6 +122,25 @@ class HostDashboardPage extends StatelessWidget {
                   context,
                   MaterialPageRoute(
                       builder: (_) => const BookingsPage()),
+                );
+              },
+            ),
+            const SizedBox(height: 14),
+            // Wave 25 — dedicated entry point for the cash-on-arrival
+            // confirmation handshake.  The host can act on multiple
+            // reservations at once here without digging through the
+            // generic "حجوزاتي" list.
+            _ActionButton(
+              icon: Icons.payments_rounded,
+              label: 'استلام الكاش',
+              subtitle: 'أكد استلام الباقى أو أبلغ عن عدم وصول الضيوف',
+              color: _kGreen,
+              onTap: () {
+                HapticFeedback.lightImpact();
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => const HostReservationsPage()),
                 );
               },
             ),

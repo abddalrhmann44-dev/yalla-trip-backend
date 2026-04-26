@@ -587,20 +587,90 @@ async def upload_property_images(
     if prop.owner_id != user.id and user.role != UserRole.admin:
         raise HTTPException(status_code=403, detail="ليس لديك صلاحية / Not your property")
 
-    if len(files) > 10:
-        raise HTTPException(status_code=400, detail="الحد الأقصى 10 صور / Max 10 images")
+    # Wave 26 — owners now upload 6–40 photos per listing.
+    if len(files) > 40:
+        raise HTTPException(
+            status_code=400,
+            detail="الحد الأقصى 40 صورة / Max 40 images",
+        )
+
+    # Allowed MIME types (mirrors S3 service).  HEIC/HEIF added so iPhone
+    # users don't see "silent skip" when image_picker hands us the
+    # original capture without recompression.
+    _ALLOWED_MIMES = {
+        "image/jpeg",
+        "image/jpg",
+        "image/png",
+        "image/webp",
+        "image/gif",
+        "image/heic",
+        "image/heif",
+    }
 
     urls: list[str] = list(prop.images or [])
+    rejected: list[dict[str, str | None]] = []
+
     for f in files:
-        if f.content_type not in ("image/jpeg", "image/png", "image/webp"):
+        ct = (f.content_type or "").lower()
+        if ct not in _ALLOWED_MIMES:
+            # Surface the rejection instead of silently dropping it —
+            # the previous behaviour caused owners to see "success"
+            # while half their photos vanished.
+            rejected.append({"filename": f.filename, "content_type": ct or None})
+            logger.warning(
+                "property_image_rejected_mime",
+                property_id=property_id,
+                filename=f.filename,
+                content_type=ct or None,
+            )
             continue
-        url = await upload_image(f.file, folder=f"properties/{property_id}", content_type=f.content_type)
+
+        # Normalise HEIC/HEIF → S3 service expects one of its known
+        # extensions.  We tag the upload as JPEG; image_picker on
+        # iOS already transcodes to JPEG when imageQuality<100, so
+        # this branch only fires for raw HEIC blobs.
+        s3_ct = "image/jpeg" if ct in ("image/heic", "image/heif") else ct
+        if s3_ct == "image/jpg":
+            s3_ct = "image/jpeg"
+
+        url = await upload_image(
+            f.file,
+            folder=f"properties/{property_id}",
+            content_type=s3_ct,
+        )
         if url is not None:
             urls.append(url)
+        else:
+            rejected.append({"filename": f.filename, "content_type": ct})
+            logger.error(
+                "property_image_s3_upload_failed",
+                property_id=property_id,
+                filename=f.filename,
+            )
+
+    # If the caller sent files but *none* survived the pipeline,
+    # fail loudly rather than returning a misleading 200.  This is
+    # the single most common silent-failure mode reported by owners
+    # ("صورى مرفعتش رغم إن قال تم").
+    if files and not urls and rejected:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "message": "فشل رفع كل الصور / All image uploads failed",
+                "rejected": rejected,
+            },
+        )
 
     prop.images = urls
     await db.flush()
     await db.refresh(prop)
+    logger.info(
+        "property_images_uploaded",
+        property_id=property_id,
+        accepted=len(files) - len(rejected),
+        rejected=len(rejected),
+        total_now=len(urls),
+    )
     return PropertyOut.model_validate(prop)
 
 

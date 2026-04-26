@@ -87,6 +87,12 @@ class PropertyApi {
   final bool isAvailable;
   final bool isFeatured;
   final bool instantBooking;
+  /// Owner opted in to chat-based price negotiation for this listing.
+  final bool negotiable;
+  /// Owner opted in to deposit-online + cash-on-arrival pricing.
+  /// When true the booking flow charges only an online deposit and
+  /// the remainder is collected as cash by the host on arrival.
+  final bool cashOnArrivalEnabled;
   final double? latitude;
   final double? longitude;
   final DateTime createdAt;
@@ -120,6 +126,8 @@ class PropertyApi {
     this.isAvailable = true,
     this.isFeatured = false,
     this.instantBooking = false,
+    this.negotiable = false,
+    this.cashOnArrivalEnabled = false,
     this.latitude,
     this.longitude,
     required this.createdAt,
@@ -158,6 +166,8 @@ class PropertyApi {
       isAvailable: j['is_available'] ?? true,
       isFeatured: j['is_featured'] ?? false,
       instantBooking: j['instant_booking'] ?? false,
+      negotiable: j['negotiable'] ?? false,
+      cashOnArrivalEnabled: j['cash_on_arrival_enabled'] ?? false,
       latitude: j['latitude']?.toDouble(),
       longitude: j['longitude']?.toDouble(),
       createdAt: DateTime.parse(j['created_at']),
@@ -183,7 +193,7 @@ class PropertyApi {
 
   /// true when category has cleaning fee
   bool get hasCleaningFee =>
-      category == 'شاليه' || category == 'فيلا' || category == 'بيت شاطئ';
+      category == 'شاليه' || category == 'فيلا' || category == 'رحلة يوم واحد';
 
   /// Paid services only
   List<PropertyServiceItem> get paidServices =>
@@ -199,9 +209,9 @@ class PropertyApi {
   Color get areaColor {
     switch (area) {
       case 'عين السخنة':
-        return const Color(0xFF0288D1);
+        return const Color(0xFFFF8C42);
       case 'الساحل الشمالي':
-        return const Color(0xFF1976D2);
+        return const Color(0xFFE85A24);
       case 'الجونة':
         return const Color(0xFFE65100);
       case 'الغردقة':
@@ -211,7 +221,7 @@ class PropertyApi {
       case 'رأس سدر':
         return const Color(0xFF00897B);
       default:
-        return const Color(0xFF1565C0);
+        return const Color(0xFFFF6B35);
     }
   }
 
@@ -227,8 +237,8 @@ class PropertyApi {
         return '🌺';
       case 'أكوا بارك':
         return '🌊';
-      case 'بيت شاطئ':
-        return '🏄';
+      case 'رحلة يوم واحد':
+        return '☀️';
       case 'مركب':
         return '⛵';
       default:

@@ -31,6 +31,31 @@ class DepositStatus(str, enum.Enum):
     deducted = "deducted"
 
 
+class CashCollectionStatus(str, enum.Enum):
+    """Tracks the state of the cash-on-arrival leg of a hybrid booking.
+
+    * ``not_applicable`` — booking pre-paid 100 % online (legacy flow).
+    * ``pending`` — guest paid the deposit, waiting for check-in.
+    * ``owner_confirmed`` — host marked "cash received" but the guest
+      hasn't acknowledged arrival yet.
+    * ``guest_confirmed`` — guest marked "arrived & paid" but the host
+      hasn't acknowledged collection yet.
+    * ``confirmed`` — both sides agreed; payout is released.
+    * ``disputed`` — the parties disagreed (or 48 h passed without a
+      matching confirmation); admin must adjudicate.
+    * ``no_show`` — host reported a no-show after the check-in date;
+      deposit is forfeited to the host minus a one-night commission.
+    """
+
+    not_applicable = "not_applicable"
+    pending = "pending"
+    owner_confirmed = "owner_confirmed"
+    guest_confirmed = "guest_confirmed"
+    confirmed = "confirmed"
+    disputed = "disputed"
+    no_show = "no_show"
+
+
 class Booking(Base):
     __tablename__ = "bookings"
 
@@ -63,6 +88,39 @@ class Booking(Base):
     total_price: Mapped[float] = mapped_column(Float, nullable=False)
     platform_fee: Mapped[float] = mapped_column(Float, nullable=False)
     owner_payout: Mapped[float] = mapped_column(Float, nullable=False)
+
+    # ── Hybrid cash-on-arrival (Wave 25) ──────────────────────
+    # When the host enabled ``cash_on_arrival_enabled`` on the
+    # property, the guest pays only ``deposit_amount`` online and
+    # owes ``remaining_cash_amount`` directly to the host on arrival.
+    # For legacy 100 %-online bookings:
+    #   deposit_amount      = total_price
+    #   remaining_cash_amount = 0
+    #   cash_collection_status = not_applicable
+    # so existing code paths keep working without special-casing.
+    deposit_amount: Mapped[float] = mapped_column(
+        Float, default=0.0, server_default="0", nullable=False
+    )
+    remaining_cash_amount: Mapped[float] = mapped_column(
+        Float, default=0.0, server_default="0", nullable=False
+    )
+    cash_collection_status: Mapped[CashCollectionStatus] = mapped_column(
+        Enum(CashCollectionStatus),
+        default=CashCollectionStatus.not_applicable,
+        server_default="not_applicable",
+        nullable=False,
+    )
+    # Timestamps so we can render an audit trail in the receipt UI
+    # and run the 48 h dispute timer on the scheduler.
+    owner_cash_confirmed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    guest_arrival_confirmed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    no_show_reported_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
     # ── Applied promo code (Wave 8) ───────────────────────────
     # The discount is subtracted from ``total_price`` *before* the

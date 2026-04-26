@@ -1,0 +1,24 @@
+{
+  "//": "Tell Pylance/Pyright this is a standalone Python project so it stops crawling the Flutter workspace.",
+  "include": [
+    "app",
+    "tests",
+    "alembic"
+  ],
+  "exclude": [
+    "**/__pycache__",
+    "**/.venv",
+    "**/.pytest_cache",
+    "**/.ruff_cache",
+    "**/build",
+    "**/node_modules"
+  ],
+  "venvPath": ".",
+  "venv": ".venv",
+  "pythonVersion": "3.11",
+  "typeCheckingMode": "basic",
+  "reportMissingImports": "warning",
+  "reportMissingTypeStubs": "none",
+  "extraPaths": ["."],
+  "useLibraryCodeForTypes": true
+}

@@ -10,11 +10,13 @@ import 'package:flutter/material.dart';
 import '../main.dart' show appSettings, userProvider;
 import '../models/chat_model.dart';
 import '../services/chat_service.dart';
+import '../services/property_service.dart';
 import '../utils/api_client.dart';
 import '../utils/app_strings.dart';
 import '../utils/error_handler.dart';
 import '../widgets/chat_bubble.dart';
 import '../widgets/constants.dart';
+import 'payment_page.dart';
 
 /// Opens either by **conversationId** (from inbox) or by **propertyId**
 /// (from the "negotiate price" CTA on property details — we create /
@@ -928,8 +930,9 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
       builder: (ctx) => AlertDialog(
         title: const Text('تأكيد قبول العرض'),
         content: Text(
-          'سيتم إنشاء حجز بالسعر المتفق عليه '
-          '(${_conv!.latestOfferAmount?.toStringAsFixed(0) ?? '-'} ج.م/ليلة).',
+          'هيتم إنشاء حجز بالسعر المتفق عليه '
+          '(${_conv!.latestOfferAmount?.toStringAsFixed(0) ?? '-'} ج.م/ليلة) '
+          'وهتنتقل لصفحة الدفع مباشرة.',
         ),
         actions: [
           TextButton(
@@ -939,7 +942,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: AppColors.success),
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('قبول وإنشاء حجز'),
+            child: const Text('قبول ومتابعة الدفع'),
           ),
         ],
       ),
@@ -952,14 +955,70 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
       setState(() => _conv = result.conversation);
       await _refreshMessages();
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        backgroundColor: AppColors.success,
-        content: Text('تم إنشاء حجز ${result.bookingCode} ✅'),
-      ));
+      // inDrive-style: price agreed → jump straight to payment.
+      await _proceedToPaymentAfterAccept(result);
     } on ApiException catch (e) {
       _showError(ErrorHandler.getMessage(e));
     } catch (_) {
       _showError('حدث خطأ أثناء قبول العرض');
+    }
+  }
+
+  /// After the backend seals the negotiation, load the property and
+  /// push the user into PaymentPage with the agreed per-night rate ×
+  /// nights + the property's fees already filled in.
+  Future<void> _proceedToPaymentAfterAccept(
+      ConversationAccepted result) async {
+    final conv = _conv;
+    if (conv == null ||
+        conv.property == null ||
+        conv.checkIn == null ||
+        conv.checkOut == null) {
+      // Missing trip context — fall back to the legacy snackbar so
+      // the user can still reach the booking from "حجوزاتي".
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        backgroundColor: AppColors.success,
+        content: Text(
+            'تم إنشاء حجز ${result.bookingCode} ✅ — تابع الدفع من حجوزاتي'),
+      ));
+      return;
+    }
+
+    try {
+      final prop = await PropertyService.getProperty(conv.property!.id);
+      if (!mounted) return;
+
+      final nights = conv.checkOut!.difference(conv.checkIn!).inDays;
+      final offerAmount = conv.latestOfferAmount ?? 0;
+      final baseAmount = (offerAmount * nights).toInt();
+      final cleaningFee = prop.cleaningFee.toInt();
+      final totalAmount = result.totalPrice.toInt();
+
+      final checkInStr = '${conv.checkIn!.day}/'
+          '${conv.checkIn!.month}/${conv.checkIn!.year}';
+      final checkOutStr = '${conv.checkOut!.day}/'
+          '${conv.checkOut!.month}/${conv.checkOut!.year}';
+
+      Navigator.of(context).pushReplacement(MaterialPageRoute(
+        builder: (_) => PaymentPage(
+          property: prop,
+          checkIn: checkInStr,
+          checkOut: checkOutStr,
+          nights: nights,
+          guests: conv.guests ?? 1,
+          guestNote: '',
+          baseAmount: baseAmount,
+          cleaningFee: cleaningFee,
+          totalAmount: totalAmount,
+        ),
+      ));
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        backgroundColor: AppColors.success,
+        content: Text(
+            'تم إنشاء حجز ${result.bookingCode} ✅ — تابع الدفع من حجوزاتي'),
+      ));
     }
   }
 

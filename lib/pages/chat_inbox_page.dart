@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../main.dart' show appSettings, userProvider;
+import '../utils/auth_guard.dart';
 import '../models/chat_model.dart';
 import '../services/chat_service.dart';
 import '../utils/api_client.dart';
@@ -30,6 +31,9 @@ class _ChatInboxPageState extends State<ChatInboxPage> {
   @override
   void initState() {
     super.initState();
+    if (!widget.embedded) {
+      AuthGuard.requireOrPop(context, feature: 'تتواصل مع الملاك');
+    }
     appSettings.addListener(_onLangChange);
     _load();
   }

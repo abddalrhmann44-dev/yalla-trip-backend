@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../main.dart' show favoritesProvider;
+import '../utils/auth_guard.dart';
 
 class FavoriteButton extends StatelessWidget {
   final int propertyId;
@@ -74,6 +75,12 @@ class FavoriteButton extends StatelessWidget {
   }
 
   Future<void> _handleTap(BuildContext context, bool wasFav) async {
+    // Guests can't favorite — bounce them through the login prompt
+    // before we hit the backend (which would 401 anyway).
+    if (!await AuthGuard.require(context, feature: 'تحفظ العقار فى المفضلة')) {
+      return;
+    }
+    if (!context.mounted) return;
     HapticFeedback.selectionClick();
     try {
       await favoritesProvider.toggle(propertyId);

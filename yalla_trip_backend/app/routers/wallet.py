@@ -108,12 +108,41 @@ async def topup_wallet(
 ):
     """Credit the user's wallet.
 
-    Intended to be called after the Flutter client has completed a
-    card payment via the existing payment gateway.  For the MVP this
-    endpoint trusts the caller and immediately credits the balance;
-    in production the same effect should be produced by a gateway
-    webhook to prevent spoofing.
+    ⚠️ Security note ⚠️
+    -------------------
+    The original MVP implementation trusted the caller and credited
+    the balance immediately — which is exploitable (any authenticated
+    user could print money for themselves).  The safe flow is:
+
+        Flutter → Paymob iframe (WebView) → Paymob webhook →
+        backend verifies HMAC + Payment row → credits wallet.
+
+    Until that integration lands, this endpoint is gated:
+
+    * ``settings.ALLOW_UNVERIFIED_WALLET_TOPUP`` = True   → legacy
+      trust-the-client behaviour (dev / CI only).
+    * otherwise, only ``UserRole.admin`` callers are accepted
+      (admins effectively use it as a manual credit tool).
     """
+    settings = get_settings()
+    if (
+        not settings.ALLOW_UNVERIFIED_WALLET_TOPUP
+        and me.role != UserRole.admin
+    ):
+        logger.warning(
+            "wallet_topup_blocked_unverified",
+            user_id=me.id,
+            attempted_amount=float(body.amount),
+        )
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                "الشحن المباشر متوقف مؤقتاً — في انتظار تكامل بوابة الدفع. "
+                "Direct wallet top-up is disabled; use the payment gateway "
+                "flow instead."
+            ),
+        )
+
     amount = round(float(body.amount), 2)
     await wallet_service.credit(
         db, me.id, amount,

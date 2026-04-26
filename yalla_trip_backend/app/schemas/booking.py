@@ -7,7 +7,12 @@ from typing import Optional
 
 from pydantic import BaseModel, Field, model_validator
 
-from app.models.booking import BookingStatus, DepositStatus, PaymentStatus
+from app.models.booking import (
+    BookingStatus,
+    CashCollectionStatus,
+    DepositStatus,
+    PaymentStatus,
+)
 from app.schemas.property import PropertyBrief
 from app.schemas.user import UserBrief
 
@@ -65,6 +70,16 @@ class BookingOut(BaseModel):
     total_price: float
     platform_fee: float
     owner_payout: float
+    # Wave 25 — hybrid deposit + cash-on-arrival.  When the host
+    # didn't enable cash-on-arrival, ``deposit_amount == total_price``
+    # and ``remaining_cash_amount == 0`` so the legacy clients keep
+    # rendering correctly without any branching.
+    deposit_amount: float = 0.0
+    remaining_cash_amount: float = 0.0
+    cash_collection_status: CashCollectionStatus = CashCollectionStatus.not_applicable
+    owner_cash_confirmed_at: Optional[datetime] = None
+    guest_arrival_confirmed_at: Optional[datetime] = None
+    no_show_reported_at: Optional[datetime] = None
     promo_discount: float = 0.0
     wallet_discount: float = 0.0
     status: BookingStatus

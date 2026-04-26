@@ -157,7 +157,7 @@ class _AdminAuditLogPageState extends State<AdminAuditLogPage> {
               spacing: 6, runSpacing: 6,
               children: [
                 for (final a in s.topActors.take(5))
-                  _statChip(a.actor, a.count, Colors.blueGrey),
+                  _statChip(a.actor, a.count, const Color(0xFF8B7B6E)), // warm grey (was blueGrey)
               ],
             ),
           ],

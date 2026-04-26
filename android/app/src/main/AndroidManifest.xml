@@ -1,4 +1,10 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Required for HTTP API calls (FastAPI backend, S3 image fetches).
+         Flutter's debug build injects this automatically, but release
+         builds MUST declare it explicitly or every network request fails. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+
     <application
         android:label="Talaa"
         android:name="${applicationName}"

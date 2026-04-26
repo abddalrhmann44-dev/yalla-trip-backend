@@ -78,7 +78,7 @@ class _AdminPromoCodesPageState extends State<AdminPromoCodesPage> {
             child: const Text('إلغاء'),
           ),
           FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            style: FilledButton.styleFrom(backgroundColor: const Color(0xFFE53935)),
             onPressed: () => Navigator.pop(context, true),
             child: const Text('حذف'),
           ),
@@ -93,7 +93,7 @@ class _AdminPromoCodesPageState extends State<AdminPromoCodesPage> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text('فشل الحذف: $e'),
-        backgroundColor: Colors.red,
+        backgroundColor: const Color(0xFFE53935),
       ));
     }
   }
@@ -108,7 +108,7 @@ class _AdminPromoCodesPageState extends State<AdminPromoCodesPage> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text('فشل التحديث: $e'),
-        backgroundColor: Colors.red,
+        backgroundColor: const Color(0xFFE53935),
       ));
     }
   }
@@ -198,7 +198,7 @@ class _AdminPromoCodesPageState extends State<AdminPromoCodesPage> {
           'استخدامات',
           '${s['total_redemptions'] ?? 0}',
           Icons.trending_up_rounded,
-          Colors.blue,
+          const Color(0xFFFF6B35), // brand orange (was Colors.blue)
         ),
       ),
       const SizedBox(width: 8),

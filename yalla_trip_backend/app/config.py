@@ -57,6 +57,35 @@ class Settings(BaseSettings):
     PAYMOB_INTEGRATION_CARD: str = ""
     PAYMOB_INTEGRATION_WALLET: str = ""
 
+    # ── Payments mock mode ────────────────────────────────────
+    # Allows the app to ship to the stores BEFORE we have a signed
+    # contract with a real gateway (Paymob / Kashier).  When this is
+    # ``True``, every provider returns a hosted "mock checkout" page
+    # served by this same backend at ``/payments/mock-checkout/{ref}``
+    # — the page lets the tester pick Success / Failure / Cancel and
+    # mutates the payment state directly so the full booking flow can
+    # be exercised end-to-end without any external API call.
+    #
+    # Flip to ``False`` once real gateway credentials are in place;
+    # the Flutter app does NOT need a new build, the registry picks
+    # the real ``PaymobGateway`` automatically.
+    PAYMENTS_MOCK_MODE: bool = False
+    # Public base URL used to build absolute checkout URLs (the WebView
+    # cannot follow relative paths).  Falls back to the request host
+    # when empty, but should be set explicitly in production.
+    APP_BASE_URL: str = ""
+
+    # ── Wallet top-up safety gate ─────────────────────────────
+    # Direct calls to ``POST /wallet/me/topup`` credit the wallet
+    # immediately — this was the original MVP behaviour and is
+    # unsafe in production (anyone with a valid JWT could spoof
+    # a top-up).  Defaults to ``False``: the endpoint then
+    # refuses non-admin callers and the real money flow must go
+    # through the Paymob iframe + webhook path.  Set to ``True``
+    # in local dev / CI where the test-suite still relies on the
+    # old trust-the-client behaviour.
+    ALLOW_UNVERIFIED_WALLET_TOPUP: bool = False
+
     # ── FCM ───────────────────────────────────────────────────
     FCM_SERVER_KEY: str = ""
 
@@ -77,10 +106,33 @@ class Settings(BaseSettings):
     RATE_LIMIT_PER_MINUTE: int = 100
 
     # ── Platform ──────────────────────────────────────────────
-    PLATFORM_FEE_PERCENT: float = 8.0
+    PLATFORM_FEE_PERCENT: float = 10.0
     # Days between booking check-out and payout eligibility.  Gives
     # the guest a window to dispute before money leaves the platform.
     PAYOUT_HOLD_DAYS: int = 1
+
+    # ── Disbursement (Wave 26) ────────────────────────────────
+    # ``mock`` runs an in-process simulator so dev / CI exercise the
+    # full state machine without burning real money.  Flip to
+    # ``kashier`` once the contract is signed and the credentials
+    # below are populated.
+    DISBURSE_PROVIDER: str = "mock"
+    # Kashier credentials — only used when DISBURSE_PROVIDER == "kashier".
+    # Keep these out of the repo: load from Railway / docker secrets.
+    KASHIER_DISBURSE_BASE_URL: str = "https://api.kashier.io"
+    KASHIER_DISBURSE_MERCHANT_ID: str = ""
+    KASHIER_DISBURSE_API_KEY: str = ""
+    KASHIER_DISBURSE_SECRET: str = ""
+    # 48 h is the SLA Kashier publishes for IBAN transfers.  After
+    # this many hours in ``processing`` the reconciliation cron will
+    # poll the gateway and (eventually) flag the payout for admin
+    # attention.
+    DISBURSE_SLA_HOURS: int = 48
+    # How often to run the reconciliation sweep (minutes).  Hourly
+    # is a good default — fast enough to keep the host's "stuck"
+    # window short, slow enough to avoid polling abuse against the
+    # gateway.
+    DISBURSE_RECONCILE_INTERVAL_MIN: int = 60
 
     # ── Referrals / Wallet ────────────────────────────────────
     # Fixed EGP credit dropped into the referrer's wallet once the
@@ -105,11 +157,11 @@ class Settings(BaseSettings):
     # Android app package (for assetlinks.json) and iOS App Store id
     # (for apple-app-site-association / Smart App Banner meta).  Leave
     # empty to omit the corresponding tags.
-    ANDROID_PACKAGE_NAME: str = "com.talaa.app"
+    ANDROID_PACKAGE_NAME: str = "com.yallatrip.app"
     ANDROID_SHA256_FINGERPRINTS: str = ""  # comma-separated hex SHA-256
     IOS_APP_ID: str = ""       # numeric App Store id, e.g. "1234567890"
     IOS_TEAM_ID: str = ""      # e.g. "ABCDE12345"
-    IOS_BUNDLE_ID: str = "com.talaa.app"
+    IOS_BUNDLE_ID: str = "com.yallatrip.app"
 
     # ── Admin bootstrap ───────────────────────────────────────
     # Comma-separated list of emails that become admin on first login
@@ -153,6 +205,54 @@ class Settings(BaseSettings):
         if not self.DATABASE_URL_SYNC:
             self.DATABASE_URL_SYNC = url.replace("+asyncpg", "", 1)
 
+        return self
+
+    # ── Production safety gate ───────────────────────────────
+    # Refuses to boot when APP_ENV=="production" and any of the
+    # well-known insecure defaults are still in place.  Catching
+    # these at startup beats discovering them after a breach.
+    @model_validator(mode="after")
+    def _guard_production(self) -> "Settings":
+        if self.APP_ENV != "production":
+            return self
+
+        problems: list[str] = []
+
+        bad_keys = {"", "change-me", "changeme", "secret", "dev"}
+        if (self.SECRET_KEY or "").strip().lower() in bad_keys:
+            problems.append(
+                "SECRET_KEY is set to an insecure default — "
+                "generate at least 32 random bytes (e.g. "
+                "`python -c 'import secrets; print(secrets.token_urlsafe(48))'`) "
+                "and set it in the environment."
+            )
+        elif len(self.SECRET_KEY) < 32:
+            problems.append(
+                f"SECRET_KEY is only {len(self.SECRET_KEY)} chars — "
+                "use at least 32."
+            )
+
+        if self.DEBUG:
+            problems.append("DEBUG must be False in production.")
+
+        if "*" in self.ALLOWED_ORIGINS:
+            problems.append(
+                "ALLOWED_ORIGINS contains the wildcard '*' — list the "
+                "exact origin(s) (e.g. https://talaa.app) instead."
+            )
+
+        if self.ALLOW_UNVERIFIED_WALLET_TOPUP:
+            problems.append(
+                "ALLOW_UNVERIFIED_WALLET_TOPUP must be False in "
+                "production — wallet top-ups must go through the "
+                "Paymob webhook."
+            )
+
+        if problems:
+            raise ValueError(
+                "Refusing to start with insecure production config:\n  - "
+                + "\n  - ".join(problems)
+            )
         return self
 
 

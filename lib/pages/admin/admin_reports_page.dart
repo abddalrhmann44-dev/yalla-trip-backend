@@ -52,7 +52,7 @@ class _AdminReportsPageState extends State<AdminReportsPage>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text('فشل تحميل البلاغات: $e'),
-          backgroundColor: Colors.red,
+          backgroundColor: const Color(0xFFE53935),
         ));
       }
     }
@@ -110,7 +110,7 @@ class _AdminReportsPageState extends State<AdminReportsPage>
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text('فشل التنفيذ: $e'),
-        backgroundColor: Colors.red,
+        backgroundColor: const Color(0xFFE53935),
       ));
     }
   }

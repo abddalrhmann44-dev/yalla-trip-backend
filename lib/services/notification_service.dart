@@ -228,6 +228,8 @@ class NotificationService {
         break;
 
       case 'chat_message':
+      case 'chat_offer':
+      case 'chat_accept':
       case 'message':
       case 'chat':
         final convId = _parseInt(data['conversation_id']);

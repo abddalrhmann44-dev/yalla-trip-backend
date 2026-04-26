@@ -1,4 +1,4 @@
-"""Property model – chalet / hotel / villa / resort / aqua park / beach house."""
+"""Property model – chalet / hotel / villa / resort / aqua park / day-use."""
 
 from __future__ import annotations
 
@@ -37,7 +37,11 @@ class Category(str, enum.Enum):
     villa = "فيلا"
     resort = "منتجع"
     aqua_park = "أكوا بارك"
-    beach_house = "بيت شاطئ"
+    # ``day_use`` covers same-day arrivals/departures — chalet pools,
+    # beach passes, etc.  Renamed from ``beach_house`` (Arabic value
+    # ``بيت شاطئ``) in Wave 25.5; the DB enum is migrated in
+    # Alembic revision ``a3f9_rename_beach_house_to_day_use``.
+    day_use = "رحلة يوم واحد"
     boat = "مركب"
 
 
@@ -123,6 +127,29 @@ class Property(Base):
     is_available: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
     is_featured: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     instant_booking: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+
+    # ── Negotiation (Wave 24) ─────────────────────────────────
+    # Owner-controlled flag: if True, guests see a "فاوض" button on
+    # the property page that opens a price-negotiation chat (Wave 23
+    # conversation thread).  Off by default so legacy listings keep
+    # their fixed-price behaviour until the owner explicitly opts in.
+    negotiable: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default="false", nullable=False
+    )
+
+    # ── Cash on Arrival (Wave 25) ─────────────────────────────
+    # When True the guest pays only an online *deposit* up-front
+    # (sized to fully cover the platform commission, but never less
+    # than one nightly rate) and settles the remainder in cash with
+    # the host on arrival.  When False the booking falls back to the
+    # legacy 100%-online flow used since Wave 1.
+    #
+    # The deposit math lives in ``app/services/pricing.py`` and the
+    # double-confirmation workflow (host marks "cash received" + guest
+    # marks "arrived & paid") is handled by the booking router.
+    cash_on_arrival_enabled: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default="false", nullable=False
+    )
 
     # ── Offers ──────────────────────────────────────────────
     offer_price: Mapped[float | None] = mapped_column(Float, nullable=True)

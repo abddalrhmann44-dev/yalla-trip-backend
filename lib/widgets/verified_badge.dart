@@ -6,7 +6,9 @@
 
 import 'package:flutter/material.dart';
 
-const _kOcean = Color(0xFF1565C0);
+// Brand orange — verified badge sits on user names everywhere, so it
+// must match the app accent. The old _kBrand was navy blue.
+const _kBrand = Color(0xFFFF6B35);
 
 /// A compact icon badge — use inline next to a user name.
 class VerifiedBadge extends StatelessWidget {
@@ -17,7 +19,7 @@ class VerifiedBadge extends StatelessWidget {
   const VerifiedBadge({
     super.key,
     this.size = 18,
-    this.color = _kOcean,
+    this.color = _kBrand,
     this.tooltip = 'حساب موثّق',
   });
 
@@ -48,17 +50,17 @@ class VerifiedChip extends StatelessWidget {
     return Container(
       padding: padding,
       decoration: BoxDecoration(
-        color: _kOcean.withValues(alpha: 0.10),
+        color: _kBrand.withValues(alpha: 0.10),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: _kOcean.withValues(alpha: 0.25)),
+        border: Border.all(color: _kBrand.withValues(alpha: 0.25)),
       ),
       child: Row(mainAxisSize: MainAxisSize.min, children: [
-        const Icon(Icons.verified_rounded, color: _kOcean, size: 14),
+        const Icon(Icons.verified_rounded, color: _kBrand, size: 14),
         const SizedBox(width: 4),
         Text(
           label,
           style: TextStyle(
-            color: _kOcean,
+            color: _kBrand,
             fontSize: fontSize,
             fontWeight: FontWeight.w800,
           ),

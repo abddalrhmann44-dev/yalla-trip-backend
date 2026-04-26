@@ -28,7 +28,8 @@ import 'package:flutter/services.dart';
 import 'package:lottie/lottie.dart';
 import 'constants.dart';
 
-const _kOcean = Color(0xFF1565C0);
+// Brand orange (was navy _kBrand blue — banished app-wide).
+const _kBrand = Color(0xFFFF6B35);
 
 /// Total frame count of the Lottie file.
 const _totalFrames = 600.0;
@@ -169,7 +170,7 @@ class _GuestsAnimationCounterState extends State<GuestsAnimationCounter>
           border: Border.all(color: context.kBorder),
         ),
         child: Row(children: [
-          Icon(Icons.people_rounded, color: _kOcean, size: 22),
+          Icon(Icons.people_rounded, color: _kBrand, size: 22),
           const SizedBox(width: 12),
           Text('ضيوف',
               style: TextStyle(
@@ -239,17 +240,17 @@ class _GuestsAnimationCounterState extends State<GuestsAnimationCounter>
         height: 36,
         decoration: BoxDecoration(
           color: onTap != null
-              ? _kOcean.withValues(alpha: 0.08)
+              ? _kBrand.withValues(alpha: 0.08)
               : Colors.grey.shade100,
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
               color: onTap != null
-                  ? _kOcean.withValues(alpha: 0.2)
+                  ? _kBrand.withValues(alpha: 0.2)
                   : Colors.grey.shade200),
         ),
         child: Icon(icon,
             size: 18,
-            color: onTap != null ? _kOcean : Colors.grey.shade400),
+            color: onTap != null ? _kBrand : Colors.grey.shade400),
       ),
     );
   }

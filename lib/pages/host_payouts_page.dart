@@ -4,7 +4,9 @@
 // ═══════════════════════════════════════════════════════════════
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart' as intl;
+import 'package:url_launcher/url_launcher.dart';
 
 import '../services/payout_service.dart';
 import '../widgets/constants.dart';
@@ -323,7 +325,7 @@ class _HostPayoutsPageState extends State<HostPayoutsPage>
                         child: const Text('إلغاء')),
                     FilledButton(
                       style: FilledButton.styleFrom(
-                          backgroundColor: Colors.red),
+                          backgroundColor: const Color(0xFFE53935)),
                       onPressed: () => Navigator.pop(context, true),
                       child: const Text('حذف'),
                     ),
@@ -394,7 +396,7 @@ class _HostPayoutsPageState extends State<HostPayoutsPage>
               statusColor = Colors.red;
               break;
             case PayoutStatus.processing:
-              statusColor = Colors.blue;
+              statusColor = const Color(0xFFFF6B35); // brand orange
               break;
             case PayoutStatus.pending:
               statusColor = Colors.orange;
@@ -456,12 +458,178 @@ class _HostPayoutsPageState extends State<HostPayoutsPage>
                   Text('تاريخ التحويل: ${df.format(p.processedAt!)}',
                       style: TextStyle(color: context.kSub, fontSize: 11)),
                 ],
+                // Wave 26 — automated disbursement proof block.  Only
+                // shown when there's *something* to show (ie. not the
+                // legacy ``not_started`` placeholder) so old manual
+                // payouts keep their cleaner card layout.
+                if (p.disburseStatus != DisburseStatus.not_started) ...[
+                  const SizedBox(height: 10),
+                  _disburseEvidenceCard(p),
+                ],
               ],
             ),
           );
         },
       ),
     );
+  }
+
+  /// Inline "proof of payment" card.
+  ///
+  /// On a **succeeded** disburse this is the strongest receipt the
+  /// app can show: a green strip with the gateway reference, the
+  /// timestamp, and (when the gateway returned one) a clickable
+  /// receipt link the host can save / forward to their accountant.
+  /// Failures get a red strip with a retry hint instead.
+  Widget _disburseEvidenceCard(PayoutModel p) {
+    final df = intl.DateFormat('dd MMM yyyy · HH:mm', 'ar');
+    final isSuccess = p.disburseStatus.isTerminalSuccess;
+    final isFailed = p.disburseStatus == DisburseStatus.failed;
+
+    // Pick the accent based on the terminal state.  Pending /
+    // initiated / processing share a neutral blue tone.
+    final Color accent = isSuccess
+        ? Colors.green.shade600
+        : isFailed
+            ? Colors.red.shade600
+            : const Color(0xFFFF6B35); // brand orange
+    final IconData icon = isSuccess
+        ? Icons.verified_rounded
+        : isFailed
+            ? Icons.error_outline_rounded
+            : Icons.sync_rounded;
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: accent.withValues(alpha: 0.4)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            Icon(icon, color: accent, size: 18),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                p.disburseStatus.labelAr,
+                style: TextStyle(
+                    color: accent,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800),
+              ),
+            ),
+            // Provider chip — small + muted; surfaces "Kashier" /
+            // "mock" without dominating the row.
+            if (p.disburseProvider != null)
+              Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: accent.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  p.disburseProvider!.toUpperCase(),
+                  style: TextStyle(
+                    color: accent,
+                    fontSize: 9,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ),
+          ]),
+          if (p.disburseRef != null) ...[
+            const SizedBox(height: 6),
+            // Tappable to copy — hosts paste this into bank chat
+            // when they want to chase a transfer.
+            InkWell(
+              onTap: () async {
+                await Clipboard.setData(
+                    ClipboardData(text: p.disburseRef!));
+                if (!mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('تم نسخ رقم العملية'),
+                    duration: Duration(seconds: 1),
+                  ),
+                );
+              },
+              child: Row(children: [
+                Icon(Icons.tag_rounded,
+                    size: 13, color: context.kSub),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    p.disburseRef!,
+                    style: TextStyle(
+                        color: context.kText,
+                        fontSize: 12,
+                        fontFamily: 'monospace',
+                        fontWeight: FontWeight.w600),
+                  ),
+                ),
+                Icon(Icons.copy_rounded,
+                    size: 13, color: context.kSub),
+              ]),
+            ),
+          ],
+          if (p.disbursedAt != null) ...[
+            const SizedBox(height: 4),
+            Text(
+              'تم التحويل: ${df.format(p.disbursedAt!)}',
+              style: TextStyle(color: context.kSub, fontSize: 11),
+            ),
+          ],
+          if (p.disburseReceiptUrl != null) ...[
+            const SizedBox(height: 8),
+            // Receipt button — opens the PDF / image in the browser
+            // or PDF viewer.  Hidden when the gateway didn't return
+            // one (Kashier IBAN transfers usually do; wallet pushes
+            // sometimes don't).
+            SizedBox(
+              height: 32,
+              child: OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: accent,
+                  side: BorderSide(color: accent.withValues(alpha: 0.5)),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10),
+                ),
+                onPressed: () => _openReceipt(p.disburseReceiptUrl!),
+                icon: const Icon(Icons.receipt_long_rounded, size: 16),
+                label: const Text('فتح إيصال التحويل',
+                    style: TextStyle(fontSize: 12)),
+              ),
+            ),
+          ],
+          if (isFailed) ...[
+            const SizedBox(height: 6),
+            Text(
+              'سيقوم فريق الدعم بإعادة المحاولة قريباً، أو تواصل معنا.',
+              style: TextStyle(color: context.kSub, fontSize: 11),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Future<void> _openReceipt(String url) async {
+    final uri = Uri.tryParse(url);
+    if (uri == null) return;
+    final ok = await launchUrl(
+      uri,
+      mode: LaunchMode.externalApplication,
+    );
+    if (!ok && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تعذّر فتح الإيصال')),
+      );
+    }
   }
 }
 

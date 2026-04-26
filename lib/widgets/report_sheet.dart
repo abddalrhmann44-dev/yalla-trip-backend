@@ -65,7 +65,7 @@ class _ReportSheetState extends State<_ReportSheet> {
       setState(() => _submitting = false);
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text('فشل إرسال البلاغ: $e'),
-        backgroundColor: Colors.red,
+        backgroundColor: const Color(0xFFE53935),
       ));
     }
   }
@@ -149,7 +149,7 @@ class _ReportSheetState extends State<_ReportSheet> {
                 height: 48,
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.red,
+                    backgroundColor: const Color(0xFFE53935),
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),

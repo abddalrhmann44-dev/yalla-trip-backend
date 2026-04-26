@@ -16,30 +16,38 @@ extension AppThemeX on BuildContext {
   Color get kSub    => isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280);
   Color get kBorder => _theme.colorScheme.outline;
 
-  // Surface used inside cards / bottom sheets
+  // Surface used inside cards / bottom sheets — warm neutrals only.
   Color get kSurface     => _theme.colorScheme.surface;
-  Color get kInputFill   => isDark ? const Color(0xFF0F172A) : const Color(0xFFF5F7FF);
-  Color get kSheetBg     => isDark ? const Color(0xFF111827) : Colors.white;
-  Color get kChipBg      => isDark ? const Color(0xFF1E2530) : const Color(0xFFF5F7FF);
-  Color get kOverlayText => isDark ? const Color(0xFFE6EDF3) : const Color(0xFF0D1B2A);
+  Color get kInputFill   => isDark ? const Color(0xFF1A140F) : const Color(0xFFFFF4EC);
+  Color get kSheetBg     => isDark ? const Color(0xFF1A140F) : Colors.white;
+  Color get kChipBg      => isDark ? const Color(0xFF2A211B) : const Color(0xFFFFF1E6);
+  Color get kOverlayText => isDark ? const Color(0xFFF4EDE6) : const Color(0xFF2A1F1A);
 }
 
 // ── Colors ──────────────────────────────────────────────
+// Brand: Talaa orange — warm, energetic, beach-vacation feel.
+// All blues were removed app-wide on 2026-04-26 per design lead.
 class AppColors {
   AppColors._();
 
-  static const Color primary      = Color(0xFF1A1A2E);
-  static const Color primaryLight = Color(0xFF2D2D4E);
-  static const Color accent       = Color(0xFFE8C97E);
-  static const Color accentLight  = Color(0xFFF5E4A8);
-  static const Color background   = Color(0xFFF8F7F4);
+  // Primary brand (orange) — drives ColorScheme.fromSeed in main.dart.
+  static const Color primary      = Color(0xFFFF6B35); // hero orange
+  static const Color primaryLight = Color(0xFFFF8A3D);
+  static const Color primaryDark  = Color(0xFFE85A24);
+
+  // Accent (warm gold) — used sparingly for CTAs.
+  static const Color accent       = Color(0xFFFFB347);
+  static const Color accentLight  = Color(0xFFFFD166);
+
+  static const Color background   = Color(0xFFFFF8F4); // warm off-white
   static const Color white        = Color(0xFFFFFFFF);
   static const Color surface      = Color(0xFFFFFFFF);
   static const Color error        = Color(0xFFE57373);
   static const Color success      = Color(0xFF66BB6A);
   static const Color warning      = Color(0xFFFFA726);
 
-  static const Color textPrimary   = Color(0xFF1A1A2E);
+  // Text: warm charcoal (NOT navy) so nothing reads "blue" on white.
+  static const Color textPrimary   = Color(0xFF2A1F1A);
   static const Color textSecondary = Color(0xFF6B6B6B);
   static const Color textHint      = Color(0xFF9E9E9E);
   static const Color textLight     = Color(0xFFBDBDBD);
@@ -47,11 +55,11 @@ class AppColors {
   static const Color border        = Color(0xFFEEEEEE);
   static const Color divider       = Color(0xFFE0E0E0);
 
-  // Category colors
-  static const Color beach     = Color(0xFF29B6F6);
-  static const Color hotel     = Color(0xFF7E57C2);
-  static const Color chalet    = Color(0xFF66BB6A);
-  static const Color aquapark  = Color(0xFF26C6DA);
+  // Category colors — kept warm to match brand. NO blues.
+  static const Color beach     = Color(0xFFFF8C42); // sunset orange
+  static const Color hotel     = Color(0xFFB07FCB); // soft violet
+  static const Color chalet    = Color(0xFF66BB6A); // pine green
+  static const Color aquapark  = Color(0xFFFFB347); // warm amber
 }
 
 // ── Text Styles ──────────────────────────────────────────

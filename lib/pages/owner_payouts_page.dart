@@ -12,7 +12,7 @@ import '../models/booking_model.dart';
 import '../services/booking_service.dart';
 
 // Accent colors (same in light & dark)
-const _kOcean  = Color(0xFF1565C0);
+const _kOcean  = Color(0xFFFF6B35);
 const _kOrange = Color(0xFFFF6D00);
 const _kGreen  = Color(0xFF22C55E);
 const _kRed    = Color(0xFFEF5350);
@@ -160,8 +160,8 @@ class _OwnerPayoutsPageState extends State<OwnerPayoutsPage>
                   gradient: LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
-                    colors: [Color(0xFF0D47A1), Color(0xFF1565C0),
-                             Color(0xFF1E88E5)],
+                    colors: [Color(0xFFE85A24), Color(0xFFFF6B35),
+                             Color(0xFFFF8A3D)],
                   ),
                 ),
                 child: SafeArea(child: Padding(
@@ -209,7 +209,7 @@ class _OwnerPayoutsPageState extends State<OwnerPayoutsPage>
                             size: 12, color: Colors.white70),
                         SizedBox(width: 5),
                         Text(
-                          'يُحوَّل نصيبك 24h بعد دخول الضيف · 8% عمولة',
+                          'يُحوَّل نصيبك 24h بعد دخول الضيف · 10% عمولة',
                           style: TextStyle(
                               fontSize: 11, color: Colors.white70),
                         ),
@@ -327,7 +327,7 @@ class _OwnerPayoutsPageState extends State<OwnerPayoutsPage>
         // Breakdown
         _bRow('إجمالي الحجز', '${b.totalPrice.toInt()} جنيه',
             Colors.grey.shade600),
-        _bRow('عمولة المنصة (8%)',
+        _bRow('عمولة المنصة (10%)',
             '- ${b.platformFee.toInt()} جنيه', _kRed),
         _bRow('نصيبك الصافي',
             '${b.ownerPayout.toInt()} جنيه', _kGreen, bold: true),
@@ -444,7 +444,7 @@ class _OwnerPayoutsPageState extends State<OwnerPayoutsPage>
           _pStep('3', '✅', 'بعد 24 ساعة',
               'بنتأكد إن كل حاجة تمام ونفرج عن الفلوس'),
           _pStep('4', '💰', 'نصيبك بيتحول',
-              '92% من الحجز — بيوصل خلال 3-5 أيام عمل'),
+              '90% من الحجز — بيوصل خلال 3-5 أيام عمل'),
           const SizedBox(height: 16),
           Container(
             padding: const EdgeInsets.all(14),
@@ -461,8 +461,8 @@ class _OwnerPayoutsPageState extends State<OwnerPayoutsPage>
                     style: TextStyle(fontSize: 14,
                         fontWeight: FontWeight.w900, color: _kOcean)),
                 SizedBox(height: 8),
-                _CommRow('نسبة عمولة المنصة', '8%'),
-                _CommRow('نصيبك الصافي', '92%'),
+                _CommRow('نسبة عمولة المنصة', '10%'),
+                _CommRow('نصيبك الصافي', '90%'),
                 _CommRow('موعد التحويل',
                     '+24h من الدخول'),
                 _CommRow('وصول الفلوس', '3-5 أيام عمل'),

@@ -87,6 +87,14 @@ class _WalletPageState extends State<WalletPage> {
   }
 
   // ── balance card ──────────────────────────────────────
+  // Clean white card on the orange-themed wallet page. The Lottie
+  // animation inside keeps its original brand colors — only the
+  // surrounding surface moved from a blue gradient to pure white.
+  static const _kNavy = Color(0xFF0A1F44);
+  static const _kMuted = Color(0xFF64748B);
+  static const _kBorder = Color(0xFFE2E8F0);
+  static const _kBrand = Color(0xFFFF6B35); // sunset orange
+
   Widget _balanceCard(WalletSummary s) {
     final fmt = intl.NumberFormat.currency(
       locale: 'ar_EG', symbol: 'ج.م ', decimalDigits: 2,
@@ -94,15 +102,12 @@ class _WalletPageState extends State<WalletPage> {
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [AppColors.primary, Color(0xFF0077B6)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: _kBorder, width: 1),
         boxShadow: [
           BoxShadow(
-            color: AppColors.primary.withValues(alpha: 0.28),
+            color: _kNavy.withValues(alpha: 0.05),
             blurRadius: 18,
             offset: const Offset(0, 6),
           ),
@@ -120,15 +125,16 @@ class _WalletPageState extends State<WalletPage> {
                   children: [
                     const Text('الرصيد الحالي',
                         style: TextStyle(
-                            color: Colors.white70,
+                            color: _kMuted,
                             fontSize: 12,
                             fontWeight: FontWeight.w600)),
                     const SizedBox(height: 6),
                     Text(fmt.format(s.balance),
                         style: const TextStyle(
-                            color: Colors.white,
+                            color: _kNavy,
                             fontSize: 30,
-                            fontWeight: FontWeight.w900)),
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: -0.5)),
                   ],
                 ),
               ),
@@ -136,13 +142,23 @@ class _WalletPageState extends State<WalletPage> {
             ],
           ),
           const SizedBox(height: 14),
+          // Thin orange divider to keep the unified brand accent.
+          Container(
+            height: 1,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(colors: [
+                _kBrand.withValues(alpha: 0.0),
+                _kBrand.withValues(alpha: 0.35),
+                _kBrand.withValues(alpha: 0.0),
+              ]),
+            ),
+          ),
+          const SizedBox(height: 12),
           Row(children: [
             Expanded(
                 child: _miniStat(
                     label: 'مكتسب', value: fmt.format(s.lifetimeEarned))),
-            Container(
-              width: 1, height: 32, color: Colors.white24,
-            ),
+            Container(width: 1, height: 32, color: _kBorder),
             Expanded(
                 child: _miniStat(
                     label: 'مصروف', value: fmt.format(s.lifetimeSpent))),
@@ -155,73 +171,116 @@ class _WalletPageState extends State<WalletPage> {
   Widget _miniStat({required String label, required String value}) =>
       Column(children: [
         Text(label,
-            style: const TextStyle(color: Colors.white70, fontSize: 11)),
+            style: const TextStyle(color: _kMuted, fontSize: 11)),
         const SizedBox(height: 2),
         Text(value,
             style: const TextStyle(
-                color: Colors.white,
+                color: _kNavy,
                 fontSize: 13,
                 fontWeight: FontWeight.w700)),
       ]);
 
   // ── top-up card ─────────────────────────────────────
+  // Visually present but explicitly locked until Paymob integration
+  // lands.  Tapping the card opens a "coming soon" sheet — the old
+  // flow credited the balance directly from the client, which was
+  // spoofable and has been disabled both here and on the backend.
   Widget _topupCard() {
     return Material(
       color: Colors.transparent,
       child: InkWell(
         borderRadius: BorderRadius.circular(14),
-        onTap: _openTopupSheet,
+        onTap: _showTopupComingSoon,
         child: Container(
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [Color(0xFFFF8A3D), Color(0xFFFF6D00)],
-              begin: Alignment.topRight,
-              end: Alignment.bottomLeft,
-            ),
+            color: Colors.white,
             borderRadius: BorderRadius.circular(14),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFFFF6D00).withValues(alpha: 0.28),
-                blurRadius: 12,
-                offset: const Offset(0, 4),
-              ),
-            ],
+            border: Border.all(color: _kBorder, width: 1),
           ),
           child: Row(children: [
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.22),
+                color: _kBrand.withValues(alpha: 0.10),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: const Icon(Icons.credit_card_rounded,
-                  color: Colors.white, size: 26),
+                  color: _kBrand, size: 26),
             ),
             const SizedBox(width: 12),
-            const Expanded(
+            Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('اشحن المحفظة',
-                      style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 15,
-                          fontWeight: FontWeight.w900)),
-                  SizedBox(height: 3),
-                  Text('ادفع بالفيزا أو ماستركارد',
-                      style:
-                          TextStyle(color: Colors.white70, fontSize: 11)),
+                  Row(children: [
+                    const Text('اشحن المحفظة',
+                        style: TextStyle(
+                            color: _kNavy,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w900)),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: _kBorder,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: const [
+                          Icon(Icons.lock_rounded, size: 10, color: _kMuted),
+                          SizedBox(width: 3),
+                          Text('قريباً',
+                              style: TextStyle(
+                                  color: _kMuted,
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w800)),
+                        ],
+                      ),
+                    ),
+                  ]),
+                  const SizedBox(height: 3),
+                  const Text('الدفع عبر Paymob قيد التفعيل',
+                      style: TextStyle(color: _kMuted, fontSize: 11)),
                 ],
               ),
             ),
-            const Icon(Icons.chevron_left_rounded, color: Colors.white),
+            const Icon(Icons.chevron_left_rounded, color: _kMuted),
           ]),
         ),
       ),
     );
   }
 
+  Future<void> _showTopupComingSoon() async {
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(18)),
+        title: const Text('الشحن قيد التفعيل',
+            style: TextStyle(fontWeight: FontWeight.w900, color: _kNavy)),
+        content: const Text(
+          'شحن المحفظة بالبطاقة سيكون متاحاً فور اكتمال الربط مع بوابة '
+          'الدفع Paymob. بتشكر صبرك 🙏',
+          style: TextStyle(color: _kMuted, height: 1.5),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('حسناً',
+                style: TextStyle(
+                    color: _kBrand, fontWeight: FontWeight.w800)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Kept for future reuse once Paymob WebView + webhook flow lands.
+  // ignore: unused_element
   Future<void> _openTopupSheet() async {
     final added = await showModalBottomSheet<double>(
       context: context,

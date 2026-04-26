@@ -6,13 +6,14 @@
 import 'package:flutter/material.dart';
 
 import '../main.dart' show favoritesProvider;
+import '../utils/auth_guard.dart';
 import '../models/property_model_api.dart';
 import '../services/favorites_service.dart';
 import '../widgets/constants.dart';
 import '../widgets/favorite_button.dart';
 import 'property_details_page.dart';
 
-const _kOcean  = Color(0xFF1565C0);
+const _kOcean  = Color(0xFFFF6B35);
 const _kOrange = Color(0xFFFF6D00);
 
 class FavoritesPage extends StatefulWidget {
@@ -30,6 +31,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
   @override
   void initState() {
     super.initState();
+    AuthGuard.requireOrPop(context, feature: 'تشوف عقاراتك المفضلة');
     favoritesProvider.addListener(_onFavChange);
     _load();
   }

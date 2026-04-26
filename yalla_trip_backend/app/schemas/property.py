@@ -16,16 +16,16 @@ from app.schemas.user import UserBrief
 _UTILITY_CATEGORIES = {Category.chalet}
 
 # Cleaning fee (housekeeping)
-_CLEANING_FEE_CATEGORIES = {Category.chalet, Category.villa, Category.beach_house}
+_CLEANING_FEE_CATEGORIES = {Category.chalet, Category.villa, Category.day_use}
 
 # Multiple bookable rooms
 _MULTI_ROOM_CATEGORIES = {Category.hotel, Category.resort}
 
 # Unlimited capacity (no booking limit)
-_UNLIMITED_CATEGORIES = {Category.aqua_park, Category.beach_house}
+_UNLIMITED_CATEGORIES = {Category.aqua_park, Category.day_use}
 
 # Supports closing time
-_CLOSING_TIME_CATEGORIES = {Category.aqua_park, Category.beach_house}
+_CLOSING_TIME_CATEGORIES = {Category.aqua_park, Category.day_use}
 
 # Boats — price is per hour, no rooms, configurable trip duration
 _BOAT_CATEGORIES = {Category.boat}
@@ -95,6 +95,10 @@ class PropertyCreate(BaseModel):
     services: Optional[List[PropertyService]] = []
     amenities: Optional[List[str]] = []
     instant_booking: bool = False
+    # Wave 24 — owner opts in to chat-based price negotiation.
+    negotiable: bool = False
+    # Wave 25 — owner opts in to deposit-online + cash-on-arrival flow.
+    cash_on_arrival_enabled: bool = False
     latitude: Optional[float] = None
     longitude: Optional[float] = None
 
@@ -107,7 +111,7 @@ class PropertyCreate(BaseModel):
             self.electricity_fee = 0.0
             self.water_fee = 0.0
             self.security_deposit = 0.0
-        # Cleaning fee: chalets, villas, beach houses only
+        # Cleaning fee: chalets, villas, day-use only
         if cat not in _CLEANING_FEE_CATEGORIES:
             self.cleaning_fee = 0.0
         # Capacity rules
@@ -151,6 +155,8 @@ class PropertyUpdate(BaseModel):
     amenities: Optional[List[str]] = None
     is_available: Optional[bool] = None
     instant_booking: Optional[bool] = None
+    negotiable: Optional[bool] = None
+    cash_on_arrival_enabled: Optional[bool] = None
     latitude: Optional[float] = None
     longitude: Optional[float] = None
 
@@ -234,6 +240,8 @@ class PropertyOut(BaseModel):
     is_featured: bool
     is_verified: bool = False
     instant_booking: bool
+    negotiable: bool = False
+    cash_on_arrival_enabled: bool = False
     offer_price: Optional[float] = None
     offer_start: Optional[datetime] = None
     offer_end: Optional[datetime] = None

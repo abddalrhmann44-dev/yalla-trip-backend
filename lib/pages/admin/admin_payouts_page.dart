@@ -12,6 +12,11 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../services/payout_service.dart';
 import '../../widgets/constants.dart';
 
+// Brand orange — replaces every Colors.blue / .blue.shade* used
+// across this admin screen. Single source of truth so future tweaks
+// only need to change one line.
+const _kBrand = Color(0xFFFF6B35);
+
 class AdminPayoutsPage extends StatefulWidget {
   const AdminPayoutsPage({super.key});
   @override
@@ -129,7 +134,107 @@ class _AdminPayoutsPageState extends State<AdminPayoutsPage> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text('فشل التحديث: $e'),
-        backgroundColor: Colors.red,
+        backgroundColor: const Color(0xFFE53935),
+      ));
+    }
+  }
+
+  /// Wave 26 — fire the configured disburse gateway (Kashier in prod,
+  /// mock in dev) for one payout.  Shows a confirmation dialog with
+  /// the amount + bank channel so the admin can't double-tap and
+  /// disburse twice.  Errors surface verbatim — Kashier rejection
+  /// reasons (e.g. "IBAN not whitelisted") matter.
+  Future<void> _disburse(PayoutModel p) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('تحويل تلقائى'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'سيتم استدعاء بوابة التحويل لإرسال:',
+              style: TextStyle(color: context.kSub, fontSize: 12),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '${p.totalAmount.toStringAsFixed(0)} جنيه → Host #${p.hostId}',
+              style: const TextStyle(
+                  fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              '${p.items.length} حجز فى الدفعة',
+              style: TextStyle(color: context.kSub, fontSize: 12),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.orange.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                    color: Colors.orange.withValues(alpha: 0.3)),
+              ),
+              child: const Text(
+                'لا تعيد الضغط — العملية ستظهر "قيد التحويل" حتى يصل '
+                'إشعار البوابة (قد يستغرق دقائق إلى ساعات).',
+                style: TextStyle(fontSize: 11, color: Colors.orange),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('إلغاء'),
+          ),
+          FilledButton.icon(
+            style: FilledButton.styleFrom(backgroundColor: _kBrand),
+            onPressed: () => Navigator.pop(context, true),
+            icon: const Icon(Icons.send_rounded, size: 16),
+            label: const Text('إرسال'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+
+    // Show a non-dismissable progress dialog while the gateway
+    // round-trip is in flight — typically <2s but can spike when
+    // Kashier is throttled.
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const AlertDialog(
+        content: Row(children: [
+          CircularProgressIndicator(),
+          SizedBox(width: 16),
+          Expanded(child: Text('جارى استدعاء البوابة...')),
+        ]),
+      ),
+    );
+
+    try {
+      final updated = await PayoutService.adminDisburse(p.id);
+      if (!mounted) return;
+      Navigator.pop(context); // close progress
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(
+          'تم إرسال الطلب · ${updated.disburseRef ?? "—"}',
+        ),
+        backgroundColor: Colors.green,
+      ));
+      await _load();
+    } catch (e) {
+      if (!mounted) return;
+      Navigator.pop(context); // close progress
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('فشل التحويل: $e'),
+        backgroundColor: const Color(0xFFE53935),
+        duration: const Duration(seconds: 6),
       ));
     }
   }
@@ -155,7 +260,7 @@ class _AdminPayoutsPageState extends State<AdminPayoutsPage> {
             child: const Text('إلغاء'),
           ),
           FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            style: FilledButton.styleFrom(backgroundColor: const Color(0xFFE53935)),
             onPressed: () => Navigator.pop(context, true),
             child: const Text('تعليم كفاشلة'),
           ),
@@ -172,7 +277,7 @@ class _AdminPayoutsPageState extends State<AdminPayoutsPage> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text('فشل التحديث: $e'),
-        backgroundColor: Colors.red,
+        backgroundColor: const Color(0xFFE53935),
       ));
     }
   }
@@ -269,7 +374,7 @@ class _AdminPayoutsPageState extends State<AdminPayoutsPage> {
         statusColor = Colors.red;
         break;
       case PayoutStatus.processing:
-        statusColor = Colors.blue;
+        statusColor = _kBrand; // جارى الإرسال — brand orange instead of blue
         break;
       case PayoutStatus.pending:
         statusColor = Colors.orange;
@@ -277,6 +382,12 @@ class _AdminPayoutsPageState extends State<AdminPayoutsPage> {
     }
     final canMark = p.status == PayoutStatus.pending ||
         p.status == PayoutStatus.processing;
+    // The disburse button is offered only when the payout still
+    // needs to move money *and* the gateway hasn't already locked
+    // a transaction id we'd otherwise duplicate.
+    final canDisburse = canMark &&
+        (p.disburseStatus == DisburseStatus.not_started ||
+            p.disburseStatus == DisburseStatus.failed);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
@@ -334,7 +445,38 @@ class _AdminPayoutsPageState extends State<AdminPayoutsPage> {
             Text(p.adminNotes!,
                 style: TextStyle(color: context.kSub, fontSize: 11)),
           ],
+          // Wave 26 — show the disburse leg as a small status chip so
+          // the admin can see "already initiated" / "in flight" /
+          // "succeeded" without opening the host-side card.  Hidden
+          // for legacy rows (`not_started`) to keep old payouts clean.
+          if (p.disburseStatus != DisburseStatus.not_started) ...[
+            const SizedBox(height: 6),
+            _disburseChip(p),
+          ],
           const SizedBox(height: 10),
+          // Primary action row — Disburse takes precedence (the whole
+          // point of Wave 26).  CSV + manual mark-paid stay as the
+          // fallback path when Kashier is down.
+          if (canDisburse) ...[
+            SizedBox(
+              width: double.infinity,
+              height: 40,
+              child: FilledButton.icon(
+                style: FilledButton.styleFrom(
+                  backgroundColor: _kBrand,
+                ),
+                onPressed: () => _disburse(p),
+                icon: const Icon(Icons.send_rounded, size: 18),
+                label: Text(
+                  p.disburseStatus == DisburseStatus.failed
+                      ? 'إعادة محاولة التحويل التلقائى'
+                      : 'تحويل تلقائى',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
           Row(children: [
             Expanded(
               child: OutlinedButton.icon(
@@ -372,6 +514,57 @@ class _AdminPayoutsPageState extends State<AdminPayoutsPage> {
           ]),
         ],
       ),
+    );
+  }
+
+  /// Compact one-line summary of the disburse state — surfaces the
+  /// gateway ref + status colour so the admin can scan a long list.
+  Widget _disburseChip(PayoutModel p) {
+    final isSuccess = p.disburseStatus == DisburseStatus.succeeded;
+    final isFailed = p.disburseStatus == DisburseStatus.failed;
+    final color = isSuccess
+        ? Colors.green.shade700
+        : isFailed
+            ? Colors.red.shade700
+            : _kBrand;
+    final icon = isSuccess
+        ? Icons.verified_rounded
+        : isFailed
+            ? Icons.error_outline_rounded
+            : Icons.sync_rounded;
+    return Container(
+      padding:
+          const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
+      ),
+      child: Row(children: [
+        Icon(icon, color: color, size: 14),
+        const SizedBox(width: 4),
+        Text(
+          p.disburseStatus.labelAr,
+          style: TextStyle(
+              color: color, fontSize: 11, fontWeight: FontWeight.w700),
+        ),
+        if (p.disburseRef != null) ...[
+          const SizedBox(width: 6),
+          Text('· ',
+              style: TextStyle(color: context.kSub, fontSize: 11)),
+          Flexible(
+            child: Text(
+              p.disburseRef!,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: context.kSub,
+                fontSize: 10,
+                fontFamily: 'monospace',
+              ),
+            ),
+          ),
+        ],
+      ]),
     );
   }
 }

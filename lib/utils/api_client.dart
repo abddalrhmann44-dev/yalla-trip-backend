@@ -3,15 +3,18 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
 
 import 'api_config.dart';
+import 'secure_token_storage.dart';
 import '../main.dart' show appSettings;
 
 /// Unified HTTP client for communicating with the Talaa FastAPI backend.
 ///
-/// Uses JWT tokens stored in SharedPreferences (set after Firebase auth
-/// verification via POST /auth/verify-token).
+/// Access + refresh JWTs are kept in the platform keystore via
+/// [SecureTokenStorage] (Keychain on iOS, EncryptedSharedPreferences
+/// on Android).  The values are cached in memory for the lifetime of
+/// the process so we don't pay a keystore round-trip on every
+/// request.
 class ApiClient {
   static final ApiClient _instance = ApiClient._internal();
   factory ApiClient() => _instance;
@@ -28,34 +31,31 @@ class ApiClient {
 
   Future<String?> _getToken() async {
     if (_token != null) return _token;
-    final prefs = await SharedPreferences.getInstance();
-    _token = prefs.getString('auth_token');
+    _token = await SecureTokenStorage.readAccessToken();
     return _token;
   }
 
   Future<String?> getRefreshToken() async {
     if (_refreshToken != null) return _refreshToken;
-    final prefs = await SharedPreferences.getInstance();
-    _refreshToken = prefs.getString('refresh_token');
+    _refreshToken = await SecureTokenStorage.readRefreshToken();
     return _refreshToken;
   }
 
   Future<void> setToken(String token, {String? refreshToken}) async {
     _token = token;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('auth_token', token);
     if (refreshToken != null) {
       _refreshToken = refreshToken;
-      await prefs.setString('refresh_token', refreshToken);
     }
+    await SecureTokenStorage.writeTokens(
+      accessToken: token,
+      refreshToken: refreshToken,
+    );
   }
 
   Future<void> clearToken() async {
     _token = null;
     _refreshToken = null;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('auth_token');
-    await prefs.remove('refresh_token');
+    await SecureTokenStorage.clear();
   }
 
   Future<Map<String, String>> _headers() async {

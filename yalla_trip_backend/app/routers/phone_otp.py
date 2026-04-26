@@ -13,9 +13,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.middleware.auth_middleware import get_current_active_user
 from app.models.user import User
-from app.services import phone_otp_service
+from app.services import brute_force_guard, phone_otp_service
 
 router = APIRouter(tags=["PhoneOtp"])
+
+# Scope for brute-force guard counters.  Kept distinct from any
+# future auth scopes so a locked OTP never blocks, say, password reset.
+_OTP_SCOPE = "otp"
 
 
 class StartOtpBody(BaseModel):
@@ -47,6 +51,10 @@ async def start_otp(
     user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
+    # Refuse to hand out fresh codes while the phone is locked — stops
+    # the "request new challenge after each wrong guess" attack.
+    await brute_force_guard.assert_not_locked(_OTP_SCOPE, body.phone)
+
     try:
         row = await phone_otp_service.start_challenge(db, user, body.phone)
     except ValueError:
@@ -70,6 +78,8 @@ async def verify_otp(
     user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
+    await brute_force_guard.assert_not_locked(_OTP_SCOPE, body.phone)
+
     try:
         await phone_otp_service.verify_challenge(
             db, user, body.phone, body.code,
@@ -81,6 +91,11 @@ async def verify_otp(
         )
     except phone_otp_service.OtpError as exc:
         code = str(exc)
+        # Record a failure for the codes that represent an actual
+        # attack signal.  ``no_active_challenge`` is NOT counted —
+        # that fires for legit users whose code expired server-side.
+        if code in {"wrong_code", "exhausted", "expired"}:
+            await brute_force_guard.record_failure(_OTP_SCOPE, body.phone)
         messages = {
             "no_active_challenge": "لا يوجد طلب تحقق نشط / No active OTP challenge",
             "expired": "انتهى وقت الكود / OTP has expired",
@@ -88,6 +103,9 @@ async def verify_otp(
             "wrong_code": "الكود غير صحيح / Wrong code",
         }
         raise HTTPException(status_code=400, detail=messages.get(code, code))
+
+    # Success — wipe the counter so future mistakes start fresh.
+    await brute_force_guard.clear_failures(_OTP_SCOPE, body.phone)
 
     assert user.phone is not None
     return OtpVerifiedOut(phone_verified=True, phone=user.phone)

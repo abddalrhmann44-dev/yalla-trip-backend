@@ -126,11 +126,16 @@ async def upload_image(
 
     try:
         client = _get_client()
+        # NOTE: do NOT set ``ACL=public-read`` here.  Buckets created
+        # after April 2023 default to ``BucketOwnerEnforced`` ownership
+        # which rejects every per-object ACL with
+        # ``AccessControlListNotSupported``.  Public read is granted
+        # via the bucket policy instead (see deployment docs).
         client.upload_fileobj(
             file,
             get_settings().AWS_BUCKET_NAME,
             key,
-            ExtraArgs={"ContentType": content_type, "ACL": "public-read"},
+            ExtraArgs={"ContentType": content_type},
         )
         url = _build_url(key)
         logger.info("s3_upload_success", key=key, url=url)

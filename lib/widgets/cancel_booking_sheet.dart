@@ -14,7 +14,7 @@ import '../utils/api_client.dart';
 import '../utils/error_handler.dart';
 import 'constants.dart';
 
-const _kOcean = Color(0xFF1B4D5C);
+const _kOcean = Color(0xFFB54414);
 const _kGreen = Color(0xFF2E7D32);
 const _kRed = Color(0xFFD32F2F);
 const _kAmber = Color(0xFFF57C00);

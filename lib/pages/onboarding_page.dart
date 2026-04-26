@@ -5,7 +5,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'welcome_page.dart';
+import 'home_page.dart';
 
 const String kOnboardingSeenKey = 'onboarding_seen_v1';
 
@@ -31,21 +31,21 @@ class _OnboardingPageState extends State<OnboardingPage>
       tag:       'اكتشف',
       title:     'أهلاً بيك في\nYalla Trip',
       subtitle:  'اكتشف أجمل المنتجعات والشاليهات\nعلى الساحل المصري',
-      accentColor: Color(0xFF1565C0),
+      accentColor: Color(0xFFFF6B35),
     ),
     _PageData(
       imagePath: 'assets/images/onboarding/onboard_2.jpg',
       tag:       'احجز',
       title:     'ساحل، جونة،\nشرم وأكتر',
       subtitle:  'أكثر من ٤٠٠ وجهة بأسعار تنافسية\nوعروض يومية حصرية',
-      accentColor: Color(0xFF0288D1),
+      accentColor: Color(0xFFFF8C42),
     ),
     _PageData(
       imagePath: 'assets/images/onboarding/onboard_3.jpg',
       tag:       'استمتع',
       title:     'ابدأ\nرحلتك!',
       subtitle:  'سجّل دخولك دلوقتي وابدأ رحلتك\nمع أجمل المنتجعات والشاليهات',
-      accentColor: Color(0xFF1565C0),
+      accentColor: Color(0xFFFF6B35),
     ),
   ];
 
@@ -90,7 +90,7 @@ class _OnboardingPageState extends State<OnboardingPage>
     } catch (_) {/* best-effort */}
     if (!mounted) return;
     Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const WelcomePage()),
+      MaterialPageRoute(builder: (_) => const HomePage()),
       (_) => false,
     );
   }
@@ -324,7 +324,7 @@ class _BackgroundImage extends StatelessWidget {
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [Color(0xFF0D1B2A), Color(0xFF1565C0)],
+            colors: [Color(0xFF2A1F1A), Color(0xFFFF6B35)],
           ),
         ),
       ),

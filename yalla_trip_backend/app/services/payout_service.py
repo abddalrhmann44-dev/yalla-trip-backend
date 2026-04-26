@@ -151,10 +151,15 @@ async def mark_paid(
     payout: Payout,
     *,
     reference_number: str,
-    admin_id: int,
+    admin_id: int | None,
     admin_notes: str | None = None,
 ) -> Payout:
-    """Mark a batch as paid and flip its bookings to ``paid``."""
+    """Mark a batch as paid and flip its bookings to ``paid``.
+
+    ``admin_id`` is ``None`` when the transition is system-driven —
+    e.g. the disbursement webhook auto-promoting on a successful
+    Kashier delivery (no human in the loop).
+    """
     if payout.status == PayoutStatus.paid:
         return payout
     payout.status = PayoutStatus.paid
