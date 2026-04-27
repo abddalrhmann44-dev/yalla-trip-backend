@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import '../main.dart' show appSettings, userProvider;
 import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:lottie/lottie.dart';
 import '../widgets/constants.dart';
 import 'explore_page.dart';
 import 'area_results_page.dart';
@@ -406,17 +407,15 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
   Widget _buildHeader() {
     return Container(
-      decoration: BoxDecoration(
-        image: DecorationImage(
-          image: const AssetImage('assets/images/hero/hero_3.jpg'),
-          fit: BoxFit.cover,
-          colorFilter: ColorFilter.mode(
-            const Color(0xFFB54414).withValues(alpha: 0.70),
-            BlendMode.darken,
-          ),
-          onError: (_, __) {},
-        ),
-        gradient: const LinearGradient(
+      // Solid orange gradient stays as the base layer so the brand
+      // colour is on screen the instant the page paints — even
+      // before the Lottie payload finishes decoding on cold start.
+      // The waves animation rides on top with reduced opacity so it
+      // tints the gradient instead of replacing it; this also keeps
+      // the white greeting + search bar text legible on every frame
+      // of the loop, no matter which wave colour is showing.
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomCenter,
           colors: [
@@ -428,7 +427,49 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         ),
       ),
       child: Stack(children: [
-        // Decorative diagonal stripes
+        // ── Background animation ──────────────────────────────
+        // ``Positioned.fill`` makes the Lottie cover the whole
+        // header the same way ``BoxFit.cover`` would for an image.
+        // ``Opacity 0.35`` keeps the waves as a *texture* rather
+        // than fighting the brand gradient for attention; tweaking
+        // this single number is the easiest dial if the animation
+        // ever feels too loud or too subtle.
+        Positioned.fill(
+          child: Opacity(
+            opacity: 0.35,
+            child: Lottie.asset(
+              'assets/animations/waves.json',
+              fit: BoxFit.cover,
+              // ``frameRate: FrameRate.max`` matches Flutter's
+              // refresh rate so the wave loop is smooth on 90/120Hz
+              // devices.  At the default rate the motion looks
+              // visibly choppy on Pixel-class hardware.
+              frameRate: FrameRate.max,
+              // Quietly fall back to the plain gradient if the
+              // asset ever fails to load (e.g. file removed in a
+              // future cleanup) — never crash the home screen.
+              errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+            ),
+          ),
+        ),
+
+        // ── Contrast veil ─────────────────────────────────────
+        // Soft top-to-bottom darken so the hello/search content
+        // always has WCAG-AA contrast against the animation.
+        Positioned.fill(
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Colors.black.withValues(alpha: 0.18),
+                  Colors.black.withValues(alpha: 0.05),
+                ],
+              ),
+            ),
+          ),
+        ),
 
         SafeArea(
           bottom: false,
