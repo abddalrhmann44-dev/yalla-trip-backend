@@ -102,30 +102,25 @@ flutter_launcher_icons:
 #      dart run flutter_native_splash:create
 # ──────────────────────────────────────────────────────────────────
 flutter_native_splash:
-  # ``background_image`` (instead of ``image``) makes the artwork
-  # fill the entire device screen edge-to-edge, the way the user
-  # asked — no orange margin around it, no centred-icon framing.
-  # ``color`` is still required as a fallback for any pixel the
-  # image doesn't cover (e.g. while it decodes), so we set it to
-  # the dominant tone of the artwork.
+  # The splash artwork is square (1:1) but device screens are tall
+  # (~9:19).  ``background_image`` would stretch the bitmap with
+  # ``android:gravity="fill"`` and visibly distort the Talaa logo
+  # for the cold-start half-second.  Switching back to ``image:``
+  # keeps the artwork at its native aspect ratio (centred on a
+  # matching brand-orange background) so the native splash always
+  # looks crisp, and the Dart-side ``SplashPage`` then expands the
+  # same artwork to a true full-bleed cover the moment Flutter
+  # takes over.  Net result: clean cold-start, full-bleed in-app.
   color: "#FF6B35"
   color_dark: "#14100C"
-  background_image: assets/images/splash.png
-  background_image_dark: assets/images/splash.png
+  image: assets/images/splash.png
+  image_dark: assets/images/splash.png
   android: true
   ios: true
   web: false
-  # Android-12+ has a *new* launch-screen API that ONLY accepts a
-  # centred icon + colour background — full-bleed images are not
-  # supported by the OS itself.  We use the same image as the icon
-  # there and let the Dart-side ``SplashPage`` (which kicks in the
-  # instant Flutter takes over) deliver the real full-screen look.
   android_12:
     color: "#FF6B35"
     color_dark: "#14100C"
     image: assets/images/splash.png
     image_dark: assets/images/splash.png
-  # Hide the system status & nav bars during the native splash so
-  # the artwork is truly edge-to-edge.  Flutter restores the bars
-  # the moment ``SplashPage`` paints.
-  fullscreen: true
+  fullscreen: false

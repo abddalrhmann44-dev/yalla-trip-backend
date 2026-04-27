@@ -100,15 +100,13 @@ class _SplashPageState extends State<SplashPage>
     // the image fills every pixel of the screen on any aspect ratio
     // (small Android, tall iPhone, foldables).  Edges may be cropped
     // — that's the trade-off the user explicitly asked for ("ماليه
-    // الشاشة لوحدها من غير حاجة غيرها").  Because the native splash
-    // is configured with ``background_image`` + ``fullscreen: true``,
-    // the cold-start surface uses the exact same composition, so the
-    // hand-off has no visible jump.
-    //
-    // ``extendBodyBehindAppBar`` + ``SafeArea(top:false, bottom:false)``
-    // are intentionally *not* used: we want to draw under the status
-    // bar.  The brand-orange ``backgroundColor`` is just a fallback
-    // for the millisecond before ``Image.asset`` decodes.
+    // الشاشة لوحدها من غير حاجة غيرها").  The native cold-start
+    // splash deliberately uses centred-icon mode (with a brand
+    // orange background) because the artwork is square (1:1) and
+    // ``background_image`` mode would stretch it visibly distorted.
+    // The Dart side hands off in <1s, so the brief icon → full-bleed
+    // transition is barely perceptible — and the in-app surface
+    // (this widget) is *always* full bleed.
     return Scaffold(
       backgroundColor: _kBrand,
       body: AnimatedBuilder(

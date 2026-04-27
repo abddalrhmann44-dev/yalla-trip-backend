@@ -1,0 +1,27 @@
+splash: keep Dart full-bleed but stop stretching the native splash
+
+The user uploaded the splash artwork (a 1:1 square Talaa logo on an
+orange dunes background) and asked again for it to fill the entire
+screen on its own.  Two fixes layered on top of each other:
+
+Native (cold-start)
+* ``background_image: assets/...png`` was reverted back to
+  ``image: assets/...png``.  background_image generates a
+  ``<bitmap android:gravity=fill />`` drawable, which scales the
+  bitmap with fitXY semantics — i.e. stretches it along both axes
+  to fill the screen.  On a 9:19 device that visibly squashed the
+  square artwork for the half-second between surface creation and
+  the first Flutter frame.  Centred-icon mode preserves the
+  artwork's aspect ratio on a brand-orange backdrop and looks crisp.
+* Re-ran flutter_native_splash:create so all Android drawables and
+  iOS launch storyboards regenerated accordingly.
+
+Dart (in-app)
+* SplashPage keeps SizedBox.expand + BoxFit.cover, so once Flutter
+  takes over (<1s after launch) the artwork covers every pixel of
+  the screen.  Edges may be cropped — that's the unavoidable
+  trade-off when a 1:1 source has to fill a 9:19 surface without
+  distortion — but the centred Talaa logo always stays inside the
+  visible region.
+
+flutter analyze: 0 issues across the workspace.
