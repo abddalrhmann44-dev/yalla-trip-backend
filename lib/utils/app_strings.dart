@@ -81,6 +81,18 @@ class S {
         return _ar ? ar : 'Sahl Hasheesh';
       case 'مرسى علم':
         return _ar ? ar : 'Marsa Alam';
+      case 'العلمين الجديدة':
+        return _ar ? ar : 'New Alamein';
+      case 'مرسى مطروح':
+        return _ar ? ar : 'Marsa Matrouh';
+      case 'دهب':
+        return _ar ? ar : 'Dahab';
+      case 'الفيوم':
+        return _ar ? ar : 'Fayoum';
+      case 'الأقصر':
+        return _ar ? ar : 'Luxor';
+      case 'أسوان':
+        return _ar ? ar : 'Aswan';
       default:
         return ar;
     }

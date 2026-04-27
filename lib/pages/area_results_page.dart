@@ -15,33 +15,45 @@ import '../utils/api_client.dart';
 
 Color _areaColor(String area) {
   switch (area) {
-    case 'عين السخنة':     return const Color(0xFFFF8C42);
-    case 'الساحل الشمالي': return const Color(0xFFE85A24);
-    case 'الجونة':         return const Color(0xFFE65100);
-    case 'الغردقة':        return const Color(0xFF00695C);
-    case 'شرم الشيخ':      return const Color(0xFF6A1B9A);
-    case 'رأس سدر':        return const Color(0xFF00897B);
-    case 'القاهرة':        return const Color(0xFFBF360C);
-    case 'اسكندرية':       return const Color(0xFF283593);
-    case 'سهل حشيش':       return const Color(0xFF00838F);
-    case 'مرسى علم':       return const Color(0xFFFF6B35);
-    default:               return const Color(0xFFFF6B35);
+    case 'عين السخنة':       return const Color(0xFFFF8C42);
+    case 'الساحل الشمالي':   return const Color(0xFFE85A24);
+    case 'العلمين الجديدة':  return const Color(0xFFFF7043);
+    case 'مرسى مطروح':      return const Color(0xFF00ACC1);
+    case 'الجونة':           return const Color(0xFFE65100);
+    case 'الغردقة':          return const Color(0xFF00695C);
+    case 'شرم الشيخ':        return const Color(0xFF6A1B9A);
+    case 'دهب':              return const Color(0xFF0288D1);
+    case 'رأس سدر':          return const Color(0xFF00897B);
+    case 'القاهرة':          return const Color(0xFFBF360C);
+    case 'اسكندرية':         return const Color(0xFF283593);
+    case 'الفيوم':           return const Color(0xFF558B2F);
+    case 'سهل حشيش':         return const Color(0xFF00838F);
+    case 'مرسى علم':         return const Color(0xFFFF6B35);
+    case 'الأقصر':            return const Color(0xFFFFB300);
+    case 'أسوان':             return const Color(0xFFFF6F00);
+    default:                 return const Color(0xFFFF6B35);
   }
 }
 
 IconData _areaIcon(String area) {
   switch (area) {
-    case 'عين السخنة':     return Icons.waves_rounded;
-    case 'الساحل الشمالي': return Icons.beach_access_rounded;
-    case 'الجونة':         return Icons.sailing_rounded;
-    case 'الغردقة':        return Icons.water_rounded;
-    case 'شرم الشيخ':      return Icons.scuba_diving_rounded;
-    case 'رأس سدر':        return Icons.air_rounded;
-    case 'القاهرة':        return Icons.location_city_rounded;
-    case 'اسكندرية':       return Icons.waves_rounded;
-    case 'سهل حشيش':       return Icons.pool_rounded;
-    case 'مرسى علم':       return Icons.scuba_diving_rounded;
-    default:               return Icons.location_on_rounded;
+    case 'عين السخنة':       return Icons.waves_rounded;
+    case 'الساحل الشمالي':   return Icons.beach_access_rounded;
+    case 'العلمين الجديدة':  return Icons.location_city_rounded;
+    case 'مرسى مطروح':      return Icons.beach_access_rounded;
+    case 'الجونة':           return Icons.sailing_rounded;
+    case 'الغردقة':          return Icons.water_rounded;
+    case 'شرم الشيخ':        return Icons.scuba_diving_rounded;
+    case 'دهب':              return Icons.scuba_diving_rounded;
+    case 'رأس سدر':          return Icons.air_rounded;
+    case 'القاهرة':          return Icons.location_city_rounded;
+    case 'اسكندرية':         return Icons.waves_rounded;
+    case 'الفيوم':           return Icons.terrain_rounded;
+    case 'سهل حشيش':         return Icons.pool_rounded;
+    case 'مرسى علم':         return Icons.scuba_diving_rounded;
+    case 'الأقصر':            return Icons.account_balance_rounded;
+    case 'أسوان':             return Icons.sailing_rounded;
+    default:                 return Icons.location_on_rounded;
   }
 }
 

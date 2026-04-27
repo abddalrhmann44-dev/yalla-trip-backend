@@ -148,6 +148,24 @@ const _kDestinations = [
       'assets/images/destinations/sharm.jpg'),
   _Dest('رأس سدر', '🌬️', [Color(0xFF00897B), Color(0xFF00574B)],
       'assets/images/destinations/ras_sedr.jpg'),
+  _Dest('دهب', '🤿', [Color(0xFF0288D1), Color(0xFF01579B)],
+      'assets/images/destinations/dahb.jpg'),
+  _Dest('العلمين الجديدة', '🏙️', [Color(0xFFFF7043), Color(0xFFD84315)],
+      // Re-uses the North Coast hero image — New Alamein sits on the
+      // same Mediterranean strip and the product team approved sharing
+      // the asset until a dedicated photo is shot.
+      'assets/images/destinations/north_coast.jpg'),
+  _Dest('مرسى مطروح', '🌊', [Color(0xFF00ACC1), Color(0xFF006064)],
+      'assets/images/destinations/marsa_matroh.jpg'),
+  _Dest('الفيوم', '🐪', [Color(0xFF558B2F), Color(0xFF33691E)],
+      'assets/images/destinations/elfayom.jpg'),
+  _Dest('الأقصر', '🏛️', [Color(0xFFFFB300), Color(0xFFFF8F00)],
+      // The original asset arrived with a doubled ``.jpg.jpeg`` suffix;
+      // we reference it as-is so we don't have to rename a binary the
+      // product team uploaded.
+      'assets/images/destinations/alqsor.jpg.jpeg'),
+  _Dest('أسوان', '⛵', [Color(0xFFFF6F00), Color(0xFFE65100)],
+      'assets/images/destinations/aswan.jpg'),
 ];
 
 // immutable helper models
@@ -234,14 +252,20 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     'الكل',
     'عين السخنة',
     'الساحل الشمالي',
+    'العلمين الجديدة',
+    'مرسى مطروح',
     'الجونة',
     'الغردقة',
     'شرم الشيخ',
+    'دهب',
     'رأس سدر',
     'القاهرة',
     'اسكندرية',
+    'الفيوم',
     'سهل حشيش',
     'مرسى علم',
+    'الأقصر',
+    'أسوان',
   ];
   static const _kTypes = [
     'الكل',
