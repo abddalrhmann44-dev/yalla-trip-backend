@@ -9,6 +9,7 @@ import '../main.dart' show userProvider;
 import '../services/user_role_service.dart';
 import '../services/property_service.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../widgets/constants.dart';
@@ -255,6 +256,13 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
         return null;
 
       case 1: // الصور — Wave 26: الحد الأدنى 6 صور والحد الأقصى 40
+        // Debug-mode bypass: emulators don't have a real camera or
+        // gallery, so picking 6 distinct photos is impractical while
+        // testing.  In ``kDebugMode`` we let the host advance with
+        // any number of photos (including zero) so they can walk
+        // through the remaining steps.  Release builds still enforce
+        // the 6–40 rule strictly.
+        if (kDebugMode) return null;
         if (_pickedFiles.length < 6) {
           return 'أضف 6 صور على الأقل (المتبقي: ${6 - _pickedFiles.length})';
         }
@@ -311,6 +319,11 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
         return null;
 
       case 9: // إثبات الهوية — آخر خطوة
+        // Same debug-mode bypass as the photos step: emulators have
+        // no working camera so the host can't actually capture an ID.
+        // Lets the dev walk to the publish action; release builds
+        // still require both sides of the national ID.
+        if (kDebugMode) return null;
         if (_idFrontImage == null || _idBackImage == null) {
           return 'لازم تصور البطاقة (وش + ظهر) بالكاميرا';
         }
@@ -809,6 +822,27 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
               fontSize: 22, fontWeight: FontWeight.w900, color: context.kText)),
       const SizedBox(height: 6),
       _requiredLabel('من 6 إلى 40 صورة'),
+      // Visible only in debug builds — calls out that the strict
+      // 6-photo floor is bypassed for emulator testing so the dev
+      // remembers the rule still applies in production.
+      if (kDebugMode) ...[
+        const SizedBox(height: 8),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            color: Colors.amber.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.amber.withValues(alpha: 0.4)),
+          ),
+          child: const Text(
+            '🛠️ Debug: قاعدة 6–40 صورة متجاوزة فى الـ emulator',
+            style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF8A6D00)),
+          ),
+        ),
+      ],
       const SizedBox(height: 16),
       Row(children: [
         Expanded(
