@@ -644,12 +644,18 @@ class _AddBankAccountSheet extends StatefulWidget {
 }
 
 class _AddBankAccountSheetState extends State<_AddBankAccountSheet> {
-  BankAccountType _type = BankAccountType.iban;
+  // Wave 27 (UX): The "wallet" and "instapay" payout channels were
+  // removed from the UI by product decision — hosts can only register
+  // a bank IBAN now.  We deliberately keep ``BankAccountType.wallet``
+  // and ``BankAccountType.instapay`` alive in the service layer so
+  // any legacy accounts created before this change still display
+  // correctly in the list above (with their own icon + masked
+  // detail).  New accounts always submit as ``BankAccountType.iban``.
+  static const _kType = BankAccountType.iban;
+
   final _nameCtrl = TextEditingController();
   final _bankCtrl = TextEditingController();
   final _ibanCtrl = TextEditingController();
-  final _phoneCtrl = TextEditingController();
-  final _instapayCtrl = TextEditingController();
   bool _isDefault = false;
   bool _submitting = false;
   String? _error;
@@ -659,8 +665,6 @@ class _AddBankAccountSheetState extends State<_AddBankAccountSheet> {
     _nameCtrl.dispose();
     _bankCtrl.dispose();
     _ibanCtrl.dispose();
-    _phoneCtrl.dispose();
-    _instapayCtrl.dispose();
     super.dispose();
   }
 
@@ -669,26 +673,25 @@ class _AddBankAccountSheetState extends State<_AddBankAccountSheet> {
       setState(() => _error = 'اسم الحساب قصير جداً');
       return;
     }
+    final iban = _ibanCtrl.text.replaceAll(' ', '').trim();
+    if (iban.length < 15) {
+      setState(() => _error = 'رقم الـ IBAN غير صحيح');
+      return;
+    }
+    if (_bankCtrl.text.trim().isEmpty) {
+      setState(() => _error = 'اكتب اسم البنك');
+      return;
+    }
     setState(() {
       _submitting = true;
       _error = null;
     });
     try {
       final created = await PayoutService.addBankAccount(
-        type: _type,
+        type: _kType,
         accountName: _nameCtrl.text.trim(),
-        bankName: _bankCtrl.text.trim().isEmpty
-            ? null
-            : _bankCtrl.text.trim(),
-        iban: _type == BankAccountType.iban
-            ? _ibanCtrl.text.replaceAll(' ', '').trim()
-            : null,
-        walletPhone: _type == BankAccountType.wallet
-            ? _phoneCtrl.text.trim()
-            : null,
-        instapayAddress: _type == BankAccountType.instapay
-            ? _instapayCtrl.text.trim()
-            : null,
+        bankName: _bankCtrl.text.trim(),
+        iban: iban,
         isDefault: _isDefault,
       );
       if (!mounted) return;
@@ -732,87 +735,44 @@ class _AddBankAccountSheetState extends State<_AddBankAccountSheet> {
                   textAlign: TextAlign.center,
                   style: TextStyle(
                       fontSize: 18, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 14),
-              SegmentedButton<BankAccountType>(
-                segments: const [
-                  ButtonSegment(
-                    value: BankAccountType.iban,
-                    label: Text('بنك'),
-                    icon: Icon(Icons.account_balance_rounded),
-                  ),
-                  ButtonSegment(
-                    value: BankAccountType.wallet,
-                    label: Text('محفظة'),
-                    icon: Icon(Icons.phone_android_rounded),
-                  ),
-                  ButtonSegment(
-                    value: BankAccountType.instapay,
-                    label: Text('إنستا باي'),
-                    icon: Icon(Icons.flash_on_rounded),
-                  ),
-                ],
-                selected: {_type},
-                onSelectionChanged: (s) => setState(() => _type = s.first),
+              const SizedBox(height: 6),
+              Text(
+                'الأرباح تتحوّل على حسابك البنكى عبر IBAN',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: Colors.grey.shade600,
+                ),
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 16),
               TextField(
                 controller: _nameCtrl,
                 decoration: const InputDecoration(
                   labelText: 'اسم صاحب الحساب',
                   border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.person_outline_rounded),
                 ),
               ),
-              if (_type == BankAccountType.iban) ...[
-                const SizedBox(height: 10),
-                TextField(
-                  controller: _bankCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'اسم البنك (CIB / NBE...)',
-                    border: OutlineInputBorder(),
-                  ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: _bankCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'اسم البنك (CIB / NBE / QNB...)',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.account_balance_rounded),
                 ),
-                const SizedBox(height: 10),
-                TextField(
-                  controller: _ibanCtrl,
-                  textCapitalization: TextCapitalization.characters,
-                  decoration: const InputDecoration(
-                    labelText: 'IBAN',
-                    hintText: 'EG38…',
-                    border: OutlineInputBorder(),
-                  ),
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: _ibanCtrl,
+                textCapitalization: TextCapitalization.characters,
+                decoration: const InputDecoration(
+                  labelText: 'IBAN',
+                  hintText: 'EG38…',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.numbers_rounded),
                 ),
-              ],
-              if (_type == BankAccountType.wallet) ...[
-                const SizedBox(height: 10),
-                TextField(
-                  controller: _bankCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'مزوّد المحفظة (Vodafone / Etisalat...)',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 10),
-                TextField(
-                  controller: _phoneCtrl,
-                  keyboardType: TextInputType.phone,
-                  decoration: const InputDecoration(
-                    labelText: 'رقم المحفظة',
-                    hintText: '010xxxxxxxx',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-              ],
-              if (_type == BankAccountType.instapay) ...[
-                const SizedBox(height: 10),
-                TextField(
-                  controller: _instapayCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'عنوان إنستا باي',
-                    hintText: 'name@bank',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-              ],
+              ),
               const SizedBox(height: 10),
               SwitchListTile(
                 title: const Text('جعله الحساب الافتراضي'),
