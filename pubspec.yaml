@@ -102,25 +102,28 @@ flutter_launcher_icons:
 #      dart run flutter_native_splash:create
 # ──────────────────────────────────────────────────────────────────
 flutter_native_splash:
-  # The splash artwork is square (1:1) but device screens are tall
-  # (~9:19).  ``background_image`` would stretch the bitmap with
-  # ``android:gravity="fill"`` and visibly distort the Talaa logo
-  # for the cold-start half-second.  Switching back to ``image:``
-  # keeps the artwork at its native aspect ratio (centred on a
-  # matching brand-orange background) so the native splash always
-  # looks crisp, and the Dart-side ``SplashPage`` then expands the
-  # same artwork to a true full-bleed cover the moment Flutter
-  # takes over.  Net result: clean cold-start, full-bleed in-app.
+  # ──── ONE splash, not two ───────────────────────────────────────
+  # Earlier we configured the native splash with ``image:`` so the
+  # cold-start surface showed the Talaa artwork as a centred icon
+  # on an orange backdrop.  In practice that meant the user saw
+  # *two* splash screens in sequence: a centred-icon one (native,
+  # ~1s) followed by the full-bleed Dart one — exactly what they
+  # asked us to remove.
+  #
+  # Solution: the native splash is now a *plain brand-orange flat
+  # colour* — no image, no icon.  Because ``SplashPage`` paints
+  # the same orange and immediately covers the whole screen with
+  # the artwork via ``BoxFit.cover``, the visible sequence is now:
+  #
+  #     [orange flash] → [full-bleed splash artwork] → [home]
+  #
+  # i.e. one splash screen, no centred-icon stage.
   color: "#FF6B35"
   color_dark: "#14100C"
-  image: assets/images/splash.png
-  image_dark: assets/images/splash.png
   android: true
   ios: true
   web: false
   android_12:
     color: "#FF6B35"
     color_dark: "#14100C"
-    image: assets/images/splash.png
-    image_dark: assets/images/splash.png
   fullscreen: false

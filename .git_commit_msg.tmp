@@ -1,27 +1,31 @@
-splash: keep Dart full-bleed but stop stretching the native splash
+splash: collapse to a single full-bleed surface (no native icon stage)
 
-The user uploaded the splash artwork (a 1:1 square Talaa logo on an
-orange dunes background) and asked again for it to fill the entire
-screen on its own.  Two fixes layered on top of each other:
+Screenshots from the device showed two splash screens in sequence:
+first the native cold-start splash (orange background with the
+Talaa artwork as a centred icon), then the Dart SplashPage with the
+artwork as a full-bleed cover.  The user wants only the second one
+visible.
 
-Native (cold-start)
-* ``background_image: assets/...png`` was reverted back to
-  ``image: assets/...png``.  background_image generates a
-  ``<bitmap android:gravity=fill />`` drawable, which scales the
-  bitmap with fitXY semantics — i.e. stretches it along both axes
-  to fill the screen.  On a 9:19 device that visibly squashed the
-  square artwork for the half-second between surface creation and
-  the first Flutter frame.  Centred-icon mode preserves the
-  artwork's aspect ratio on a brand-orange backdrop and looks crisp.
-* Re-ran flutter_native_splash:create so all Android drawables and
-  iOS launch storyboards regenerated accordingly.
+Fix: drop the image from the native splash entirely, leaving just a
+plain brand-orange flat colour as the cold-start backdrop.  Because
+SplashPage paints the same orange colour and immediately covers the
+entire screen with the artwork via BoxFit.cover, the visible
+sequence collapses to:
 
-Dart (in-app)
-* SplashPage keeps SizedBox.expand + BoxFit.cover, so once Flutter
-  takes over (<1s after launch) the artwork covers every pixel of
-  the screen.  Edges may be cropped — that's the unavoidable
-  trade-off when a 1:1 source has to fill a 9:19 surface without
-  distortion — but the centred Talaa logo always stays inside the
-  visible region.
+    [orange flash] -> [full-bleed splash artwork] -> [home]
+
+i.e. one splash screen, no centred-icon stage between cold-start
+and the in-app splash.
+
+Changes
+* pubspec.yaml: removed the image: / image_dark: keys from both the
+  top-level flutter_native_splash block and the android_12 block.
+  Kept color: #FF6B35 / color_dark: #14100C so the flash is the
+  same orange the Dart side paints.
+* Re-ran dart run flutter_native_splash:create so all Android
+  drawables and the iOS launch storyboard regenerated as plain
+  colour fills (no bitmap layer).
+* lib/pages/splash_page.dart: tightened the inline comment to
+  describe the new single-surface flow accurately.
 
 flutter analyze: 0 issues across the workspace.
