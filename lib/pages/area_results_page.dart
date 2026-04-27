@@ -578,8 +578,8 @@ class _AreaResultsPageState extends State<AreaResultsPage> {
           const SizedBox(height: 8),
           Text(
             appSettings.arabic
-                ? 'جاري إضافة عقارات جديدة قريبًا'
-                : 'New properties coming soon',
+                ? 'جرّب منطقة تانية أو غيّر الفلاتر'
+                : 'Try another destination or adjust your filters',
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 13, color: context.kSub, height: 1.5)),
           const SizedBox(height: 28),

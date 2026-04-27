@@ -1258,11 +1258,10 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                             Shadow(color: Colors.black54, blurRadius: 6)
                           ],
                         )),
-                    // Hide the badge entirely for empty areas — the
-                    // old "قريباً" copy made live destinations like
-                    // العين السخنة look unavailable when the cache
-                    // hadn't hydrated yet.  Showing nothing is the
-                    // less confusing default.
+                    // Show the count badge only when the area has live
+                    // listings.  Empty areas render no badge at all
+                    // (no placeholder copy) so destinations the user
+                    // is actively browsing always look "open".
                     if ((_areaCounts[d.name] ?? 0) > 0) ...[
                       const SizedBox(height: 5),
                       Container(

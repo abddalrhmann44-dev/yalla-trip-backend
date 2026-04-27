@@ -213,35 +213,20 @@ class _WalletPageState extends State<WalletPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(children: [
-                    const Text('اشحن المحفظة',
+                  Row(children: const [
+                    Text('اشحن المحفظة',
                         style: TextStyle(
                             color: _kNavy,
                             fontSize: 15,
                             fontWeight: FontWeight.w900)),
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: _kBorder,
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: const [
-                          Icon(Icons.lock_rounded, size: 10, color: _kMuted),
-                          SizedBox(width: 3),
-                          Text('قريباً',
-                              style: TextStyle(
-                                  color: _kMuted,
-                                  fontSize: 9,
-                                  fontWeight: FontWeight.w800)),
-                        ],
-                      ),
-                    ),
+                    SizedBox(width: 6),
+                    Icon(Icons.lock_rounded, size: 13, color: _kMuted),
                   ]),
                   const SizedBox(height: 3),
+                  // Replaced the loud "قريباً" badge with a plain
+                  // "قيد التفعيل" sub-label so the card communicates
+                  // the same gating without the placeholder copy the
+                  // user explicitly asked us to drop.
                   const Text('الدفع عبر Paymob قيد التفعيل',
                       style: TextStyle(color: _kMuted, fontSize: 11)),
                 ],
@@ -263,8 +248,8 @@ class _WalletPageState extends State<WalletPage> {
         title: const Text('الشحن قيد التفعيل',
             style: TextStyle(fontWeight: FontWeight.w900, color: _kNavy)),
         content: const Text(
-          'شحن المحفظة بالبطاقة سيكون متاحاً فور اكتمال الربط مع بوابة '
-          'الدفع Paymob. بتشكر صبرك 🙏',
+          'شحن المحفظة بالبطاقة بيمر دلوقتى بمراجعة بوابة الدفع. '
+          'حالياً ممكن تستخدم الدفع المباشر عند الحجز.',
           style: TextStyle(color: _kMuted, height: 1.5),
         ),
         actions: [
