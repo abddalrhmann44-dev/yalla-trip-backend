@@ -175,6 +175,58 @@ class PropertyApi {
     );
   }
 
+  /// Returns a shallow copy of this property with the given fields
+  /// overridden.  Used by the host dashboard for optimistic updates
+  /// (toggle availability, edit) so the UI can reflect the new state
+  /// instantly without re-fetching the entire row from the server.
+  PropertyApi copyWith({
+    bool? isAvailable,
+    bool? isFeatured,
+    bool? instantBooking,
+    bool? negotiable,
+    bool? cashOnArrivalEnabled,
+    String? name,
+    String? description,
+    double? pricePerNight,
+    double? weekendPrice,
+  }) {
+    return PropertyApi(
+      id: id,
+      ownerId: ownerId,
+      owner: owner,
+      name: name ?? this.name,
+      description: description ?? this.description,
+      area: area,
+      category: category,
+      pricePerNight: pricePerNight ?? this.pricePerNight,
+      weekendPrice: weekendPrice ?? this.weekendPrice,
+      cleaningFee: cleaningFee,
+      electricityFee: electricityFee,
+      waterFee: waterFee,
+      securityDeposit: securityDeposit,
+      totalRooms: totalRooms,
+      closingTime: closingTime,
+      tripDurationHours: tripDurationHours,
+      bedrooms: bedrooms,
+      bathrooms: bathrooms,
+      maxGuests: maxGuests,
+      images: images,
+      amenities: amenities,
+      services: services,
+      rating: rating,
+      reviewCount: reviewCount,
+      isAvailable: isAvailable ?? this.isAvailable,
+      isFeatured: isFeatured ?? this.isFeatured,
+      instantBooking: instantBooking ?? this.instantBooking,
+      negotiable: negotiable ?? this.negotiable,
+      cashOnArrivalEnabled: cashOnArrivalEnabled ?? this.cashOnArrivalEnabled,
+      latitude: latitude,
+      longitude: longitude,
+      createdAt: createdAt,
+      updatedAt: updatedAt,
+    );
+  }
+
   // ── Helpers ────────────────────────────────────────────────
   String get firstImage => images.isNotEmpty ? images.first : '';
   int get guests => maxGuests;

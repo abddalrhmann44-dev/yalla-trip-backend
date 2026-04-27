@@ -2,19 +2,21 @@
 
 from __future__ import annotations
 
+import asyncio
 import math
 from collections import Counter
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 from typing import List, Optional
 
 import structlog
-from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, UploadFile, File, status
+from pydantic import BaseModel
 from sqlalchemy import Select, case, func, select, and_, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.middleware.auth_middleware import require_role
-from app.models.booking import Booking, BookingStatus
+from app.models.booking import Booking, BookingStatus, PaymentStatus
 from app.models.availability_rule import AvailabilityRule, RuleType
 from app.models.calendar import CalendarBlock
 from app.models.property import Area, Category, Property, PropertyStatus
@@ -32,6 +34,71 @@ from app.schemas.property import (
     _UTILITY_CATEGORIES,
 )
 from app.services.s3_service import delete_image, upload_image
+
+# ── Image upload constants ──────────────────────────────────
+# Centralised so KYC + listing-image endpoints stay in sync; previous
+# inconsistency rejected HEIC on /id-documents while accepting it on
+# /images, frustrating iPhone hosts mid-onboarding.
+_ALLOWED_IMAGE_MIMES = {
+    "image/jpeg",
+    "image/jpg",
+    "image/png",
+    "image/webp",
+    "image/gif",
+    "image/heic",
+    "image/heif",
+}
+
+
+def _normalise_image_ct(content_type: str | None) -> str | None:
+    """Return a canonical S3 content-type, or ``None`` if unsupported.
+
+    HEIC/HEIF are tagged as JPEG because ``image_picker`` on iOS
+    transcodes to JPEG when ``imageQuality < 100`` — only the raw
+    capture path lands as HEIC and the S3 layer expects JPEG.
+    """
+    ct = (content_type or "").lower()
+    if ct not in _ALLOWED_IMAGE_MIMES:
+        return None
+    if ct in ("image/heic", "image/heif"):
+        return "image/jpeg"
+    if ct == "image/jpg":
+        return "image/jpeg"
+    return ct
+
+
+# Fields the host is allowed to PATCH on /properties/{id}.  Anything
+# outside this set (status, is_verified, is_featured, owner_id, ...)
+# stays admin-only — even if a future PropertyUpdate schema accidentally
+# exposes them.  Defence-in-depth.
+_HOST_EDITABLE_FIELDS = frozenset({
+    "name", "description", "area", "category",
+    "price_per_night", "weekend_price",
+    "cleaning_fee", "electricity_fee", "water_fee", "security_deposit",
+    "bedrooms", "bathrooms", "max_guests", "total_rooms",
+    "closing_time", "trip_duration_hours",
+    "services", "amenities",
+    "is_available", "instant_booking",
+    "negotiable", "cash_on_arrival_enabled",
+    "latitude", "longitude",
+})
+
+
+class MyPropertiesStats(BaseModel):
+    """Aggregate stats for the host dashboard — single round-trip.
+
+    Replaces the Flutter side computing these from the full property
+    list (which lacked revenue/occupancy entirely) and avoids the
+    O(properties × round-trips) call pattern hosts saw on slow networks.
+    """
+    total_properties: int
+    active_properties: int
+    avg_rating: float
+    total_reviews: int
+    revenue_30d: float
+    revenue_all_time: float
+    upcoming_bookings: int
+    pending_kyc: int
 
 logger = structlog.get_logger(__name__)
 router = APIRouter(prefix="/properties", tags=["Properties"])
@@ -90,6 +157,8 @@ def _apply_filters(
     check_out: Optional[date],
     include_unapproved: bool,
 ) -> Select:
+    # Guest-facing search must never surface soft-deleted listings.
+    stmt = stmt.where(Property.deleted_at.is_(None))
     if area:
         stmt = stmt.where(Property.area == area)
     if category:
@@ -367,13 +436,105 @@ async def my_properties(
     user: User = Depends(require_role(UserRole.owner, UserRole.admin)),
     db: AsyncSession = Depends(get_db),
 ):
-    """Return ALL properties owned by the current user (incl. unavailable)."""
+    """Return ALL non-deleted properties owned by the current user."""
     result = await db.execute(
         select(Property)
-        .where(Property.owner_id == user.id)
+        .where(
+            Property.owner_id == user.id,
+            Property.deleted_at.is_(None),
+        )
         .order_by(Property.created_at.desc())
     )
     return [PropertyOut.model_validate(p) for p in result.scalars().all()]
+
+
+@router.get("/mine/stats", response_model=MyPropertiesStats)
+async def my_properties_stats(
+    user: User = Depends(require_role(UserRole.owner, UserRole.admin)),
+    db: AsyncSession = Depends(get_db),
+):
+    """Aggregate dashboard stats in two queries.
+
+    Replaces the Flutter-side ``_activeCount`` / ``_avgRating`` /
+    ``_totalReviews`` getters which had to download every property
+    just to compute three integers, and adds the metrics the host
+    actually wants front-and-centre: revenue (30d + lifetime) and
+    upcoming bookings.
+    """
+    now = datetime.now(timezone.utc)
+    cutoff_30d = now - timedelta(days=30)
+
+    # Single Booking aggregate covering revenue (30d + lifetime) and
+    # upcoming-bookings count via FILTER clauses.
+    booking_agg = (
+        await db.execute(
+            select(
+                func.coalesce(
+                    func.sum(Booking.owner_payout).filter(
+                        and_(
+                            Booking.status == BookingStatus.completed,
+                            Booking.payment_status == PaymentStatus.paid,
+                            Booking.created_at >= cutoff_30d,
+                        )
+                    ),
+                    0,
+                ).label("revenue_30d"),
+                func.coalesce(
+                    func.sum(Booking.owner_payout).filter(
+                        and_(
+                            Booking.status == BookingStatus.completed,
+                            Booking.payment_status == PaymentStatus.paid,
+                        )
+                    ),
+                    0,
+                ).label("revenue_all_time"),
+                func.count(Booking.id).filter(
+                    and_(
+                        Booking.status.in_(
+                            [BookingStatus.pending, BookingStatus.confirmed]
+                        ),
+                        Booking.check_in >= now.date(),
+                    )
+                ).label("upcoming_bookings"),
+            ).where(Booking.owner_id == user.id)
+        )
+    ).one()
+
+    # Single Property aggregate covering totals + ratings.
+    prop_agg = (
+        await db.execute(
+            select(
+                func.count(Property.id).label("total"),
+                func.count(Property.id).filter(
+                    Property.is_available.is_(True)
+                ).label("active"),
+                func.coalesce(
+                    func.avg(Property.rating).filter(Property.rating > 0), 0
+                ).label("avg_rating"),
+                func.coalesce(func.sum(Property.review_count), 0).label("total_reviews"),
+                func.count(Property.id).filter(
+                    and_(
+                        Property.id_document_front_url.is_(None),
+                        Property.id_document_back_url.is_(None),
+                    )
+                ).label("pending_kyc"),
+            ).where(
+                Property.owner_id == user.id,
+                Property.deleted_at.is_(None),
+            )
+        )
+    ).one()
+
+    return MyPropertiesStats(
+        total_properties=int(prop_agg.total or 0),
+        active_properties=int(prop_agg.active or 0),
+        avg_rating=round(float(prop_agg.avg_rating or 0.0), 2),
+        total_reviews=int(prop_agg.total_reviews or 0),
+        revenue_30d=round(float(booking_agg.revenue_30d or 0.0), 2),
+        revenue_all_time=round(float(booking_agg.revenue_all_time or 0.0), 2),
+        upcoming_bookings=int(booking_agg.upcoming_bookings or 0),
+        pending_kyc=int(prop_agg.pending_kyc or 0),
+    )
 
 
 @router.get("/{property_id}/similar", response_model=list[PropertyOut])
@@ -384,7 +545,12 @@ async def similar_properties(
 ):
     """Return properties similar to the given one (same area/category)."""
     source = (
-        await db.execute(select(Property).where(Property.id == property_id))
+        await db.execute(
+            select(Property).where(
+                Property.id == property_id,
+                Property.deleted_at.is_(None),
+            )
+        )
     ).scalar_one_or_none()
     if source is None:
         raise HTTPException(status_code=404, detail="Property not found")
@@ -396,6 +562,7 @@ async def similar_properties(
     stmt = (
         select(Property)
         .where(Property.id != property_id)
+        .where(Property.deleted_at.is_(None))
         .where(Property.is_available == True)  # noqa: E712
         .where(
             (Property.area == source.area) | (Property.category == source.category)
@@ -411,6 +578,7 @@ async def similar_properties(
         wider = (
             select(Property)
             .where(Property.id != property_id)
+            .where(Property.deleted_at.is_(None))
             .where(Property.is_available == True)  # noqa: E712
             .where(
                 (Property.area == source.area)
@@ -426,7 +594,12 @@ async def similar_properties(
 
 @router.get("/{property_id}", response_model=PropertyOut)
 async def get_property(property_id: int, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(Property).where(Property.id == property_id))
+    result = await db.execute(
+        select(Property).where(
+            Property.id == property_id,
+            Property.deleted_at.is_(None),
+        )
+    )
     prop = result.scalar_one_or_none()
     if prop is None:
         raise HTTPException(status_code=404, detail="العقار غير موجود / Property not found")
@@ -543,14 +716,33 @@ async def update_property(
     user: User = Depends(require_role(UserRole.owner, UserRole.admin)),
     db: AsyncSession = Depends(get_db),
 ):
-    result = await db.execute(select(Property).where(Property.id == property_id))
+    result = await db.execute(
+        select(Property).where(
+            Property.id == property_id,
+            Property.deleted_at.is_(None),
+        )
+    )
     prop = result.scalar_one_or_none()
     if prop is None:
         raise HTTPException(status_code=404, detail="العقار غير موجود / Property not found")
     if prop.owner_id != user.id and user.role != UserRole.admin:
         raise HTTPException(status_code=403, detail="ليس لديك صلاحية / Not your property")
 
+    # Whitelist host-editable fields.  Even if PropertyUpdate ever grows
+    # an ``owner_id`` / ``status`` / ``is_verified`` field by accident,
+    # the host can never write through to it from this endpoint — admin
+    # endpoints handle those.  Admins skip the filter so support can
+    # still patch any column from the same route.
+    is_admin = user.role == UserRole.admin
     for key, value in body.model_dump(exclude_unset=True).items():
+        if not is_admin and key not in _HOST_EDITABLE_FIELDS:
+            logger.warning(
+                "property_update_blocked_field",
+                property_id=property_id,
+                user_id=user.id,
+                field=key,
+            )
+            continue
         setattr(prop, key, value)
     await db.flush()
     await db.refresh(prop)
@@ -563,14 +755,65 @@ async def delete_property(
     user: User = Depends(require_role(UserRole.owner, UserRole.admin)),
     db: AsyncSession = Depends(get_db),
 ):
-    result = await db.execute(select(Property).where(Property.id == property_id))
+    """Soft-delete a property.
+
+    The previous hard-delete path was a real-money disaster: the FK
+    ``bookings.property_id`` is ``ON DELETE CASCADE``, so removing a
+    listing also wiped every paid + confirmed booking attached to it.
+    A malicious host could exploit this to nuke guest bookings (and
+    the audit trail with them).
+
+    Now:
+
+    * If any non-terminal booking exists → 409, instructing the host
+      to cancel them through the proper flow first.
+    * Otherwise stamp ``deleted_at`` and flip ``is_available`` so the
+      listing disappears from search.  No row is removed.
+    """
+    result = await db.execute(
+        select(Property).where(
+            Property.id == property_id,
+            Property.deleted_at.is_(None),
+        )
+    )
     prop = result.scalar_one_or_none()
     if prop is None:
         raise HTTPException(status_code=404, detail="العقار غير موجود / Property not found")
     if prop.owner_id != user.id and user.role != UserRole.admin:
         raise HTTPException(status_code=403, detail="ليس لديك صلاحية / Not your property")
-    await db.delete(prop)
+
+    # Block the delete if any active booking references this property.
+    # ``pending`` and ``confirmed`` are the non-terminal states; both
+    # represent guests who paid (or committed to pay) and would be
+    # silently wiped by a CASCADE on hard delete.
+    active_bookings = (
+        await db.execute(
+            select(func.count(Booking.id)).where(
+                Booking.property_id == property_id,
+                Booking.status.in_(
+                    [BookingStatus.pending, BookingStatus.confirmed]
+                ),
+            )
+        )
+    ).scalar() or 0
+    if active_bookings > 0:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                f"لا يمكن الحذف: عليه {active_bookings} حجز نشط. "
+                "ألغها أولاً أو أوقف العقار بدلاً من الحذف."
+            ),
+        )
+
+    prop.deleted_at = datetime.now(timezone.utc)
+    prop.is_available = False
     await db.flush()
+    logger.info(
+        "property_soft_deleted",
+        property_id=property_id,
+        owner_id=prop.owner_id,
+        actor_id=user.id,
+    )
 
 
 @router.post("/{property_id}/images", response_model=PropertyOut)
@@ -580,79 +823,94 @@ async def upload_property_images(
     user: User = Depends(require_role(UserRole.owner, UserRole.admin)),
     db: AsyncSession = Depends(get_db),
 ):
-    result = await db.execute(select(Property).where(Property.id == property_id))
+    """Upload up to 40 photos for a listing.
+
+    Files are uploaded to S3 in parallel via :func:`asyncio.gather`,
+    so a 40-photo batch finishes in roughly the latency of one PUT
+    instead of summing 40 sequential round-trips (~20s freeze on a
+    typical phone connection in the previous implementation).
+    """
+    result = await db.execute(
+        select(Property).where(
+            Property.id == property_id,
+            Property.deleted_at.is_(None),
+        )
+    )
     prop = result.scalar_one_or_none()
     if prop is None:
         raise HTTPException(status_code=404, detail="العقار غير موجود / Property not found")
     if prop.owner_id != user.id and user.role != UserRole.admin:
         raise HTTPException(status_code=403, detail="ليس لديك صلاحية / Not your property")
 
-    # Wave 26 — owners now upload 6–40 photos per listing.
     if len(files) > 40:
         raise HTTPException(
             status_code=400,
             detail="الحد الأقصى 40 صورة / Max 40 images",
         )
 
-    # Allowed MIME types (mirrors S3 service).  HEIC/HEIF added so iPhone
-    # users don't see "silent skip" when image_picker hands us the
-    # original capture without recompression.
-    _ALLOWED_MIMES = {
-        "image/jpeg",
-        "image/jpg",
-        "image/png",
-        "image/webp",
-        "image/gif",
-        "image/heic",
-        "image/heif",
-    }
-
-    urls: list[str] = list(prop.images or [])
+    # Pre-filter MIME types so we don't pay an S3 round-trip for
+    # files we already know we'll reject.
+    accepted: list[tuple[UploadFile, str]] = []
     rejected: list[dict[str, str | None]] = []
-
     for f in files:
-        ct = (f.content_type or "").lower()
-        if ct not in _ALLOWED_MIMES:
-            # Surface the rejection instead of silently dropping it —
-            # the previous behaviour caused owners to see "success"
-            # while half their photos vanished.
-            rejected.append({"filename": f.filename, "content_type": ct or None})
+        s3_ct = _normalise_image_ct(f.content_type)
+        if s3_ct is None:
+            rejected.append({
+                "filename": f.filename,
+                "content_type": (f.content_type or "").lower() or None,
+            })
             logger.warning(
                 "property_image_rejected_mime",
                 property_id=property_id,
                 filename=f.filename,
-                content_type=ct or None,
+                content_type=f.content_type,
             )
             continue
+        accepted.append((f, s3_ct))
 
-        # Normalise HEIC/HEIF → S3 service expects one of its known
-        # extensions.  We tag the upload as JPEG; image_picker on
-        # iOS already transcodes to JPEG when imageQuality<100, so
-        # this branch only fires for raw HEIC blobs.
-        s3_ct = "image/jpeg" if ct in ("image/heic", "image/heif") else ct
-        if s3_ct == "image/jpg":
-            s3_ct = "image/jpeg"
-
+    async def _put_one(
+        f: UploadFile, s3_ct: str
+    ) -> tuple[UploadFile, str | None]:
         url = await upload_image(
             f.file,
             folder=f"properties/{property_id}",
             content_type=s3_ct,
         )
-        if url is not None:
-            urls.append(url)
-        else:
-            rejected.append({"filename": f.filename, "content_type": ct})
+        return f, url
+
+    # Parallel upload.  ``return_exceptions=True`` so one failed file
+    # doesn't tank the whole batch — the caller still sees the
+    # successes via the response body, and the failures via the
+    # ``rejected`` list.
+    results = await asyncio.gather(
+        *[_put_one(f, s3_ct) for f, s3_ct in accepted],
+        return_exceptions=True,
+    )
+
+    urls: list[str] = list(prop.images or [])
+    for entry in results:
+        if isinstance(entry, BaseException):
+            logger.error(
+                "property_image_s3_upload_exception",
+                property_id=property_id,
+                error=str(entry),
+            )
+            rejected.append({"filename": None, "content_type": None})
+            continue
+        f, url = entry
+        if url is None:
+            rejected.append({"filename": f.filename, "content_type": f.content_type})
             logger.error(
                 "property_image_s3_upload_failed",
                 property_id=property_id,
                 filename=f.filename,
             )
+            continue
+        urls.append(url)
 
     # If the caller sent files but *none* survived the pipeline,
-    # fail loudly rather than returning a misleading 200.  This is
-    # the single most common silent-failure mode reported by owners
-    # ("صورى مرفعتش رغم إن قال تم").
-    if files and not urls and rejected:
+    # fail loudly rather than returning a misleading 200.
+    if files and not any(r for r in results if not isinstance(r, BaseException) and r[1]) and rejected:
         raise HTTPException(
             status_code=400,
             detail={
@@ -698,20 +956,44 @@ async def upload_property_id_documents(
             status_code=403, detail="ليس لديك صلاحية / Not your property"
         )
 
-    for f in (front, back):
-        if f.content_type not in ("image/jpeg", "image/png", "image/webp"):
-            raise HTTPException(
-                status_code=415,
-                detail="صيغة الصورة غير مدعومة / Unsupported image format",
-            )
+    front_ct = _normalise_image_ct(front.content_type)
+    back_ct = _normalise_image_ct(back.content_type)
+    if front_ct is None or back_ct is None:
+        raise HTTPException(
+            status_code=415,
+            detail="صيغة الصورة غير مدعومة / Unsupported image format",
+        )
 
-    front_url = await upload_image(
-        front.file, folder=f"properties/{property_id}/id", content_type=front.content_type,
-    )
-    back_url = await upload_image(
-        back.file, folder=f"properties/{property_id}/id", content_type=back.content_type,
+    # Upload both faces in parallel.  Critical: if one of the two
+    # PUTs succeeds and the other fails, we *must* delete the orphan
+    # to avoid leaking national-ID scans into S3 with no DB pointer.
+    front_url, back_url = await asyncio.gather(
+        upload_image(
+            front.file, folder=f"properties/{property_id}/id", content_type=front_ct,
+        ),
+        upload_image(
+            back.file, folder=f"properties/{property_id}/id", content_type=back_ct,
+        ),
     )
     if front_url is None or back_url is None:
+        # Roll back any partial upload so we never leave personal
+        # documents orphaned in S3.
+        if front_url is not None:
+            try:
+                await delete_image(front_url)
+            except Exception:  # pragma: no cover — best-effort cleanup
+                logger.exception(
+                    "id_document_orphan_cleanup_failed",
+                    url=front_url, property_id=property_id,
+                )
+        if back_url is not None:
+            try:
+                await delete_image(back_url)
+            except Exception:  # pragma: no cover
+                logger.exception(
+                    "id_document_orphan_cleanup_failed",
+                    url=back_url, property_id=property_id,
+                )
         raise HTTPException(
             status_code=500,
             detail="فشل رفع البطاقة / Failed to upload ID images",
@@ -732,10 +1014,16 @@ async def upload_property_id_documents(
 async def delete_property_image(
     property_id: int,
     image_url: str = Query(..., description="Full S3 URL of the image to delete"),
+    background: BackgroundTasks = None,  # type: ignore[assignment]
     user: User = Depends(require_role(UserRole.owner, UserRole.admin)),
     db: AsyncSession = Depends(get_db),
 ):
-    result = await db.execute(select(Property).where(Property.id == property_id))
+    result = await db.execute(
+        select(Property).where(
+            Property.id == property_id,
+            Property.deleted_at.is_(None),
+        )
+    )
     prop = result.scalar_one_or_none()
     if prop is None:
         raise HTTPException(status_code=404, detail="العقار غير موجود / Property not found")
@@ -746,9 +1034,18 @@ async def delete_property_image(
     if image_url not in urls:
         raise HTTPException(status_code=404, detail="الصورة غير موجودة / Image not found")
 
-    await delete_image(image_url)
+    # Update the DB *first*, then schedule the S3 delete as a
+    # background task.  If the S3 call fails we leak one orphan
+    # blob (cheap to GC nightly) instead of leaving a dangling URL
+    # in the listing's image array — a much worse UX bug.
     urls.remove(image_url)
     prop.images = urls
     await db.flush()
     await db.refresh(prop)
+    if background is not None:
+        background.add_task(delete_image, image_url)
+    else:
+        # Tests / direct calls without a BackgroundTasks instance
+        # fall back to inline delete; production always has it.
+        await delete_image(image_url)
     return PropertyOut.model_validate(prop)

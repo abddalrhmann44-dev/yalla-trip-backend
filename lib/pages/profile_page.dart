@@ -17,7 +17,7 @@ import '../widgets/wallet_lottie.dart';
 import 'owner_add_property_page.dart';
 import 'owner_payouts_page.dart';
 import 'bookings_page.dart';
-import 'host_dashboard_page.dart';
+import 'host_shell_page.dart';
 import 'login_page.dart';
 import 'wallet_page.dart';
 import '../main.dart' show appSettings, userProvider, favoritesProvider;
@@ -565,7 +565,7 @@ class _ProfilePageState extends State<ProfilePage> {
         GestureDetector(
           onTap: () => Navigator.push(
             context,
-            MaterialPageRoute(builder: (_) => const HostDashboardPage()),
+            MaterialPageRoute(builder: (_) => const HostShellPage()),
           ),
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
@@ -635,7 +635,7 @@ class _ProfilePageState extends State<ProfilePage> {
             title: 'لوحة التحكم',
             subtitle: 'إدارة عقاراتك وحجوزاتك',
             onTap: () => Navigator.push(context,
-                MaterialPageRoute(builder: (_) => const HostDashboardPage())),
+                MaterialPageRoute(builder: (_) => const HostShellPage())),
           ),
           _menuDivider(),
           _menuItem(
@@ -661,7 +661,7 @@ class _ProfilePageState extends State<ProfilePage> {
             title: 'الرسائل',
             subtitle: 'تواصل مع الضيوف',
             onTap: () => Navigator.push(context,
-                MaterialPageRoute(builder: (_) => const HostDashboardPage())),
+                MaterialPageRoute(builder: (_) => const HostShellPage())),
           ),
           _menuDivider(),
           _menuItem(

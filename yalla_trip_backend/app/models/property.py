@@ -186,6 +186,15 @@ class Property(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
+    # ── Soft delete (Wave 26.2) ───────────────────────────────
+    # ``None`` for live listings; populated when the host clicks
+    # "delete" *and* no active bookings block the action.  All
+    # guest-facing queries filter on ``deleted_at IS NULL`` so
+    # soft-deleted rows disappear from search without us having to
+    # CASCADE-purge their bookings/payments/reviews.
+    deleted_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
     # ── relationships ─────────────────────────────────────────
     # ``owner`` stays eager (selectin) because almost every property

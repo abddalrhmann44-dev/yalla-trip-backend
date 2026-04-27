@@ -5,6 +5,7 @@ All endpoints require the caller to own the property (or be admin).
 
 from __future__ import annotations
 
+import asyncio
 from datetime import date, timedelta
 
 import structlog
@@ -33,11 +34,45 @@ router = APIRouter(prefix="/availability", tags=["Availability"])
 
 
 # ── Helpers ────────────────────────────────────────────────
+async def _check_owns_property(
+    db: AsyncSession, property_id: int, user: User,
+) -> None:
+    """Lightweight ownership check used by mutation endpoints.
+
+    Selects only ``owner_id`` instead of the full Property row — the
+    previous version triggered ``lazy=selectin`` on the owner relation
+    on every call (~6 endpoints), wasting one extra query per request
+    just to enforce a permission check.
+    """
+    row = (
+        await db.execute(
+            select(Property.owner_id).where(
+                Property.id == property_id,
+                Property.deleted_at.is_(None),
+            )
+        )
+    ).first()
+    if row is None:
+        raise HTTPException(status_code=404, detail="العقار غير موجود / Property not found")
+    if row.owner_id != user.id and user.role != UserRole.admin:
+        raise HTTPException(status_code=403, detail="ليس لديك صلاحية / Forbidden")
+
+
 async def _get_own_property(
     db: AsyncSession, property_id: int, user: User,
 ) -> Property:
-    """Return property if user owns it or is admin, else 403/404."""
-    result = await db.execute(select(Property).where(Property.id == property_id))
+    """Return the full Property row if user owns it or is admin.
+
+    Use this only when the caller actually needs the row data (e.g.
+    pricing on the calendar grid).  For pure ownership checks call
+    :func:`_check_owns_property` instead.
+    """
+    result = await db.execute(
+        select(Property).where(
+            Property.id == property_id,
+            Property.deleted_at.is_(None),
+        )
+    )
     prop = result.scalar_one_or_none()
     if prop is None:
         raise HTTPException(status_code=404, detail="العقار غير موجود / Property not found")
@@ -63,7 +98,7 @@ async def list_rules(
     db: AsyncSession = Depends(get_db),
 ):
     """List availability rules for a property the caller owns."""
-    await _get_own_property(db, property_id, user)
+    await _check_owns_property(db, property_id, user)
 
     stmt = (
         select(AvailabilityRule)
@@ -93,7 +128,7 @@ async def create_rule(
     db: AsyncSession = Depends(get_db),
 ):
     """Create a single availability rule."""
-    await _get_own_property(db, property_id, user)
+    await _check_owns_property(db, property_id, user)
 
     rule = AvailabilityRule(
         property_id=property_id,
@@ -124,7 +159,7 @@ async def update_rule(
     db: AsyncSession = Depends(get_db),
 ):
     """Update an existing availability rule."""
-    await _get_own_property(db, property_id, user)
+    await _check_owns_property(db, property_id, user)
 
     result = await db.execute(
         select(AvailabilityRule).where(
@@ -162,7 +197,7 @@ async def delete_rule(
     db: AsyncSession = Depends(get_db),
 ):
     """Delete a single availability rule."""
-    await _get_own_property(db, property_id, user)
+    await _check_owns_property(db, property_id, user)
 
     result = await db.execute(
         select(AvailabilityRule).where(
@@ -193,8 +228,14 @@ async def bulk_create_rules(
     user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Create multiple rules at once (batch from calendar editor)."""
-    await _get_own_property(db, property_id, user)
+    """Create multiple rules at once (batch from calendar editor).
+
+    The previous implementation called ``await db.refresh(r)`` for
+    every rule — 30 refreshes for a 30-rule batch saved by the host
+    on the calendar editor.  ``flush`` already populates ids and
+    server defaults; the refresh loop was pure overhead.
+    """
+    await _check_owns_property(db, property_id, user)
 
     created = []
     for item in body.rules:
@@ -211,9 +252,7 @@ async def bulk_create_rules(
         db.add(rule)
         created.append(rule)
 
-    await db.flush()
-    for r in created:
-        await db.refresh(r)
+    await db.flush()  # populates id + server-default created_at
 
     logger.info("availability_rules_bulk_created", count=len(created), property_id=property_id)
     return [AvailabilityRuleOut.model_validate(r) for r in created]
@@ -230,7 +269,7 @@ async def bulk_delete_rules(
     db: AsyncSession = Depends(get_db),
 ):
     """Delete multiple rules by ID."""
-    await _get_own_property(db, property_id, user)
+    await _check_owns_property(db, property_id, user)
 
     await db.execute(
         delete(AvailabilityRule).where(
@@ -268,46 +307,67 @@ async def calendar_grid(
 
     prop = await _get_own_property(db, property_id, user)
 
-    # Fetch rules in range
-    rules = (await db.execute(
-        select(AvailabilityRule)
-        .where(
-            AvailabilityRule.property_id == property_id,
-            AvailabilityRule.start_date < end,
-            AvailabilityRule.end_date > start,
-        )
-        .order_by(AvailabilityRule.created_at)
-    )).scalars().all()
+    # Fetch rules / bookings / blocks in parallel — they're independent
+    # SELECTs and the previous serial path added 3× round-trip latency
+    # to a hot endpoint the host hits every time they navigate months.
+    rules_q = select(AvailabilityRule).where(
+        AvailabilityRule.property_id == property_id,
+        AvailabilityRule.start_date < end,
+        AvailabilityRule.end_date > start,
+    ).order_by(AvailabilityRule.created_at)
+    bookings_q = select(Booking.check_in, Booking.check_out).where(
+        Booking.property_id == property_id,
+        Booking.status.in_([BookingStatus.pending, BookingStatus.confirmed]),
+        Booking.check_in < end,
+        Booking.check_out > start,
+    )
+    blocks_q = select(CalendarBlock.start_date, CalendarBlock.end_date).where(
+        CalendarBlock.property_id == property_id,
+        CalendarBlock.start_date < end,
+        CalendarBlock.end_date > start,
+    )
+    rules_res, bookings_res, blocks_res = await asyncio.gather(
+        db.execute(rules_q),
+        db.execute(bookings_q),
+        db.execute(blocks_q),
+    )
+    rules = rules_res.scalars().all()
+    bookings = bookings_res.all()
+    blocks = blocks_res.all()
 
-    # Fetch bookings in range
-    bookings = (await db.execute(
-        select(Booking.check_in, Booking.check_out)
-        .where(
-            Booking.property_id == property_id,
-            Booking.status.in_([BookingStatus.pending, BookingStatus.confirmed]),
-            Booking.check_in < end,
-            Booking.check_out > start,
-        )
-    )).all()
+    # Pre-compute per-day lookup arrays so the per-day loop becomes
+    # O(days) instead of O(days × rules + days × bookings + days × blocks).
+    # On a 12-month calendar with 200 bookings this is the difference
+    # between ~100K and ~6K Python iterations.
+    total_days = (end - start).days
+    booked_arr = [False] * total_days
+    blocked_arr = [False] * total_days
+    rule_arr: list[list[AvailabilityRule]] = [[] for _ in range(total_days)]
 
-    # Fetch iCal blocks in range
-    blocks = (await db.execute(
-        select(CalendarBlock.start_date, CalendarBlock.end_date)
-        .where(
-            CalendarBlock.property_id == property_id,
-            CalendarBlock.start_date < end,
-            CalendarBlock.end_date > start,
-        )
-    )).all()
+    def _stamp(arr: list[bool], lo_d: date, hi_d: date) -> None:
+        lo = max(0, (lo_d - start).days)
+        hi = min(total_days, (hi_d - start).days)
+        for i in range(lo, hi):
+            arr[i] = True
 
-    # Build day-by-day list
+    for ci, co in bookings:
+        _stamp(booked_arr, ci, co)
+    for bs, be in blocks:
+        _stamp(blocked_arr, bs, be)
+    for rule in rules:
+        lo = max(0, (rule.start_date - start).days)
+        hi = min(total_days, (rule.end_date - start).days)
+        for i in range(lo, hi):
+            rule_arr[i].append(rule)
+
+    # Walk days using only the per-day buckets — cheap.
     days: list[DayDetail] = []
-    day = start
-    while day < end:
-        is_weekend = day.weekday() in (4, 5)  # Egypt: Fri/Sat
+    weekend_price = prop.weekend_price or prop.price_per_night
+    weekday_price = prop.price_per_night
+    for i in range(total_days):
+        day = start + timedelta(days=i)
         base_price = float(
-            (prop.weekend_price or prop.price_per_night) if is_weekend
-            else prop.price_per_night
+            weekend_price if day.weekday() in (4, 5) else weekday_price
         )
 
         effective_price = base_price
@@ -315,25 +375,17 @@ async def calendar_grid(
         min_nights = 1
         labels: list[str] = []
 
-        # Apply rules (last-created wins for same type)
-        for rule in rules:
-            if rule.start_date <= day < rule.end_date:
-                if rule.rule_type == RuleType.pricing and rule.price_override is not None:
-                    effective_price = rule.price_override
-                    if rule.label:
-                        labels.append(rule.label)
-                elif rule.rule_type == RuleType.min_stay and rule.min_nights is not None:
-                    min_nights = max(min_nights, rule.min_nights)
-                elif rule.rule_type == RuleType.closed:
-                    is_closed = True
-                    if rule.label:
-                        labels.append(rule.label)
-
-        # Check bookings
-        is_booked = any(ci <= day < co for ci, co in bookings)
-
-        # Check iCal blocks
-        is_blocked = any(bs <= day < be for bs, be in blocks)
+        for rule in rule_arr[i]:
+            if rule.rule_type == RuleType.pricing and rule.price_override is not None:
+                effective_price = rule.price_override
+                if rule.label:
+                    labels.append(rule.label)
+            elif rule.rule_type == RuleType.min_stay and rule.min_nights is not None:
+                min_nights = max(min_nights, rule.min_nights)
+            elif rule.rule_type == RuleType.closed:
+                is_closed = True
+                if rule.label:
+                    labels.append(rule.label)
 
         days.append(DayDetail(
             date=day,
@@ -341,10 +393,9 @@ async def calendar_grid(
             effective_price=effective_price,
             is_closed=is_closed,
             min_nights=min_nights,
-            is_booked=is_booked,
-            is_blocked=is_blocked,
+            is_booked=booked_arr[i],
+            is_blocked=blocked_arr[i],
             labels=labels,
         ))
-        day += timedelta(days=1)
 
     return days

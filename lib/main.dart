@@ -15,7 +15,7 @@ import 'pages/chat_page.dart';
 import 'pages/chat_inbox_page.dart';
 import 'pages/explore_page.dart';
 import 'pages/bookings_page.dart';
-import 'pages/host_dashboard_page.dart';
+import 'pages/host_shell_page.dart';
 import 'pages/profile_page.dart';
 import 'widgets/constants.dart';
 import 'utils/app_strings.dart';
@@ -163,7 +163,7 @@ class TalaaApp extends StatelessWidget {
         '/owner': (_) => const OwnerAddPropertyPage(),
         '/explore': (_) => const ExplorePage(),
         '/bookings': (_) => const BookingsPage(),
-        '/host': (_) => const HostDashboardPage(),
+        '/host': (_) => const HostShellPage(),
         '/profile': (_) => const ProfilePage(),
         '/admin': (_) => const AdminMainPage(),
       },

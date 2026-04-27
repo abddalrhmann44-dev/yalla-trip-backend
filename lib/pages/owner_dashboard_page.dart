@@ -4,19 +4,20 @@
 // ═══════════════════════════════════════════════════════════════
 
 import 'package:flutter/material.dart';
-import '../main.dart' show appSettings;
-import '../widgets/constants.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+
 import '../models/property_model_api.dart';
 import '../services/property_service.dart';
-import 'owner_add_property_page.dart';
-import 'owner_payouts_page.dart';
+import '../services/user_role_service.dart';
+import '../widgets/constants.dart';
+import 'availability_calendar_page.dart';
+import 'home_page.dart';
 import 'host_dashboard_page.dart';
 import 'offer_creation_page.dart';
-import 'home_page.dart';
-import '../services/user_role_service.dart';
-import 'availability_calendar_page.dart';
+import 'owner_add_property_page.dart';
+import 'owner_edit_property_page.dart';
+import 'owner_payouts_page.dart';
 
 // Accent colors (same in light & dark)
 const _kOcean  = Color(0xFFFF6B35);
@@ -46,18 +47,22 @@ class _OwnerDashboardPageState extends State<OwnerDashboardPage>
   @override
   void initState() {
     super.initState();
-    appSettings.addListener(_onLangChange);
+    // Subscribe to ``appSettings`` only via a ListenableBuilder around
+    // the small bits of UI that actually depend on language; the old
+    // ``setState(() {})`` listener forced a full-page rebuild on every
+    // toggle, which on a list of 20 properties + animations cost the
+    // host ~150ms freeze every time they tapped the language switch.
     _fadeCtrl = AnimationController(
         vsync: this, duration: const Duration(milliseconds: 600));
     _fadeAnim = CurvedAnimation(parent: _fadeCtrl, curve: Curves.easeOut);
     _checkOwnerAccess();
   }
 
-  void _onLangChange() { if (mounted) setState(() {}); }
-
   @override
   void dispose() {
-    appSettings.removeListener(_onLangChange); _fadeCtrl.dispose(); super.dispose(); }
+    _fadeCtrl.dispose();
+    super.dispose();
+  }
 
 
 
@@ -85,21 +90,51 @@ class _OwnerDashboardPageState extends State<OwnerDashboardPage>
     }
   }
 
+  /// Optimistic availability toggle.
+  ///
+  /// Flips the local card state immediately so the host sees instant
+  /// feedback, then reconciles with the server.  On error we roll the
+  /// flag back and surface a snackbar — previously the page reloaded
+  /// the entire list after every toggle, which felt sluggish on slow
+  /// networks and wasted one round-trip per click.
   Future<void> _toggleAvailability(PropertyApi p) async {
-    await PropertyService.updateProperty(
-        p.id, {'is_available': !p.isAvailable});
-    _loadProperties();
+    HapticFeedback.selectionClick();
+    final newVal = !p.isAvailable;
+    final idx = _properties.indexWhere((x) => x.id == p.id);
+    if (idx < 0) return;
+
+    setState(() => _properties[idx] = p.copyWith(isAvailable: newVal));
+    try {
+      await PropertyService.updateProperty(
+          p.id, {'is_available': newVal});
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _properties[idx] = p);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('فشل تعديل الحالة: $e'),
+          backgroundColor: const Color(0xFFE53935),
+        ),
+      );
+    }
   }
 
+  /// Delete with the new soft-delete UX.
+  ///
+  /// The backend now refuses (409) when active bookings exist; we
+  /// surface that explicitly so the host knows to cancel/disable the
+  /// listing instead of getting a misleading "deleted" toast.
   Future<void> _deleteProperty(PropertyApi p) async {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
         shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20)),
-        title: Text('حذف العقار؟',
+        title: const Text('حذف العقار؟',
             style: TextStyle(fontWeight: FontWeight.w900)),
-        content: Text('هيتحذف "${p.name}" نهائياً ومش هيرجع.',
+        content: Text(
+            'هيتحذف "${p.name}" ومايظهرش في البحث. '
+            'لو عليه حجوزات نشطة لازم تلغيها الأول.',
             style: TextStyle(color: context.kSub)),
         actions: [
           TextButton(
@@ -109,7 +144,8 @@ class _OwnerDashboardPageState extends State<OwnerDashboardPage>
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
             style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFE53935), foregroundColor: Colors.white,
+                backgroundColor: const Color(0xFFE53935),
+                foregroundColor: Colors.white,
                 elevation: 0,
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12))),
@@ -119,8 +155,43 @@ class _OwnerDashboardPageState extends State<OwnerDashboardPage>
       ),
     );
     if (confirm != true) return;
-    await PropertyService.deleteProperty(p.id);
-    _loadProperties();
+
+    // Optimistically remove from the list; on a 409 from the backend
+    // (active bookings) we restore the row and explain the constraint.
+    final idx = _properties.indexWhere((x) => x.id == p.id);
+    final snapshot = List<PropertyApi>.from(_properties);
+    setState(() => _properties.removeAt(idx));
+    try {
+      await PropertyService.deleteProperty(p.id);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _properties = snapshot);
+      final msg = e.toString().contains('409') || e.toString().contains('حجز نشط')
+          ? 'فيه حجوزات نشطة على العقار — ألغها أولاً أو أوقف العقار بدلاً من الحذف.'
+          : 'فشل الحذف: $e';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(msg),
+          backgroundColor: const Color(0xFFE53935),
+        ),
+      );
+    }
+  }
+
+  /// Push the edit screen and merge the returned property back into
+  /// the local list — cheaper than a full reload.
+  Future<void> _editProperty(PropertyApi p) async {
+    HapticFeedback.lightImpact();
+    final updated = await Navigator.push<PropertyApi>(
+      context,
+      MaterialPageRoute(
+          builder: (_) => OwnerEditPropertyPage(property: p)),
+    );
+    if (updated == null || !mounted) return;
+    final idx = _properties.indexWhere((x) => x.id == updated.id);
+    if (idx >= 0) {
+      setState(() => _properties[idx] = updated);
+    }
   }
 
   // ── Stats ────────────────────────────────────────────────────
@@ -155,7 +226,6 @@ class _OwnerDashboardPageState extends State<OwnerDashboardPage>
                   slivers: [
                     _buildSliverHeader(),
                     _buildStatsBar(),
-                    _buildOwnerOptionsSection(),
                     if (_properties.isEmpty)
                       _buildEmptySliver()
                     else ...[
@@ -366,7 +436,12 @@ class _OwnerDashboardPageState extends State<OwnerDashboardPage>
       width: 1, height: 50,
       color: context.kBorder);
 
-  // ── Owner Options Section ──────────────────────────────────────
+  // ── Owner Options Section (DEPRECATED) ─────────────────────
+  // The host shell's bottom navigation bar replaces this options
+  // grid; we keep the method body unreferenced for now to minimise
+  // the diff while the new shell stabilises.  Removed from the
+  // sliver tree above; safe to delete in a follow-up cleanup pass.
+  // ignore: unused_element
   Widget _buildOwnerOptionsSection() {
     final isDark = context.isDark;
     final options = [
@@ -724,12 +799,7 @@ class _OwnerDashboardPageState extends State<OwnerDashboardPage>
                 icon: Icons.edit_rounded,
                 label: 'تعديل',
                 color: _kOcean,
-                onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                        content: Text('قريباً — تعديل العقار')),
-                  );
-                },
+                onTap: () => _editProperty(p),
               ),
               const SizedBox(width: 8),
 

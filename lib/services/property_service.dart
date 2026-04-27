@@ -8,6 +8,47 @@ import 'dart:io';
 import '../models/property_model_api.dart';
 import '../utils/api_client.dart';
 
+/// Aggregate stats returned by `GET /properties/mine/stats`.
+///
+/// Mirrors the backend's `MyPropertiesStats` schema; centralising the
+/// shape here keeps the host dashboard's Today tab in sync whenever
+/// the backend grows new metrics (occupancy %, gross-vs-payout, etc.)
+/// without each consumer re-implementing the deserialisation.
+class MyPropertiesStats {
+  final int totalProperties;
+  final int activeProperties;
+  final double avgRating;
+  final int totalReviews;
+  final double revenue30d;
+  final double revenueAllTime;
+  final int upcomingBookings;
+  final int pendingKyc;
+
+  const MyPropertiesStats({
+    required this.totalProperties,
+    required this.activeProperties,
+    required this.avgRating,
+    required this.totalReviews,
+    required this.revenue30d,
+    required this.revenueAllTime,
+    required this.upcomingBookings,
+    required this.pendingKyc,
+  });
+
+  factory MyPropertiesStats.fromJson(Map<String, dynamic> j) {
+    return MyPropertiesStats(
+      totalProperties: (j['total_properties'] as num?)?.toInt() ?? 0,
+      activeProperties: (j['active_properties'] as num?)?.toInt() ?? 0,
+      avgRating: (j['avg_rating'] as num?)?.toDouble() ?? 0,
+      totalReviews: (j['total_reviews'] as num?)?.toInt() ?? 0,
+      revenue30d: (j['revenue_30d'] as num?)?.toDouble() ?? 0,
+      revenueAllTime: (j['revenue_all_time'] as num?)?.toDouble() ?? 0,
+      upcomingBookings: (j['upcoming_bookings'] as num?)?.toInt() ?? 0,
+      pendingKyc: (j['pending_kyc'] as num?)?.toInt() ?? 0,
+    );
+  }
+}
+
 class PropertyService {
   static final _api = ApiClient();
 
@@ -106,6 +147,14 @@ class PropertyService {
     return (data as List)
         .map((e) => PropertyApi.fromJson(e as Map<String, dynamic>))
         .toList();
+  }
+
+  /// Aggregate dashboard stats — replaces the old client-side sums
+  /// over the full property list and adds revenue + upcoming-bookings
+  /// metrics the host actually wants front-and-centre.
+  static Future<MyPropertiesStats> getMyStats() async {
+    final data = await _api.get('/properties/mine/stats');
+    return MyPropertiesStats.fromJson(data as Map<String, dynamic>);
   }
 
   // ── Get single property ───────────────────────────────────
