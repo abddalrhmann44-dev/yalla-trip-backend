@@ -371,24 +371,13 @@ class AuthGate extends StatefulWidget {
 class _AuthGateState extends State<AuthGate> {
   bool _checkedVersion = false;
   bool _profileLoaded = false;
-  bool? _onboardingSeen;
 
-  @override
-  void initState() {
-    super.initState();
-    _loadOnboardingFlag();
-  }
-
-  Future<void> _loadOnboardingFlag() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final seen = prefs.getBool(kOnboardingSeenKey) ?? false;
-      if (!mounted) return;
-      setState(() => _onboardingSeen = seen);
-    } catch (_) {
-      if (mounted) setState(() => _onboardingSeen = true);
-    }
-  }
+  // NOTE: The onboarding stage was removed from the cold-start flow
+  // by user request — the splash now hands off directly to HomePage
+  // (logged in or guest).  We deliberately *don't* read
+  // ``kOnboardingSeenKey`` here anymore; if onboarding is ever
+  // re-introduced it should be triggered explicitly from Profile or
+  // a "what's new" entry point, not on every app launch.
 
   @override
   void didChangeDependencies() {
@@ -441,19 +430,11 @@ class _AuthGateState extends State<AuthGate> {
           _profileLoaded = false;
         }
 
-        if (snapshot.hasData && snapshot.data != null) {
-          return const HomePage();
-        }
-        // Not logged in — onboarding first (if not seen yet).
-        if (_onboardingSeen == null) {
-          return _waiting();
-        }
-        // Not logged in — show onboarding the first time only,
-        // otherwise drop straight into HomePage as a guest. Login
-        // screen is pushed on-demand when a gated action is tapped.
-        return _onboardingSeen!
-            ? const HomePage()
-            : const OnboardingPage();
+        // Logged in OR guest — go straight to HomePage.  No
+        // onboarding stage; the login screen is pushed on-demand
+        // when a gated action (booking / chat / favourites) is
+        // tapped, so guests can browse without any pre-home wall.
+        return const HomePage();
       },
     );
   }
