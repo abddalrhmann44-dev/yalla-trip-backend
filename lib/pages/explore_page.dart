@@ -53,7 +53,18 @@ class ExplorePage extends StatefulWidget {
   final String? initialArea;
   final String? initialType;
   final String? initialSearch;
-  const ExplorePage({super.key, this.initialArea, this.initialType, this.initialSearch});
+  /// When true, the search field auto-opens the keyboard on entry.
+  /// Used by the home page's "fake" search bar so tapping it lands
+  /// the user with the cursor already blinking inside Explore — no
+  /// extra second-tap required.
+  final bool autoFocusSearch;
+  const ExplorePage({
+    super.key,
+    this.initialArea,
+    this.initialType,
+    this.initialSearch,
+    this.autoFocusSearch = false,
+  });
   @override State<ExplorePage> createState() => _ExplorePageState();
 }
 
@@ -253,6 +264,7 @@ class _ExplorePageState extends State<ExplorePage>
                 const SizedBox(width: 8),
                 Expanded(child: TextField(
                   controller: _searchCtrl,
+                  autofocus: widget.autoFocusSearch,
                   style: TextStyle(fontSize: 14, color: context.kText),
                   decoration: InputDecoration(
                     hintText: S.exploreSearchHint,
