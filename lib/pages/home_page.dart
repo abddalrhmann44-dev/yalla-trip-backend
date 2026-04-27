@@ -317,14 +317,25 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         backgroundColor: context.kSand,
         extendBody: _navIdx == 0,
         bottomNavigationBar: _buildNavBar(),
-        body: IndexedStack(
-          index: _navIdx,
-          children: [
-            _isLoading ? _buildShimmerScreen() : _buildContent(),
-            const BestTripPage(embedded: true),
-            const ChatInboxPage(embedded: true),
-            const ProfilePage(embedded: true),
-          ],
+        // ``GestureDetector`` on the Scaffold body dismisses the
+        // search-bar keyboard the moment the user taps anywhere
+        // outside the field.  Fixes the "field stays focused after
+        // I lift my finger" bug without removing the inline
+        // ``TextField`` UX the user prefers on the home page.
+        // ``HitTestBehavior.translucent`` lets taps still reach
+        // the children below (cards, hero slider, etc.).
+        body: GestureDetector(
+          behavior: HitTestBehavior.translucent,
+          onTap: () => FocusScope.of(context).unfocus(),
+          child: IndexedStack(
+            index: _navIdx,
+            children: [
+              _isLoading ? _buildShimmerScreen() : _buildContent(),
+              const BestTripPage(embedded: true),
+              const ChatInboxPage(embedded: true),
+              const ProfilePage(embedded: true),
+            ],
+          ),
         ),
       ),
     );
