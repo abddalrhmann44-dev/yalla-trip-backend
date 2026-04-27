@@ -237,7 +237,13 @@ class _OwnerDashboardPageState extends State<OwnerDashboardPage>
                   ],
                 ),
               ),
-        floatingActionButton: _buildFAB(),
+        // Show the FAB only when the host already has at least one
+        // listing.  In the empty state the centred "أضف عقار"
+        // ElevatedButton inside ``_buildEmptySliver`` is the single,
+        // unambiguous CTA — adding the FAB on top duplicates the
+        // action and clutters the empty illustration.
+        floatingActionButton:
+            _properties.isEmpty ? null : _buildFAB(),
       ),
     );
   }
