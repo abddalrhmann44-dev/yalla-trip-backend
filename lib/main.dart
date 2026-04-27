@@ -3,14 +3,12 @@ import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'firebase_options.dart';
 
 import 'pages/login_page.dart';
 import 'pages/register_page.dart';
 import 'pages/home_page.dart';
-import 'pages/splash_page.dart';
 import 'pages/owner_add_property_page.dart';
 import 'pages/onboarding_page.dart';
 import 'pages/chat_page.dart';
@@ -75,15 +73,12 @@ final userProvider = UserProvider();
 final favoritesProvider = FavoritesProvider();
 
 void main() async {
-  // Pin the native splash on screen until Dart is fully ready to
-  // paint its own splash artwork.  Without this, Flutter removes
-  // the native splash as soon as the *first* frame is rendered —
-  // even if our SplashPage hasn't decoded its bitmap yet — so the
-  // user sees a brief orange flash with no logo.  The matching
-  // ``FlutterNativeSplash.remove()`` call lives in ``SplashPage``,
-  // fired only after ``precacheImage`` resolves.
-  final binding = WidgetsFlutterBinding.ensureInitialized();
-  FlutterNativeSplash.preserve(widgetsBinding: binding);
+  // The Dart-side splash screen was removed by user request — the
+  // app now boots straight from the native (orange) launch screen
+  // into HomePage, with no Talaa artwork or logo stage in between.
+  // We therefore don't ``FlutterNativeSplash.preserve()`` either;
+  // the native splash auto-dismisses on the first rendered frame.
+  WidgetsFlutterBinding.ensureInitialized();
 
   try {
     await Firebase.initializeApp(
@@ -164,13 +159,10 @@ class TalaaApp extends StatelessWidget {
           ),
         );
       },
-      // Root surface = an in-place switcher between SplashPage and
-      // AuthGate, NOT a navigator route.  This way the splash never
-      // ends up in the navigator stack — a stray
-      // ``Navigator.popUntil((r) => r.isFirst)`` deeper in the app
-      // can't bring it back, and there's no route-transition animation
-      // fighting the splash's own fade-out.
-      home: const _RootSwitcher(),
+      // No splash, no onboarding — straight to AuthGate, which
+      // itself drops into HomePage regardless of auth state (login
+      // is pushed on-demand only when a gated action is tapped).
+      home: const AuthGate(),
       routes: {
         '/login': (_) => const LoginPage(),
         '/register': (_) => const RegisterPage(),
@@ -305,63 +297,10 @@ class TalaaApp extends StatelessWidget {
   }
 }
 
-/// In-place root surface switcher.
-///
-/// Lives at ``MaterialApp.home`` and cross-fades between two states:
-///
-///   * **Splash** (initial)     — the Talaa cold-start artwork
-///   * **AuthGate** (after splash) — Onboarding / Login / Home
-///
-/// Using an ``AnimatedSwitcher`` instead of a Navigator route keeps
-/// the splash out of the back stack, gives us deterministic timing
-/// (the auth gate starts mounting *before* the splash is fully
-/// faded), and makes the entire startup transition a single render
-/// pass with no route-animation overhead.
-class _RootSwitcher extends StatefulWidget {
-  const _RootSwitcher();
-
-  @override
-  State<_RootSwitcher> createState() => _RootSwitcherState();
-}
-
-class _RootSwitcherState extends State<_RootSwitcher> {
-  bool _splashDone = false;
-
-  void _onSplashComplete() {
-    if (!mounted || _splashDone) return;
-    setState(() => _splashDone = true);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedSwitcher(
-      // 300 ms matches the splash's own ``_kFadeIn`` so the cross-fade
-      // feels symmetric with the splash entry animation.
-      duration: const Duration(milliseconds: 300),
-      switchInCurve: Curves.easeOutCubic,
-      switchOutCurve: Curves.easeInCubic,
-      // ``KeyedSubtree`` keys force AnimatedSwitcher to treat the two
-      // children as distinct widgets — without keys it short-circuits
-      // the transition because both happen to be StatefulWidgets at
-      // the same depth.
-      child: _splashDone
-          ? const KeyedSubtree(
-              key: ValueKey('auth_gate'),
-              child: AuthGate(),
-            )
-          : KeyedSubtree(
-              key: const ValueKey('splash'),
-              child: SplashPage(onComplete: _onSplashComplete),
-            ),
-    );
-  }
-}
-
-/// Public so the splash page (and any other early-boot widgets)
-/// can hand off to it once their animation finishes.  Was previously
-/// ``_AuthGate`` — private to this file — but a separate
-/// ``SplashPage`` now owns the cold-start surface and needs a named,
-/// importable hand-off target.
+/// Root auth surface — decides between HomePage (logged in or
+/// guest) and any future post-login gates.  Was previously
+/// ``_AuthGate`` (private) but is kept public so deep links and
+/// notifications can navigate back to it explicitly if needed.
 class AuthGate extends StatefulWidget {
   const AuthGate({super.key});
   @override
