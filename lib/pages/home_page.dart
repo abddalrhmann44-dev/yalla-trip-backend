@@ -229,6 +229,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     'أكوا بارك'
   ];
 
+  // recent searches
+  final List<String> _recentSearches = [];
   // timers
   Timer? _heroTimer;
 
@@ -495,23 +497,23 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
               const SizedBox(height: 16),
 
-              // ── Search bar (visual-only "fake" pill) ───────
-              // Tapping it opens ``ExplorePage`` with the keyboard
-              // already focused on its real search field.  Doing the
-              // input in Explore (instead of inline here) means
-              // tapping the pill on the home page never opens the
-              // soft keyboard *on top of* the home content — which
-              // was the source of the "field stays focused, can't
-              // continue" bug the user reported.
+              // ── Search bar (inline, animated) ──────────
               _HomeSearchBar(
                 filterActive: _filterActive,
                 onFilterTap: _openFilter,
-                onTap: () {
+                onSubmit: (q) {
+                  setState(() {
+                    if (!_recentSearches.contains(q)) {
+                      _recentSearches.insert(0, q);
+                      if (_recentSearches.length > 6) {
+                        _recentSearches.removeLast();
+                      }
+                    }
+                  });
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) =>
-                          const ExplorePage(autoFocusSearch: true),
+                      builder: (_) => ExplorePage(initialSearch: q),
                     ),
                   );
                 },
@@ -1855,15 +1857,11 @@ class _SearchSheetState extends State<_SearchSheet> {
 class _HomeSearchBar extends StatefulWidget {
   final bool filterActive;
   final VoidCallback onFilterTap;
-  /// Fired when the user taps anywhere on the pill (except the
-  /// trailing filter button).  The home page hands the user off to
-  /// ``ExplorePage`` with ``autoFocusSearch: true`` so the keyboard
-  /// opens on the *destination* screen, not on top of the home.
-  final VoidCallback onTap;
+  final void Function(String query) onSubmit;
   const _HomeSearchBar({
     required this.filterActive,
     required this.onFilterTap,
-    required this.onTap,
+    required this.onSubmit,
   });
 
   @override
@@ -1896,6 +1894,8 @@ class _HomeSearchBarState extends State<_HomeSearchBar> {
     'Gouna',
   ];
 
+  final TextEditingController _ctrl = TextEditingController();
+  final FocusNode _focus = FocusNode();
   Timer? _rotator;
   int _idx = 0;
 
@@ -1903,8 +1903,11 @@ class _HomeSearchBarState extends State<_HomeSearchBar> {
   void initState() {
     super.initState();
     appSettings.addListener(_onLangChange);
+    _focus.addListener(() => setState(() {}));
     _rotator = Timer.periodic(const Duration(milliseconds: 1600), (_) {
       if (!mounted) return;
+      // Don't rotate while the user is typing / field is focused with text.
+      if (_focus.hasFocus || _ctrl.text.isNotEmpty) return;
       setState(() => _idx = (_idx + 1) % _keywordsAr.length);
     });
   }
@@ -1917,7 +1920,16 @@ class _HomeSearchBarState extends State<_HomeSearchBar> {
   void dispose() {
     appSettings.removeListener(_onLangChange);
     _rotator?.cancel();
+    _ctrl.dispose();
+    _focus.dispose();
     super.dispose();
+  }
+
+  void _submit() {
+    final q = _ctrl.text.trim();
+    if (q.isEmpty) return;
+    _focus.unfocus();
+    widget.onSubmit(q);
   }
 
   @override
@@ -1925,14 +1937,16 @@ class _HomeSearchBarState extends State<_HomeSearchBar> {
     final ar = appSettings.arabic;
     final keywords = ar ? _keywordsAr : _keywordsEn;
     final prefix = ar ? 'بحث عن ' : 'Search for ';
+    final showRotator = !_focus.hasFocus && _ctrl.text.isEmpty;
 
     return Container(
       height: 54,
       margin: const EdgeInsets.only(bottom: 20),
       decoration: BoxDecoration(
-        // Frosted-glass fill so the waves Lottie behind the header
-        // reads through the bar.  A faint white border + soft shadow
-        // give it a tappable affordance.
+        // Fully transparent fill so the waves Lottie behind the
+        // header reads through the search row.  A 1.5px white-ish
+        // border + a faint frosted overlay still give the field a
+        // tappable affordance without breaking the glass effect.
         color: Colors.white.withValues(alpha: 0.18),
         borderRadius: BorderRadius.circular(18),
         border: Border.all(
@@ -1948,80 +1962,110 @@ class _HomeSearchBarState extends State<_HomeSearchBar> {
         ],
       ),
       child: Row(children: [
-        // ── Tappable surface ─────────────────────────────────
-        // The whole left section is one big GestureDetector that
-        // forwards to ``onTap`` (open ExplorePage with keyboard).
-        // Crucially, there's no ``TextField`` or ``FocusNode`` on
-        // the home page anymore — tapping never opens an inline
-        // keyboard, so the user can never get "stuck" with a
-        // focused field they can't dismiss.
+        const SizedBox(width: 16),
+        // Translucent so the waves animation behind the bar is
+        // still legible *through* the icon glyph — the entire bar
+        // is supposed to read as glass, not a solid chip.
+        Icon(
+          Icons.search_rounded,
+          color: _kBrand.withValues(alpha: 0.55),
+          size: 22,
+        ),
+        const SizedBox(width: 10),
         Expanded(
-          child: GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: widget.onTap,
-            child: Row(children: [
-              const SizedBox(width: 16),
-              Icon(
-                Icons.search_rounded,
-                color: _kBrand.withValues(alpha: 0.55),
-                size: 22,
+          child: Stack(
+            alignment: AlignmentDirectional.centerStart,
+            children: [
+              // Real text field — always present so tap works instantly.
+              TextField(
+                controller: _ctrl,
+                focusNode: _focus,
+                onChanged: (_) => setState(() {}),
+                onSubmitted: (_) => _submit(),
+                textInputAction: TextInputAction.search,
+                style: TextStyle(fontSize: 14, color: context.kText),
+                decoration: const InputDecoration(
+                  isCollapsed: true,
+                  contentPadding: EdgeInsets.symmetric(vertical: 14),
+                  border: InputBorder.none,
+                ),
               ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Row(children: [
-                  Text(
-                    prefix,
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                      color: context.kText.withValues(alpha: 0.55),
+
+              // Animated hint overlay — ignores pointer so TextField receives taps.
+              if (showRotator)
+                IgnorePointer(
+                  child: Row(children: [
+                    Text(
+                      prefix,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        // Soft translucent so the wave motion is
+                        // visible behind the prefix copy.  Still
+                        // hits ~3.5:1 contrast on white — readable
+                        // without dominating the animation.
+                        color: context.kText.withValues(alpha: 0.45),
+                      ),
                     ),
-                  ),
-                  Expanded(
-                    child: ClipRect(
-                      child: AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 450),
-                        switchInCurve: Curves.easeOutCubic,
-                        switchOutCurve: Curves.easeInCubic,
-                        transitionBuilder: (child, anim) {
-                          final inTween = Tween<Offset>(
-                            begin: const Offset(0, 1),
-                            end: Offset.zero,
-                          ).animate(anim);
-                          return ClipRect(
-                            child: SlideTransition(
-                              position: inTween,
-                              child: FadeTransition(
-                                  opacity: anim, child: child),
+                    Expanded(
+                      child: ClipRect(
+                        child: AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 450),
+                          switchInCurve: Curves.easeOutCubic,
+                          switchOutCurve: Curves.easeInCubic,
+                          transitionBuilder: (child, anim) {
+                            final inTween = Tween<Offset>(
+                              begin: const Offset(0, 1),
+                              end: Offset.zero,
+                            ).animate(anim);
+                            return ClipRect(
+                              child: SlideTransition(
+                                position: inTween,
+                                child: FadeTransition(
+                                    opacity: anim, child: child),
+                              ),
+                            );
+                          },
+                          layoutBuilder: (current, previous) => Stack(
+                            alignment: AlignmentDirectional.centerStart,
+                            children: [...previous, if (current != null) current],
+                          ),
+                          child: Text(
+                            keywords[_idx % keywords.length],
+                            key: ValueKey('${ar}_$_idx'),
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w800,
+                              // Brand orange but translucent so the
+                              // wave behind it tints the glyph — the
+                              // word still reads orange thanks to the
+                              // bold weight + 0.55 alpha floor.
+                              color: _kBrand.withValues(alpha: 0.55),
                             ),
-                          );
-                        },
-                        layoutBuilder: (current, previous) => Stack(
-                          alignment: AlignmentDirectional.centerStart,
-                          children: [
-                            ...previous,
-                            if (current != null) current,
-                          ],
-                        ),
-                        child: Text(
-                          keywords[_idx % keywords.length],
-                          key: ValueKey('${ar}_$_idx'),
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w800,
-                            color: _kBrand.withValues(alpha: 0.65),
                           ),
                         ),
                       ),
                     ),
-                  ),
-                ]),
-              ),
-            ]),
+                  ]),
+                ),
+            ],
           ),
         ),
 
-        // ── Filter pill — always orange ──────────────────────
+        // Clear button when user has typed something.
+        if (_ctrl.text.isNotEmpty)
+          GestureDetector(
+            onTap: () {
+              _ctrl.clear();
+              setState(() {});
+            },
+            child: Padding(
+              padding: const EdgeInsetsDirectional.only(end: 4),
+              child: Icon(Icons.close_rounded, color: context.kSub, size: 18),
+            ),
+          ),
+
+        // Filter pill — always orange.
         GestureDetector(
           onTap: widget.onFilterTap,
           child: Stack(children: [
