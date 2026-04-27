@@ -56,6 +56,14 @@ const _kPropTypes = [
       'مركب', 'مركب / يخت', '⛵', 'رحلات بحرية بالساعة', Color(0xFFE65100)),
 ];
 
+// Single source of truth for the host's location dropdown.
+// MUST stay in sync with:
+//   * ``_kAreas`` in lib/pages/home_page.dart (filter chips)
+//   * ``_kDestinations`` in lib/pages/home_page.dart (cards)
+//   * ``_areaColor`` / ``_areaIcon`` in lib/pages/area_results_page.dart
+//   * ``S.areaName`` in lib/utils/app_strings.dart (i18n)
+// If a string here is missing from any of those, the area card on
+// the home screen will route to an empty results page.
 const _kLocations = [
   'عين السخنة',
   'الساحل الشمالي',
@@ -63,6 +71,10 @@ const _kLocations = [
   'الجونة',
   'الغردقة',
   'شرم الشيخ',
+  'القاهرة',
+  'اسكندرية',
+  'سهل حشيش',
+  'مرسى علم',
 ];
 
 class _Toggle {

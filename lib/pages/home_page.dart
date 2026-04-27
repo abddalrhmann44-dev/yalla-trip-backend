@@ -226,6 +226,10 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   double _filterMinRating = 0;
   bool _filterActive = false; // هل في filter مفعّل
 
+  // Filter chips inside the home search bar.  Must mirror the
+  // host's ``_kLocations`` in lib/pages/owner_add_property_page.dart
+  // so every area the user can filter by is also somewhere a host
+  // can publish to (otherwise the chip routes to an empty list).
   static const _kAreas = [
     'الكل',
     'عين السخنة',
@@ -233,7 +237,11 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     'الجونة',
     'الغردقة',
     'شرم الشيخ',
-    'رأس سدر'
+    'رأس سدر',
+    'القاهرة',
+    'اسكندرية',
+    'سهل حشيش',
+    'مرسى علم',
   ];
   static const _kTypes = [
     'الكل',
