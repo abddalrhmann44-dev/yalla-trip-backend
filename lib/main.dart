@@ -406,21 +406,25 @@ class _AuthGateState extends State<AuthGate> {
     });
   }
 
+  /// While the auth stream and the onboarding flag are still
+  /// resolving, show a *plain brand-orange surface* — no spinner,
+  /// no logo, no text.  This is a visual continuation of the splash
+  /// (which paints the same orange) so the user never sees a
+  /// loader pop in between the splash and the home screen.  Both
+  /// futures (Firebase auth + SharedPreferences) typically resolve
+  /// in <100 ms, so this surface is essentially invisible — but
+  /// when it is visible, it just looks like the splash is still up.
+  Widget _waiting() {
+    return const ColoredBox(color: AppColors.primary);
+  }
+
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<User?>(
       stream: FirebaseAuth.instance.authStateChanges(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Scaffold(
-            backgroundColor: Colors.transparent,
-            body: Center(
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                color: AppColors.primary,
-              ),
-            ),
-          );
+          return _waiting();
         }
 
         // Save FCM token & load user profile ONCE when user logs in
@@ -442,15 +446,7 @@ class _AuthGateState extends State<AuthGate> {
         }
         // Not logged in — onboarding first (if not seen yet).
         if (_onboardingSeen == null) {
-          return const Scaffold(
-            backgroundColor: Colors.transparent,
-            body: Center(
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                color: AppColors.primary,
-              ),
-            ),
-          );
+          return _waiting();
         }
         // Not logged in — show onboarding the first time only,
         // otherwise drop straight into HomePage as a guest. Login
