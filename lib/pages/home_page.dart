@@ -23,10 +23,27 @@ import '../services/property_service.dart';
 import 'chat_inbox_page.dart';
 import 'favorites_page.dart';
 import 'notifications_page.dart';
+import 'host_today_tab.dart';
+import 'owner_dashboard_page.dart';
+import 'bookings_page.dart';
+import 'host_payouts_page.dart';
+import '../services/user_role_service.dart';
 
 // ────────────────────────────────────────────────────────────────
 //  MODELS
 // ────────────────────────────────────────────────────────────────
+
+/// Lightweight bottom-nav tab descriptor.  Three immutable fields:
+/// the active icon, the outline icon, and the label.  Lives at the
+/// top of the file so both the guest and host item lists can build
+/// the same shape without touching ``Map<String, dynamic>`` casts
+/// (which were the source of subtle bugs in the previous version).
+class _NavItem {
+  final IconData active;
+  final IconData icon;
+  final String label;
+  const _NavItem(this.active, this.icon, this.label);
+}
 
 // ────────────────────────────────────────────────────────────────
 //  SHIMMER WIDGET
@@ -244,6 +261,15 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     super.initState();
     appSettings.addListener(_onLangChange);
     userProvider.addListener(_onUserChanged);
+    // Listen for guest⇄owner flips so the bottom-nav swaps in place
+    // instead of pushing a separate ``HostShellPage``.  Keeps the
+    // user inside the same Scaffold; the IndexedStack just renders
+    // a different set of tabs.
+    UserRoleService.instance.addListener(_onRoleChanged);
+    // Kick off a one-shot role fetch so the cached role is fresh
+    // when the user arrives from a deep link.  ``getRole`` is a
+    // no-op once the cache is populated.
+    UserRoleService.instance.getRole();
 
     _fadeCtrl = AnimationController(
         vsync: this, duration: const Duration(milliseconds: 800));
@@ -279,11 +305,28 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     });
   }
 
+  /// Reset to tab 0 whenever the role flips so the user always lands
+  /// on the *first* tab of the new mode (Home for guests, Today for
+  /// hosts).  Without this, switching from a guest's Profile tab
+  /// (index 3) to host mode would surface the host's "Earnings" tab
+  /// (also index 3) — a confusing place to start.
+  void _onRoleChanged() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) setState(() => _navIdx = 0);
+    });
+  }
+
+  /// Synchronous host check.  ``cachedRole`` is hydrated by the
+  /// ``getRole`` call in ``initState`` and again by every
+  /// ``saveRole``; before the first fetch resolves we default to
+  /// guest, which is the safer choice for the home page UX.
+  bool get _isHost => UserRoleService.instance.isOwnerSync;
 
   @override
   void dispose() {
     appSettings.removeListener(_onLangChange);
     userProvider.removeListener(_onUserChanged);
+    UserRoleService.instance.removeListener(_onRoleChanged);
     _heroTimer?.cancel();
     _fadeCtrl.dispose();
     _heroCtrl.dispose();
@@ -311,11 +354,28 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
+    // Pick the active tab set up-front so the AnnotatedRegion,
+    // IndexedStack and bottom-nav all stay in lock-step on every
+    // role flip.  Guests see the discovery flow; hosts see the
+    // dashboard flow — but never via a separate route, always
+    // inside this same Scaffold.
+    final children = _isHost ? _hostChildren() : _guestChildren();
+    // Only the guest "home" tab uses the light status-bar tint
+    // (translucent header over the orange waves).  Every other
+    // surface — guest sub-tabs *and* every host tab — has a white
+    // background, so dark-icon overlay style is correct there.
+    final isLightOverlay = !_isHost && _navIdx == 0;
+
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: _navIdx == 0 ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark,
+      value: isLightOverlay
+          ? SystemUiOverlayStyle.light
+          : SystemUiOverlayStyle.dark,
       child: Scaffold(
         backgroundColor: context.kSand,
-        extendBody: _navIdx == 0,
+        // ``extendBody`` lets the home hero bleed under the bottom
+        // bar; only meaningful on the guest home tab.  Host tabs
+        // have their own scrollable surfaces and shouldn't extend.
+        extendBody: !_isHost && _navIdx == 0,
         bottomNavigationBar: _buildNavBar(),
         // ``GestureDetector`` on the Scaffold body dismisses the
         // search-bar keyboard the moment the user taps anywhere
@@ -328,18 +388,42 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           behavior: HitTestBehavior.translucent,
           onTap: () => FocusScope.of(context).unfocus(),
           child: IndexedStack(
-            index: _navIdx,
-            children: [
-              _isLoading ? _buildShimmerScreen() : _buildContent(),
-              const BestTripPage(embedded: true),
-              const ChatInboxPage(embedded: true),
-              const ProfilePage(embedded: true),
-            ],
+            // Clamp in case the role just flipped and ``_navIdx``
+            // is briefly out of bounds for the new tab set (the
+            // PostFrame callback in ``_onRoleChanged`` resets it,
+            // but a guarded clamp avoids a one-frame
+            // ``RangeError`` on slow devices).
+            index: _navIdx.clamp(0, children.length - 1),
+            children: children,
           ),
         ),
       ),
     );
   }
+
+  /// Guest-mode tab roots, in display order.  Indexes here MUST
+  /// align with ``_guestNavItems`` below.
+  List<Widget> _guestChildren() => [
+        _isLoading ? _buildShimmerScreen() : _buildContent(),
+        const BestTripPage(embedded: true),
+        const ChatInboxPage(embedded: true),
+        const ProfilePage(embedded: true),
+      ];
+
+  /// Host-mode tab roots, in display order.  Indexes here MUST
+  /// align with ``_hostNavItems`` below.  ``Profile`` is the last
+  /// tab so the host can flip back to guest mode without leaving
+  /// the shell.  Only ``BookingsPage`` and ``ProfilePage`` accept an
+  /// ``embedded`` flag today — the other host pages render their
+  /// own scrollable surfaces with no AppBar, which is exactly what
+  /// we want inside the shell.
+  List<Widget> _hostChildren() => const [
+        HostTodayTab(),
+        OwnerDashboardPage(),
+        BookingsPage(embedded: true),
+        HostPayoutsPage(),
+        ProfilePage(embedded: true),
+      ];
 
   // ════════════════════════════════════════════════
   //  SHIMMER LOADING SCREEN
@@ -1531,12 +1615,52 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   // ════════════════════════════════════════════════
 
   Widget _buildNavBar() {
-    final items = [
-      {'a': Icons.home_rounded, 'o': Icons.home_outlined, 'l': appSettings.arabic ? 'الرئيسية' : 'Home'},
-      {'a': Icons.travel_explore_rounded, 'o': Icons.travel_explore_outlined, 'l': appSettings.arabic ? 'أحلى رحلة' : 'Best Trip'},
-      {'a': Icons.chat_rounded, 'o': Icons.chat_bubble_outline_rounded, 'l': appSettings.arabic ? 'رسائل' : 'Messages'},
-      {'a': Icons.person_rounded, 'o': Icons.person_outline_rounded, 'l': appSettings.arabic ? 'حسابي' : 'Profile'},
-    ];
+    final ar = appSettings.arabic;
+    // ── Two distinct, ordered tab sets ────────────────────
+    // Guest set is the discovery flow (4 tabs).  Host set is the
+    // dashboard flow (5 tabs) and Profile sits at the end so the
+    // host can flip back to guest mode without leaving the shell.
+    final items = _isHost
+        ? <_NavItem>[
+            _NavItem(
+                Icons.dashboard_rounded,
+                Icons.dashboard_outlined,
+                ar ? 'اليوم' : 'Today'),
+            _NavItem(
+                Icons.apartment_rounded,
+                Icons.apartment_outlined,
+                ar ? 'عقاراتى' : 'Listings'),
+            _NavItem(
+                Icons.calendar_month_rounded,
+                Icons.calendar_month_outlined,
+                ar ? 'الحجوزات' : 'Reservations'),
+            _NavItem(
+                Icons.account_balance_wallet_rounded,
+                Icons.account_balance_wallet_outlined,
+                ar ? 'الأرباح' : 'Earnings'),
+            _NavItem(
+                Icons.person_rounded,
+                Icons.person_outline_rounded,
+                ar ? 'حسابى' : 'Profile'),
+          ]
+        : <_NavItem>[
+            _NavItem(
+                Icons.home_rounded,
+                Icons.home_outlined,
+                ar ? 'الرئيسية' : 'Home'),
+            _NavItem(
+                Icons.travel_explore_rounded,
+                Icons.travel_explore_outlined,
+                ar ? 'أحلى رحلة' : 'Best Trip'),
+            _NavItem(
+                Icons.chat_rounded,
+                Icons.chat_bubble_outline_rounded,
+                ar ? 'رسائل' : 'Messages'),
+            _NavItem(
+                Icons.person_rounded,
+                Icons.person_outline_rounded,
+                ar ? 'حسابى' : 'Profile'),
+          ];
 
     const accent = Color(0xFFFF6D00); // orange for active tab
 
@@ -1548,49 +1672,58 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       child: SafeArea(
         top: false,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: List.generate(items.length, (i) {
+              final item = items[i];
               final sel = _navIdx == i;
               final inactiveColor = context.kSub;
-              return GestureDetector(
-                onTap: () async {
-                  if (_navIdx == i) return;
-                  // Tabs 1..3 (Bookings / Chat / Profile) all need
-                  // a logged-in user — bounce guests to login first.
-                  if (i != 0) {
-                    final feature = i == 1
-                        ? 'تشوف حجوزاتك'
-                        : i == 2
-                            ? 'تتواصل مع الملاك'
-                            : 'تدخل على ملفك';
-                    if (!await AuthGuard.require(context,
-                        feature: feature)) {
-                      return;
+              return Expanded(
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () async {
+                    if (_navIdx == i) return;
+                    // Guest mode: tabs 1..3 (Best Trip / Chat /
+                    // Profile) all need a logged-in user — bounce
+                    // guests to login first.  Host mode skips this
+                    // ladder because hosts are authenticated by
+                    // definition.
+                    if (!_isHost && i != 0) {
+                      final feature = i == 1
+                          ? 'تشوف حجوزاتك'
+                          : i == 2
+                              ? 'تتواصل مع الملاك'
+                              : 'تدخل على ملفك';
+                      if (!await AuthGuard.require(context,
+                          feature: feature)) {
+                        return;
+                      }
+                      if (!mounted) return;
                     }
-                    if (!mounted) return;
-                  }
-                  setState(() => _navIdx = i);
-                },
-                child: Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-                  child: Column(mainAxisSize: MainAxisSize.min, children: [
-                    Icon(
-                        sel
-                            ? items[i]['a'] as IconData
-                            : items[i]['o'] as IconData,
-                        size: 24,
-                        color: sel ? accent : inactiveColor),
-                    const SizedBox(height: 3),
-                    Text(items[i]['l'] as String,
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: sel ? FontWeight.w800 : FontWeight.w500,
-                          color: sel ? accent : inactiveColor,
-                        )),
-                  ]),
+                    setState(() => _navIdx = i);
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 4, vertical: 4),
+                    child:
+                        Column(mainAxisSize: MainAxisSize.min, children: [
+                      Icon(sel ? item.active : item.icon,
+                          size: 24,
+                          color: sel ? accent : inactiveColor),
+                      const SizedBox(height: 3),
+                      Text(item.label,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight:
+                                sel ? FontWeight.w800 : FontWeight.w500,
+                            color: sel ? accent : inactiveColor,
+                          )),
+                    ]),
+                  ),
                 ),
               );
             }),

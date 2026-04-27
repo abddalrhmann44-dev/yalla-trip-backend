@@ -17,7 +17,8 @@ import '../widgets/wallet_lottie.dart';
 import 'owner_add_property_page.dart';
 import 'owner_payouts_page.dart';
 import 'bookings_page.dart';
-import 'host_shell_page.dart';
+import 'chat_inbox_page.dart';
+import 'owner_dashboard_page.dart';
 import 'login_page.dart';
 import 'wallet_page.dart';
 import '../main.dart' show appSettings, userProvider, favoritesProvider;
@@ -562,25 +563,13 @@ class _ProfilePageState extends State<ProfilePage> {
               style: const TextStyle(
                   fontSize: 13, fontWeight: FontWeight.w800, color: _kOrange)),
         ),
-        GestureDetector(
-          onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const HostShellPage()),
-          ),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-            decoration: BoxDecoration(
-              color: _kOrange,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Text(S.hostDashboardBtn,
-                style: const TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w800,
-                    color: Colors.white)),
-          ),
-        ),
-        const SizedBox(width: 8),
+        // Removed the redundant "لوحة التحكم" pill that used to push
+        // ``HostShellPage`` from inside the host's own profile tab.
+        // The host already lands in the dashboard the moment the
+        // role flips — the bottom nav swaps to host tabs in place
+        // — so this pill always opened a duplicate, stack-piled
+        // copy of the same shell.  Keeping just the "وضع ضيف"
+        // toggle keeps the card single-purpose: flip back to guest.
         GestureDetector(
           onTap: _becomeGuest,
           child: Container(
@@ -629,13 +618,20 @@ class _ProfilePageState extends State<ProfilePage> {
         _sectionTitle('الاستضافة'),
         const SizedBox(height: 10),
 
+        // The host's bottom nav already exposes Today / Listings /
+        // Reservations / Earnings as first-class tabs, so the menu
+        // items below open the *same* destination pages directly
+        // (``OwnerDashboardPage`` for the dashboard, ``BookingsPage``
+        // for reservations, ``OwnerPayoutsPage`` for earnings,
+        // ``ChatInboxPage`` for messages) instead of stacking a
+        // duplicate ``HostShellPage`` route on top of the shell.
         _menuCard(children: [
           _menuItem(
             icon: Icons.dashboard_rounded,
             title: 'لوحة التحكم',
             subtitle: 'إدارة عقاراتك وحجوزاتك',
             onTap: () => Navigator.push(context,
-                MaterialPageRoute(builder: (_) => const HostShellPage())),
+                MaterialPageRoute(builder: (_) => const OwnerDashboardPage())),
           ),
           _menuDivider(),
           _menuItem(
@@ -661,7 +657,7 @@ class _ProfilePageState extends State<ProfilePage> {
             title: 'الرسائل',
             subtitle: 'تواصل مع الضيوف',
             onTap: () => Navigator.push(context,
-                MaterialPageRoute(builder: (_) => const HostShellPage())),
+                MaterialPageRoute(builder: (_) => const ChatInboxPage())),
           ),
           _menuDivider(),
           _menuItem(
