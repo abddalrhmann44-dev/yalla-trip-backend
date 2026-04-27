@@ -78,7 +78,22 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   void _onUserChanged() {
-    if (mounted) setState(() {});
+    // Defer the setState to the next frame.  ``userProvider`` may
+    // notify listeners synchronously from inside another widget's
+    // build (e.g. when "switch to guest" tears down the host shell
+    // and rebuilds the navigator tree in the same pump).  Calling
+    // ``setState`` directly from there throws:
+    //
+    //   "setState() or markNeedsBuild() called during build."
+    //
+    // Scheduling on ``addPostFrameCallback`` guarantees we mark
+    // ourselves dirty *after* the current build phase finishes,
+    // which is the canonical Flutter fix for "notifyListeners
+    // during build" cascades.
+    if (!mounted) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) setState(() {});
+    });
   }
 
   Future<void> _loadProfile() async {
