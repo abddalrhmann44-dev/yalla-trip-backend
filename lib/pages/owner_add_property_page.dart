@@ -808,7 +808,7 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
           style: TextStyle(
               fontSize: 22, fontWeight: FontWeight.w900, color: context.kText)),
       const SizedBox(height: 6),
-      _requiredLabel('صورة واحدة على الأقل'),
+      _requiredLabel('من 6 إلى 40 صورة'),
       const SizedBox(height: 16),
       Row(children: [
         Expanded(
@@ -863,21 +863,39 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
       ]),
       if (_pickedFiles.isNotEmpty) ...[
         const SizedBox(height: 16),
-        Row(children: [
-          Text('${_pickedFiles.length} صورة تم اختيارها',
-              style: const TextStyle(
-                  fontSize: 13, fontWeight: FontWeight.w600, color: _kOcean)),
-          const Spacer(),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-            decoration: BoxDecoration(
-                color: _kGreen.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(8)),
-            child: const Text('✅ تمام',
+        Builder(builder: (_) {
+          // Wave 27: minimum 6 photos.  The badge swaps between
+          // "ينقص N" (red) while the host is still under the
+          // threshold and "تمام" (green) once they've crossed it,
+          // so the floor is visually obvious without waiting for
+          // the next-step validator to fire.
+          final n = _pickedFiles.length;
+          final reachedMin = n >= 6;
+          final missing = (6 - n).clamp(0, 6);
+          return Row(children: [
+            Text('$n / 40 صورة',
+                style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: _kOcean)),
+            const Spacer(),
+            Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                  color: (reachedMin ? _kGreen : _kRed)
+                      .withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8)),
+              child: Text(
+                reachedMin ? '✅ تمام' : '⚠️ ينقص $missing',
                 style: TextStyle(
-                    fontSize: 11, fontWeight: FontWeight.w700, color: _kGreen)),
-          ),
-        ]),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: reachedMin ? _kGreen : _kRed),
+              ),
+            ),
+          ]);
+        }),
         const SizedBox(height: 12),
         GridView.builder(
           shrinkWrap: true,
@@ -939,12 +957,12 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
           child: Column(children: [
             const Text('📸', style: TextStyle(fontSize: 36)),
             const SizedBox(height: 10),
-            Text('لازم تضيف صورة واحدة على الأقل',
+            Text('لازم تضيف من 6 إلى 40 صورة',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                     fontSize: 14, fontWeight: FontWeight.w700, color: context.kText)),
             const SizedBox(height: 4),
-            Text('الصور بتزيد فرص الحجز كتير',
+            Text('كل ما الصور تزيد، فرص الحجز بتزيد',
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 12, color: context.kSub)),
           ]),
