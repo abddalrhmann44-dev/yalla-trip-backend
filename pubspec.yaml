@@ -118,12 +118,20 @@ flutter_native_splash:
   #     [orange flash] → [full-bleed splash artwork] → [home]
   #
   # i.e. one splash screen, no centred-icon stage.
+  # The brand orange MUST match ``AppColors.primary`` in
+  # lib/widgets/constants.dart and the ``ColoredBox`` colour in
+  # lib/pages/splash_page.dart, otherwise the user sees a 1-frame
+  # colour flash at the native -> Dart handoff.
   color: "#FF6B35"
-  color_dark: "#14100C"
+  # ``color_dark`` was previously ``#14100C`` (warm black).  That
+  # caused a JARRING flash in dark mode: native paints near-black,
+  # then Dart paints the orange artwork.  Splash is brand identity
+  # — it should look the SAME in light and dark.  Keep it orange.
+  color_dark: "#FF6B35"
   android: true
   ios: true
   web: false
   android_12:
     color: "#FF6B35"
-    color_dark: "#14100C"
+    color_dark: "#FF6B35"
   fullscreen: false

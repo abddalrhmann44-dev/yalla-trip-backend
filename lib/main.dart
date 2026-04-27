@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'firebase_options.dart';
 
@@ -74,7 +75,15 @@ final userProvider = UserProvider();
 final favoritesProvider = FavoritesProvider();
 
 void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
+  // Pin the native splash on screen until Dart is fully ready to
+  // paint its own splash artwork.  Without this, Flutter removes
+  // the native splash as soon as the *first* frame is rendered —
+  // even if our SplashPage hasn't decoded its bitmap yet — so the
+  // user sees a brief orange flash with no logo.  The matching
+  // ``FlutterNativeSplash.remove()`` call lives in ``SplashPage``,
+  // fired only after ``precacheImage`` resolves.
+  final binding = WidgetsFlutterBinding.ensureInitialized();
+  FlutterNativeSplash.preserve(widgetsBinding: binding);
 
   try {
     await Firebase.initializeApp(
@@ -155,12 +164,13 @@ class TalaaApp extends StatelessWidget {
           ),
         );
       },
-      // Splash first — pulls double-duty with the native splash so
-      // the user sees the brand artwork from the *very first frame*
-      // (native) all the way through the Dart-side fade-out.  After
-      // ~2.4s ``SplashPage`` ``pushReplacement``s to ``AuthGate``,
-      // which decides between Onboarding / Home / Login.
-      home: const SplashPage(),
+      // Root surface = an in-place switcher between SplashPage and
+      // AuthGate, NOT a navigator route.  This way the splash never
+      // ends up in the navigator stack — a stray
+      // ``Navigator.popUntil((r) => r.isFirst)`` deeper in the app
+      // can't bring it back, and there's no route-transition animation
+      // fighting the splash's own fade-out.
+      home: const _RootSwitcher(),
       routes: {
         '/login': (_) => const LoginPage(),
         '/register': (_) => const RegisterPage(),
@@ -295,11 +305,63 @@ class TalaaApp extends StatelessWidget {
   }
 }
 
+/// In-place root surface switcher.
+///
+/// Lives at ``MaterialApp.home`` and cross-fades between two states:
+///
+///   * **Splash** (initial)     — the Talaa cold-start artwork
+///   * **AuthGate** (after splash) — Onboarding / Login / Home
+///
+/// Using an ``AnimatedSwitcher`` instead of a Navigator route keeps
+/// the splash out of the back stack, gives us deterministic timing
+/// (the auth gate starts mounting *before* the splash is fully
+/// faded), and makes the entire startup transition a single render
+/// pass with no route-animation overhead.
+class _RootSwitcher extends StatefulWidget {
+  const _RootSwitcher();
+
+  @override
+  State<_RootSwitcher> createState() => _RootSwitcherState();
+}
+
+class _RootSwitcherState extends State<_RootSwitcher> {
+  bool _splashDone = false;
+
+  void _onSplashComplete() {
+    if (!mounted || _splashDone) return;
+    setState(() => _splashDone = true);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedSwitcher(
+      // 300 ms matches the splash's own ``_kFadeIn`` so the cross-fade
+      // feels symmetric with the splash entry animation.
+      duration: const Duration(milliseconds: 300),
+      switchInCurve: Curves.easeOutCubic,
+      switchOutCurve: Curves.easeInCubic,
+      // ``KeyedSubtree`` keys force AnimatedSwitcher to treat the two
+      // children as distinct widgets — without keys it short-circuits
+      // the transition because both happen to be StatefulWidgets at
+      // the same depth.
+      child: _splashDone
+          ? const KeyedSubtree(
+              key: ValueKey('auth_gate'),
+              child: AuthGate(),
+            )
+          : KeyedSubtree(
+              key: const ValueKey('splash'),
+              child: SplashPage(onComplete: _onSplashComplete),
+            ),
+    );
+  }
+}
+
 /// Public so the splash page (and any other early-boot widgets)
-/// can ``pushReplacement`` straight to it once their animation
-/// finishes.  Was previously ``_AuthGate`` — private to this file
-/// — but a separate ``SplashPage`` now owns the cold-start surface
-/// and needs a named, importable hand-off target.
+/// can hand off to it once their animation finishes.  Was previously
+/// ``_AuthGate`` — private to this file — but a separate
+/// ``SplashPage`` now owns the cold-start surface and needs a named,
+/// importable hand-off target.
 class AuthGate extends StatefulWidget {
   const AuthGate({super.key});
   @override

@@ -1,31 +1,76 @@
-splash: collapse to a single full-bleed surface (no native icon stage)
+splash: rebuild for seamless cold-start handoff (1.5s, no flicker)
 
-Screenshots from the device showed two splash screens in sequence:
-first the native cold-start splash (orange background with the
-Talaa artwork as a centred icon), then the Dart SplashPage with the
-artwork as a full-bleed cover.  The user wants only the second one
-visible.
+Strict-review pass on the splash flow flagged seven concrete issues
+beyond the cosmetic "two splashes" bug we fixed last commit:
 
-Fix: drop the image from the native splash entirely, leaving just a
-plain brand-orange flat colour as the cold-start backdrop.  Because
-SplashPage paints the same orange colour and immediately covers the
-entire screen with the artwork via BoxFit.cover, the visible
-sequence collapses to:
+  1. Total visible time was ~3.1 s (1800 hold + 700 reverse + 600
+     route fade) — almost 2× the industry ceiling of 1.8 s.
+  2. ``FlutterNativeSplash.preserve`` / ``.remove`` were never wired,
+     so Flutter dropped the native splash on the *first* rendered
+     frame regardless of whether SplashPage had decoded its bitmap
+     — visible 1-frame orange flash on slower devices.
+  3. ``Image.asset`` was decoded async with no ``precacheImage``, so
+     the very first paint could be a logo-less orange screen.
+  4. ``Opacity`` + ``Transform.scale`` inside an ``AnimatedBuilder``
+     forced ``saveLayer()`` and an Image rebuild on every animation
+     tick — pure overhead.
+  5. No ``cacheWidth`` on ``Image.asset`` — Flutter allocated the
+     full source bitmap (~1024×1024 RGBA = 4 MB) regardless of the
+     device's actual screen width.
+  6. ``Future.delayed`` callback was non-cancellable; if the splash
+     was disposed during a config change or deep-link push, the
+     closure still fired into a dead state.
+  7. ``color_dark: "#14100C"`` flashed near-black before the orange
+     Dart splash painted on dark-mode cold start.
+  8. ``pushReplacement`` to AuthGate left a route the user could
+     theoretically pop back to via ``Navigator.popUntil((r) =>
+     r.isFirst)`` from elsewhere in the app.
 
-    [orange flash] -> [full-bleed splash artwork] -> [home]
+Fixes
+─────
+* lib/pages/splash_page.dart — rewritten:
+    - ``FadeTransition`` + ``ScaleTransition`` (no saveLayer, no
+      per-frame Image rebuild).
+    - ``precacheImage`` in ``didChangeDependencies``; only after it
+      resolves do we ``FlutterNativeSplash.remove()`` and start the
+      hold timer — guarantees the first visible Dart frame already
+      has the bitmap cached.
+    - Cancellable ``Timer`` (stored, killed in ``dispose``).
+    - ``cacheWidth`` clamped to ``screenWidth × DPR`` (max 2048).
+    - ``RepaintBoundary`` isolates the animated subtree.
+    - Hand-off is a ``VoidCallback`` (``onComplete``), not a
+      ``Navigator.pushReplacement`` — splash never enters the back
+      stack.
+    - Total visible time: 300 ms fade-in + 900 ms hold = ~1.2 s,
+      then ~300 ms cross-fade to AuthGate via the parent's
+      AnimatedSwitcher.  Down from 3.1 s.
+    - Scale tween bumped from 0.96→1.0 (+4%, barely visible) to
+      0.94→1.0 — still subtle, now actually perceptible.
 
-i.e. one splash screen, no centred-icon stage between cold-start
-and the in-app splash.
+* lib/main.dart
+    - ``FlutterNativeSplash.preserve(widgetsBinding: binding)`` at
+      the top of ``main()`` so the native surface stays up through
+      Firebase init and ``appSettings.load()``.
+    - New private ``_RootSwitcher`` widget at ``MaterialApp.home``:
+      cross-fades between SplashPage and AuthGate via
+      ``AnimatedSwitcher`` (300 ms, easeOut/easeIn cubic).  No
+      navigator routing involved — splash is unreachable once
+      dismissed.
 
-Changes
-* pubspec.yaml: removed the image: / image_dark: keys from both the
-  top-level flutter_native_splash block and the android_12 block.
-  Kept color: #FF6B35 / color_dark: #14100C so the flash is the
-  same orange the Dart side paints.
-* Re-ran dart run flutter_native_splash:create so all Android
-  drawables and the iOS launch storyboard regenerated as plain
-  colour fills (no bitmap layer).
-* lib/pages/splash_page.dart: tightened the inline comment to
-  describe the new single-surface flow accurately.
+* pubspec.yaml — ``flutter_native_splash``:
+    - ``color_dark`` set to ``#FF6B35`` (was ``#14100C``).  Splash
+      is brand identity and must look identical in light & dark;
+      no more dark-mode flash.
+    - Updated comments to document the colour-sync invariant
+      between pubspec and ``AppColors.primary``.
+    - Re-ran ``dart run flutter_native_splash:create`` so all
+      Android drawable XMLs and the iOS launch storyboard
+      regenerated with the new dark colour.
 
-flutter analyze: 0 issues across the workspace.
+Verification
+────────────
+* ``flutter analyze`` — No issues found.
+* Splash uses the existing ``AppColors.primary`` constant (already
+  ``#FF6B35``) — no duplicate brand-colour declarations.
+* Native splash + Dart splash now paint the *exact same* hex on
+  both light and dark cold start.
