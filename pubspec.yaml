@@ -102,23 +102,30 @@ flutter_launcher_icons:
 #      dart run flutter_native_splash:create
 # ──────────────────────────────────────────────────────────────────
 flutter_native_splash:
-  # Background colour shown around the artwork (or behind it, if it
-  # has transparency).  Tuned to brand orange so the transition into
-  # the Dart-side ``SplashPage`` is seamless even on slow cold starts.
+  # ``background_image`` (instead of ``image``) makes the artwork
+  # fill the entire device screen edge-to-edge, the way the user
+  # asked — no orange margin around it, no centred-icon framing.
+  # ``color`` is still required as a fallback for any pixel the
+  # image doesn't cover (e.g. while it decodes), so we set it to
+  # the dominant tone of the artwork.
   color: "#FF6B35"
   color_dark: "#14100C"
-  image: assets/images/splash.png
-  image_dark: assets/images/splash.png
+  background_image: assets/images/splash.png
+  background_image_dark: assets/images/splash.png
   android: true
   ios: true
   web: false
-  # Android-12+ uses a separate launch-screen API.  The icon image is
-  # rendered inside a circular safe-zone (~192dp), so we point at the
-  # same artwork — Android will scale it as needed.  Branding image
-  # below the icon is intentionally omitted (Material 3 guidelines).
+  # Android-12+ has a *new* launch-screen API that ONLY accepts a
+  # centred icon + colour background — full-bleed images are not
+  # supported by the OS itself.  We use the same image as the icon
+  # there and let the Dart-side ``SplashPage`` (which kicks in the
+  # instant Flutter takes over) deliver the real full-screen look.
   android_12:
     color: "#FF6B35"
     color_dark: "#14100C"
     image: assets/images/splash.png
     image_dark: assets/images/splash.png
-  fullscreen: false
+  # Hide the system status & nav bars during the native splash so
+  # the artwork is truly edge-to-edge.  Flutter restores the bars
+  # the moment ``SplashPage`` paints.
+  fullscreen: true

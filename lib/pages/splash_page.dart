@@ -96,11 +96,19 @@ class _SplashPageState extends State<SplashPage>
 
   @override
   Widget build(BuildContext context) {
-    // Full-bleed brand-orange background + centred artwork.  We use
-    // ``BoxFit.contain`` (not cover) so the entire image is visible
-    // on every aspect ratio — the splash artwork is composed for the
-    // centre of the canvas, and cropping the edges on tall phones
-    // would clip the logo.
+    // Full-bleed artwork: ``BoxFit.cover`` + ``SizedBox.expand`` so
+    // the image fills every pixel of the screen on any aspect ratio
+    // (small Android, tall iPhone, foldables).  Edges may be cropped
+    // — that's the trade-off the user explicitly asked for ("ماليه
+    // الشاشة لوحدها من غير حاجة غيرها").  Because the native splash
+    // is configured with ``background_image`` + ``fullscreen: true``,
+    // the cold-start surface uses the exact same composition, so the
+    // hand-off has no visible jump.
+    //
+    // ``extendBodyBehindAppBar`` + ``SafeArea(top:false, bottom:false)``
+    // are intentionally *not* used: we want to draw under the status
+    // bar.  The brand-orange ``backgroundColor`` is just a fallback
+    // for the millisecond before ``Image.asset`` decodes.
     return Scaffold(
       backgroundColor: _kBrand,
       body: AnimatedBuilder(
@@ -109,10 +117,10 @@ class _SplashPageState extends State<SplashPage>
           opacity: _opacity.value,
           child: Transform.scale(
             scale: _scale.value,
-            child: Center(
+            child: SizedBox.expand(
               child: Image.asset(
                 AppAssets.splash,
-                fit: BoxFit.contain,
+                fit: BoxFit.cover,
                 // ``gaplessPlayback`` keeps the previous frame on
                 // screen while the next decodes — avoids a 1-frame
                 // black flash on Android during fast hand-off.
