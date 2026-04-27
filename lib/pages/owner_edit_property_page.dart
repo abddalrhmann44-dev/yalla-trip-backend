@@ -348,7 +348,7 @@ class _OwnerEditPropertyPageState extends State<OwnerEditPropertyPage> {
             style: TextStyle(fontSize: 12, color: context.kSub)),
         value: value,
         onChanged: onChanged,
-        activeColor: _kOcean,
+        activeThumbColor: _kOcean,
       ),
     );
   }

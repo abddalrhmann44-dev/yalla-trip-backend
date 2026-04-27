@@ -407,36 +407,21 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
   Widget _buildHeader() {
     return Container(
-      // Solid orange gradient stays as the base layer so the brand
-      // colour is on screen the instant the page paints — even
-      // before the Lottie payload finishes decoding on cold start.
-      // The waves animation rides on top with reduced opacity so it
-      // tints the gradient instead of replacing it; this also keeps
-      // the white greeting + search bar text legible on every frame
-      // of the loop, no matter which wave colour is showing.
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomCenter,
-          colors: [
-            Color(0xFFB54414),
-            Color(0xFFFF6B35),
-            Color(0xFFFF8A3D),
-          ],
-          stops: [0.0, 0.55, 1.0],
-        ),
-      ),
+      // Clean white background.  The waves Lottie rides on top so
+      // the colour palette of the animation is the only "colour"
+      // visible in the header — gives the home a calm, premium feel
+      // (vs. the loud orange wash we had before).
+      color: context.kCard,
       child: Stack(children: [
         // ── Background animation ──────────────────────────────
         // ``Positioned.fill`` makes the Lottie cover the whole
         // header the same way ``BoxFit.cover`` would for an image.
-        // ``Opacity 0.35`` keeps the waves as a *texture* rather
-        // than fighting the brand gradient for attention; tweaking
-        // this single number is the easiest dial if the animation
-        // ever feels too loud or too subtle.
+        // Bumped to opacity 0.85 (was 0.35) now that the gradient
+        // base is white — the waves are the visual centrepiece
+        // here, not a texture.
         Positioned.fill(
           child: Opacity(
-            opacity: 0.35,
+            opacity: 0.85,
             child: Lottie.asset(
               'assets/animations/waves.json',
               fit: BoxFit.cover,
@@ -445,28 +430,10 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               // devices.  At the default rate the motion looks
               // visibly choppy on Pixel-class hardware.
               frameRate: FrameRate.max,
-              // Quietly fall back to the plain gradient if the
+              // Quietly fall back to the plain background if the
               // asset ever fails to load (e.g. file removed in a
               // future cleanup) — never crash the home screen.
               errorBuilder: (_, __, ___) => const SizedBox.shrink(),
-            ),
-          ),
-        ),
-
-        // ── Contrast veil ─────────────────────────────────────
-        // Soft top-to-bottom darken so the hello/search content
-        // always has WCAG-AA contrast against the animation.
-        Positioned.fill(
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Colors.black.withValues(alpha: 0.18),
-                  Colors.black.withValues(alpha: 0.05),
-                ],
-              ),
             ),
           ),
         ),
@@ -483,11 +450,11 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     Text(_getGreeting(),
                         style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.75),
+                            color: context.kSub,
                             fontSize: 11)),
                     Text('${_getUserName()} 👋',
-                        style: const TextStyle(
-                            color: Colors.white,
+                        style: TextStyle(
+                            color: context.kText,
                             fontSize: 15,
                             fontWeight: FontWeight.w800)),
                   ]),
@@ -999,11 +966,11 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         width: 40,
         height: 40,
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.14),
+          color: Colors.black.withValues(alpha: 0.04),
           borderRadius: BorderRadius.circular(13),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.22)),
+          border: Border.all(color: Colors.black.withValues(alpha: 0.08)),
         ),
-        child: Icon(icon, color: Colors.white, size: 19),
+        child: Icon(icon, color: context.kText, size: 19),
       ),
       if (notif)
         PositionedDirectional(
@@ -1976,19 +1943,34 @@ class _HomeSearchBarState extends State<_HomeSearchBar> {
       height: 54,
       margin: const EdgeInsets.only(bottom: 20),
       decoration: BoxDecoration(
-        color: context.kCard,
+        // Fully transparent fill so the waves Lottie behind the
+        // header reads through the search row.  A 1.5px white-ish
+        // border + a faint frosted overlay still give the field a
+        // tappable affordance without breaking the glass effect.
+        color: Colors.white.withValues(alpha: 0.18),
         borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.55),
+          width: 1.2,
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.18),
-            blurRadius: 24,
-            offset: const Offset(0, 8),
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
       child: Row(children: [
         const SizedBox(width: 16),
-        const Icon(Icons.search_rounded, color: _kBrand, size: 22),
+        // Translucent so the waves animation behind the bar is
+        // still legible *through* the icon glyph — the entire bar
+        // is supposed to read as glass, not a solid chip.
+        Icon(
+          Icons.search_rounded,
+          color: _kBrand.withValues(alpha: 0.55),
+          size: 22,
+        ),
         const SizedBox(width: 10),
         Expanded(
           child: Stack(
@@ -2018,7 +2000,11 @@ class _HomeSearchBarState extends State<_HomeSearchBar> {
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w700,
-                        color: context.kText,
+                        // Soft translucent so the wave motion is
+                        // visible behind the prefix copy.  Still
+                        // hits ~3.5:1 contrast on white — readable
+                        // without dominating the animation.
+                        color: context.kText.withValues(alpha: 0.45),
                       ),
                     ),
                     Expanded(
@@ -2047,10 +2033,14 @@ class _HomeSearchBarState extends State<_HomeSearchBar> {
                           child: Text(
                             keywords[_idx % keywords.length],
                             key: ValueKey('${ar}_$_idx'),
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w800,
-                              color: _kBrand,
+                              // Brand orange but translucent so the
+                              // wave behind it tints the glyph — the
+                              // word still reads orange thanks to the
+                              // bold weight + 0.55 alpha floor.
+                              color: _kBrand.withValues(alpha: 0.55),
                             ),
                           ),
                         ),

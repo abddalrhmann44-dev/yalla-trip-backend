@@ -72,12 +72,17 @@ class _HostShellPageState extends State<HostShellPage> {
 
   @override
   Widget build(BuildContext context) {
+    // Capture the navigator synchronously (before any await) so the
+    // analyzer is satisfied that we're not crossing an async gap with
+    // a stale BuildContext, and so we don't accidentally read a
+    // disposed-tree Navigator on a slow back-press.
+    final navigator = Navigator.of(context);
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) async {
         if (didPop) return;
         final shouldExit = await _onWillPop();
-        if (shouldExit && mounted) Navigator.of(context).maybePop();
+        if (shouldExit && mounted) navigator.maybePop();
       },
       child: Scaffold(
         backgroundColor: context.kSand,
