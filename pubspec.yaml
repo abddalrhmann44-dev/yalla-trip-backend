@@ -67,6 +67,7 @@ flutter:
     - assets/images/onboarding/
     - assets/images/icon.png
     - assets/images/icon_blank.png
+    - assets/images/splash.png
     - assets/images/payment/
     - assets/animations/
 
@@ -90,6 +91,34 @@ flutter_launcher_icons:
   remove_alpha_ios: true
   min_sdk_android: 21
 
-# Native splash intentionally disabled — the launch_background.xml and
-# Android-12 LaunchTheme have been reset so cold-start shows nothing
-# splash-like before the first Flutter frame.
+# ──────────────────────────────────────────────────────────────────
+#  NATIVE SPLASH (Android + iOS)
+#  Generates the cold-start launch screen so the user sees the brand
+#  splash artwork the instant the app process boots — *before* the
+#  Flutter engine has rendered its first frame.  After Flutter takes
+#  over, ``SplashPage`` (lib/pages/splash_page.dart) shows the same
+#  image with a short fade-in/out, then hands control to ``_AuthGate``.
+#  Run after every change here:
+#      dart run flutter_native_splash:create
+# ──────────────────────────────────────────────────────────────────
+flutter_native_splash:
+  # Background colour shown around the artwork (or behind it, if it
+  # has transparency).  Tuned to brand orange so the transition into
+  # the Dart-side ``SplashPage`` is seamless even on slow cold starts.
+  color: "#FF6B35"
+  color_dark: "#14100C"
+  image: assets/images/splash.png
+  image_dark: assets/images/splash.png
+  android: true
+  ios: true
+  web: false
+  # Android-12+ uses a separate launch-screen API.  The icon image is
+  # rendered inside a circular safe-zone (~192dp), so we point at the
+  # same artwork — Android will scale it as needed.  Branding image
+  # below the icon is intentionally omitted (Material 3 guidelines).
+  android_12:
+    color: "#FF6B35"
+    color_dark: "#14100C"
+    image: assets/images/splash.png
+    image_dark: assets/images/splash.png
+  fullscreen: false

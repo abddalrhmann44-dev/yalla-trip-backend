@@ -9,6 +9,7 @@ import 'firebase_options.dart';
 import 'pages/login_page.dart';
 import 'pages/register_page.dart';
 import 'pages/home_page.dart';
+import 'pages/splash_page.dart';
 import 'pages/owner_add_property_page.dart';
 import 'pages/onboarding_page.dart';
 import 'pages/chat_page.dart';
@@ -154,7 +155,12 @@ class TalaaApp extends StatelessWidget {
           ),
         );
       },
-      home: const _AuthGate(),
+      // Splash first — pulls double-duty with the native splash so
+      // the user sees the brand artwork from the *very first frame*
+      // (native) all the way through the Dart-side fade-out.  After
+      // ~2.4s ``SplashPage`` ``pushReplacement``s to ``AuthGate``,
+      // which decides between Onboarding / Home / Login.
+      home: const SplashPage(),
       routes: {
         '/login': (_) => const LoginPage(),
         '/register': (_) => const RegisterPage(),
@@ -289,13 +295,18 @@ class TalaaApp extends StatelessWidget {
   }
 }
 
-class _AuthGate extends StatefulWidget {
-  const _AuthGate();
+/// Public so the splash page (and any other early-boot widgets)
+/// can ``pushReplacement`` straight to it once their animation
+/// finishes.  Was previously ``_AuthGate`` — private to this file
+/// — but a separate ``SplashPage`` now owns the cold-start surface
+/// and needs a named, importable hand-off target.
+class AuthGate extends StatefulWidget {
+  const AuthGate({super.key});
   @override
-  State<_AuthGate> createState() => _AuthGateState();
+  State<AuthGate> createState() => _AuthGateState();
 }
 
-class _AuthGateState extends State<_AuthGate> {
+class _AuthGateState extends State<AuthGate> {
   bool _checkedVersion = false;
   bool _profileLoaded = false;
   bool? _onboardingSeen;
