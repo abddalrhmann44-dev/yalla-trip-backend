@@ -27,7 +27,7 @@ class _Step {
 
 const _kSteps = [
   _Step('01', 'نوع العقار', 'اختار الصنف اللي يناسب عقارك', '🏷️'),
-  _Step('02', 'الصور', 'كلما كانت الصور أحلى، الحجوزات بتزيد', '📸'),
+  _Step('02', 'الصور', '6 صور على الأقل — كل ما زادت زاد الحجز', '📸'),
   _Step('03', 'المعلومات الأساسية', 'الاسم والموقع والوصف', '📝'),
   _Step('04', 'تفاصيل العقار', 'الغرف والطاقة الاستيعابية', '🛏️'),
   _Step('05', 'المرافق', 'اللي موجود جوا الوحدة', '✨'),
@@ -808,7 +808,7 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
           style: TextStyle(
               fontSize: 22, fontWeight: FontWeight.w900, color: context.kText)),
       const SizedBox(height: 6),
-      _requiredLabel('من 6 إلى 40 صورة'),
+      _requiredLabel('6 صور على الأقل (الحد الأقصى 40)'),
       const SizedBox(height: 16),
       Row(children: [
         Expanded(
@@ -957,12 +957,12 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
           child: Column(children: [
             const Text('📸', style: TextStyle(fontSize: 36)),
             const SizedBox(height: 10),
-            Text('لازم تضيف من 6 إلى 40 صورة',
+            Text('لازم تضيف 6 صور على الأقل',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                     fontSize: 14, fontWeight: FontWeight.w700, color: context.kText)),
             const SizedBox(height: 4),
-            Text('كل ما الصور تزيد، فرص الحجز بتزيد',
+            Text('الحد الأقصى 40 صورة — كل ما زادت زاد الحجز',
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 12, color: context.kSub)),
           ]),
