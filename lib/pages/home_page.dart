@@ -160,10 +160,7 @@ const _kDestinations = [
   _Dest('الفيوم', '🐪', [Color(0xFF558B2F), Color(0xFF33691E)],
       'assets/images/destinations/elfayom.jpg'),
   _Dest('الأقصر', '🏛️', [Color(0xFFFFB300), Color(0xFFFF8F00)],
-      // The original asset arrived with a doubled ``.jpg.jpeg`` suffix;
-      // we reference it as-is so we don't have to rename a binary the
-      // product team uploaded.
-      'assets/images/destinations/alqsor.jpg.jpeg'),
+      'assets/images/destinations/alqsor.jpg'),
   _Dest('أسوان', '⛵', [Color(0xFFFF6F00), Color(0xFFE65100)],
       'assets/images/destinations/aswan.jpg'),
 ];
