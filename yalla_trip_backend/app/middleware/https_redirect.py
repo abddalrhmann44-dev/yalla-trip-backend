@@ -22,7 +22,6 @@ from __future__ import annotations
 from fastapi import FastAPI
 from starlette.middleware.httpsredirect import HTTPSRedirectMiddleware
 from starlette.types import ASGIApp, Receive, Scope, Send
-from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
 from app.config import get_settings
 
@@ -67,9 +66,11 @@ def register(app: FastAPI) -> None:
     if settings.APP_ENV != "production":
         return
 
-    # Trust a single proxy hop — adjust if you front with a multi-tier
-    # CDN (Cloudflare → nginx → app: trusted_hosts="*" is acceptable
-    # when the LB strips client-supplied proxy headers, which all
-    # managed hosts do).
-    app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
+    # Proxy header handling lives at the uvicorn transport layer now —
+    # ``--proxy-headers --forwarded-allow-ips=*`` in the start command
+    # rewrites ``scope["scheme"]`` from ``X-Forwarded-Proto`` before
+    # any ASGI middleware sees the request.  That sidesteps the
+    # ordering trap where ``HTTPSRedirectMiddleware`` would otherwise
+    # inspect the raw uvicorn scheme ("http") and 307 every external
+    # request back to itself in a redirect loop.
     app.add_middleware(HealthAwareHTTPSRedirect)
