@@ -11,6 +11,7 @@ import '../services/user_role_service.dart';
 import '../services/user_service.dart';
 import '../services/property_service.dart';
 import '../services/booking_service.dart';
+import '../services/auth_service.dart';
 import '../services/notification_service.dart';
 import '../widgets/constants.dart';
 import '../widgets/wallet_lottie.dart';
@@ -1197,25 +1198,53 @@ class _ProfilePageState extends State<ProfilePage> {
                 ),
                 ElevatedButton(
                   onPressed: () async {
-                    Navigator.pop(context);
-                    // Unregister this device from the push list *before*
-                    // we clear the auth token – otherwise the DELETE
-                    // request has no credentials.
-                    await NotificationService.instance.unregisterAll();
-                    UserRoleService.instance.clearCache();
-                    userProvider.clear();
-                    favoritesProvider.clear();
+                    // Capture the navigator before any await so we
+                    // can still pop back to LoginPage even if the
+                    // Element gets unmounted along the way (e.g. a
+                    // listener disposes us when userProvider clears).
+                    final nav = Navigator.of(context);
+                    nav.pop();
+
+                    // Unregister this device from the push list
+                    // *before* we clear the auth token – otherwise
+                    // the DELETE request has no credentials.  Each
+                    // step is best-effort: a failure in one MUST NOT
+                    // leave the user stranded on a half-logged-in
+                    // profile screen with stale tokens.
+                    try {
+                      await NotificationService.instance.unregisterAll();
+                    } catch (_) {}
+                    try {
+                      UserRoleService.instance.clearCache();
+                    } catch (_) {}
+                    try {
+                      userProvider.clear();
+                    } catch (_) {}
+                    try {
+                      favoritesProvider.clear();
+                    } catch (_) {}
                     // ── مسح Google credential عشان متدخلش تلقائي ──
                     try {
                       final googleSignIn = GoogleSignIn();
                       await googleSignIn.signOut();
                     } catch (_) {}
-                    await FirebaseAuth.instance.signOut();
-                    if (mounted) {
-                      Navigator.of(context).pushAndRemoveUntil(
-                          MaterialPageRoute(builder: (_) => const LoginPage()),
-                          (_) => false);
-                    }
+                    try {
+                      await FirebaseAuth.instance.signOut();
+                    } catch (_) {}
+                    // ★ Critical: revoke the backend session and
+                    //   clear the JWT pair from secure storage.
+                    //   Without this, a stale access/refresh from a
+                    //   broken pre-deploy session lingers and every
+                    //   subsequent authenticated call (e.g. role
+                    //   upgrade) fails with 401, presenting as a red
+                    //   "حصل خطأ" snackbar to the user.
+                    try {
+                      await AuthService.logout();
+                    } catch (_) {}
+
+                    nav.pushAndRemoveUntil(
+                        MaterialPageRoute(builder: (_) => const LoginPage()),
+                        (_) => false);
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: _kRed,
