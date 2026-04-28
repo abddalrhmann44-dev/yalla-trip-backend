@@ -38,8 +38,57 @@ def upgrade() -> None:
     #    WHERE t.typname = 'category';
     # ALTER TYPE … RENAME VALUE has been supported since Postgres 10
     # and runs in O(1) — it only touches the catalog row.
-    op.execute("ALTER TYPE category RENAME VALUE 'beach_house' TO 'day_use'")
+    #
+    # Idempotency: PostgreSQL has no ``IF EXISTS`` clause on
+    # ``ALTER TYPE … RENAME VALUE``.  We therefore wrap the rename in
+    # a ``DO`` block that checks ``pg_enum`` first.  This makes the
+    # migration safe across three real-world states observed in the
+    # wild:
+    #   1. ``beach_house`` exists, ``day_use`` does not  → rename runs.
+    #   2. ``day_use`` already exists                    → no-op, success.
+    #   3. Neither exists (fresh DB seeded post-rename)  → ``day_use``
+    #      gets added so downstream code that relies on the label
+    #      finds it in the enum.
+    op.execute(
+        """
+        DO $$
+        BEGIN
+            IF EXISTS (
+                SELECT 1 FROM pg_enum e
+                JOIN pg_type t ON e.enumtypid = t.oid
+                WHERE t.typname = 'category' AND e.enumlabel = 'beach_house'
+            ) THEN
+                ALTER TYPE category RENAME VALUE 'beach_house' TO 'day_use';
+            ELSIF NOT EXISTS (
+                SELECT 1 FROM pg_enum e
+                JOIN pg_type t ON e.enumtypid = t.oid
+                WHERE t.typname = 'category' AND e.enumlabel = 'day_use'
+            ) THEN
+                ALTER TYPE category ADD VALUE 'day_use';
+            END IF;
+        END $$;
+        """
+    )
 
 
 def downgrade() -> None:
-    op.execute("ALTER TYPE category RENAME VALUE 'day_use' TO 'beach_house'")
+    # Symmetric guard — only rename back if ``day_use`` exists and
+    # ``beach_house`` does not, to keep the downgrade re-runnable.
+    op.execute(
+        """
+        DO $$
+        BEGIN
+            IF EXISTS (
+                SELECT 1 FROM pg_enum e
+                JOIN pg_type t ON e.enumtypid = t.oid
+                WHERE t.typname = 'category' AND e.enumlabel = 'day_use'
+            ) AND NOT EXISTS (
+                SELECT 1 FROM pg_enum e
+                JOIN pg_type t ON e.enumtypid = t.oid
+                WHERE t.typname = 'category' AND e.enumlabel = 'beach_house'
+            ) THEN
+                ALTER TYPE category RENAME VALUE 'day_use' TO 'beach_house';
+            END IF;
+        END $$;
+        """
+    )
