@@ -60,6 +60,23 @@ async def change_role(
     user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
+    # Self-service role switch is for guest ⇄ owner only.  Admins must
+    # never be silently demoted by the "Become host" / "Switch to guest"
+    # buttons – use /admin/users/{id}/role for privileged changes.
+    from app.models.user import UserRole as _UR
+    if user.role == _UR.admin:
+        # No-op: keep admin privileges intact and just echo back the user.
+        logger.info(
+            "user_role_change_ignored_for_admin",
+            user_id=user.id,
+            requested=body.role.value,
+        )
+        return UserOut.model_validate(user)
+    if body.role == _UR.admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="لا يمكن منح صلاحيات الإدارة من هنا / Cannot self-grant admin",
+        )
     user.role = body.role
     await db.flush()
     await db.refresh(user)

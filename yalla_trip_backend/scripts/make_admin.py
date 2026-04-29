@@ -13,7 +13,7 @@ import argparse
 import asyncio
 import sys
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from app.database import async_session as AsyncSessionLocal
 from app.models.user import User, UserRole
@@ -23,7 +23,9 @@ async def _promote(email: str | None, user_id: int | None) -> int:
     async with AsyncSessionLocal() as db:  # type: AsyncSession
         stmt = select(User)
         if email:
-            stmt = stmt.where(User.email == email.lower())
+            # Case-insensitive match — the DB may store the address with
+            # mixed casing depending on the Firebase / OAuth provider.
+            stmt = stmt.where(func.lower(User.email) == email.lower())
         elif user_id is not None:
             stmt = stmt.where(User.id == user_id)
         else:

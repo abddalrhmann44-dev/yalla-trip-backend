@@ -163,6 +163,10 @@ class _ProfilePageState extends State<ProfilePage> {
 
     if (confirm != true) return;
 
+    // Defense-in-depth: admins must never trigger a guest⇄owner role
+    // switch — it would silently demote them on the backend.
+    if (userProvider.isAdmin) return;
+
     try {
       await UserRoleService.instance.saveRole(UserRole.owner);
       await _loadProfile();
@@ -182,6 +186,8 @@ class _ProfilePageState extends State<ProfilePage> {
 
   // ── Switch back to Guest ──────────────────────────────────
   Future<void> _becomeGuest() async {
+    // Defense-in-depth: admins keep their privileges; never demote.
+    if (userProvider.isAdmin) return;
     try {
       await UserRoleService.instance.saveRole(UserRole.guest);
       await _loadProfile();
