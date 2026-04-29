@@ -3,12 +3,14 @@ import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'firebase_options.dart';
 
 import 'pages/login_page.dart';
 import 'pages/register_page.dart';
 import 'pages/home_page.dart';
+import 'pages/property_details_page.dart';
 import 'pages/owner_add_property_page.dart';
 import 'pages/onboarding_page.dart';
 import 'pages/chat_page.dart';
@@ -22,6 +24,7 @@ import 'utils/app_strings.dart';
 import 'services/connectivity_guard.dart';
 import 'services/version_check_service.dart';
 import 'services/notification_service.dart';
+import 'services/deep_link_service.dart';
 import 'services/sentry_service.dart';
 import 'pages/admin/admin_main_page.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -95,14 +98,27 @@ void main() async {
 
   await appSettings.load();
 
-  // Initialize FCM & local notifications
-  await NotificationService.instance.initialize();
-
   // Wrap runApp in the Sentry zone so uncaught errors are reported.
   // When SENTRY_DSN isn't defined the helper transparently calls the
   // runner directly, keeping dev/tests identical to before.
   await SentryService.bootstrap(() async {
     runApp(const ProviderScope(child: TalaaApp()));
+    // Defer heavy startup work (FCM permission, token fetch, backend
+    // registration, deep-link probe) until *after* the first frame so
+    // the UI appears immediately.  These operations can each block
+    // for 1-3s on slow networks and were previously delaying cold
+    // start by several seconds.
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      // Fire-and-forget — failures here must never crash the app.
+      // ignore: unawaited_futures
+      NotificationService.instance.initialize().catchError((e, st) {
+        debugPrint('[Notifications] init failed: $e');
+      });
+      // ignore: unawaited_futures
+      DeepLinkService.instance.initialize().catchError((e, st) {
+        debugPrint('[DeepLink] init failed: $e');
+      });
+    });
   });
 }
 
@@ -191,6 +207,14 @@ class TalaaApp extends StatelessWidget {
                 propertyId: propId,
               ),
             );
+          case '/property':
+            final propertyId = _propertyIdFromRouteArgs(settings.arguments);
+            if (propertyId == null) {
+              return MaterialPageRoute(builder: (_) => const HomePage());
+            }
+            return MaterialPageRoute(
+              builder: (_) => PropertyDetailsPage(propertyId: propertyId),
+            );
           case '/payment':
             return MaterialPageRoute(builder: (_) => const HomePage());
           default:
@@ -198,6 +222,17 @@ class TalaaApp extends StatelessWidget {
         }
       },
     );
+  }
+
+  int? _propertyIdFromRouteArgs(Object? args) {
+    if (args is int) return args;
+    if (args is String) return int.tryParse(args);
+    if (args is Map) {
+      final raw = args['propertyId'] ?? args['property_id'] ?? args['id'];
+      if (raw is int) return raw;
+      if (raw != null) return int.tryParse(raw.toString());
+    }
+    return null;
   }
 
   ThemeData _buildTheme(Brightness brightness) {
@@ -235,11 +270,22 @@ class TalaaApp extends StatelessWidget {
       cardColor: card,
     );
 
+    // Apply Cairo to every default text style.  Widgets that hard-code
+    // ``fontFamily: 'monospace'`` (referral codes, txn IDs, audit log)
+    // continue to override per-call so they stay monospace.
+    final cairoTextTheme = GoogleFonts.cairoTextTheme(base.textTheme).apply(
+      bodyColor: onBg,
+      displayColor: onBg,
+    );
+    final cairoPrimaryTextTheme =
+        GoogleFonts.cairoTextTheme(base.primaryTextTheme).apply(
+      bodyColor: onBg,
+      displayColor: onBg,
+    );
+
     return base.copyWith(
-      textTheme: base.textTheme.apply(
-        bodyColor: onBg,
-        displayColor: onBg,
-      ),
+      textTheme: cairoTextTheme,
+      primaryTextTheme: cairoPrimaryTextTheme,
       appBarTheme: AppBarTheme(
         backgroundColor: isDark ? const Color(0xFF1A140F) : Colors.white,
         foregroundColor: isDark ? onBg : AppColors.primary,
@@ -289,8 +335,8 @@ class TalaaApp extends StatelessWidget {
           foregroundColor: scheme.onPrimary,
           elevation: 0,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-          textStyle: const TextStyle(
-              fontFamily: 'Outfit', fontSize: 15, fontWeight: FontWeight.w800),
+          textStyle: GoogleFonts.cairo(
+              fontSize: 15, fontWeight: FontWeight.w800),
         ),
       ),
     );

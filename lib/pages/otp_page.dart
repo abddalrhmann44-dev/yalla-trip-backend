@@ -161,6 +161,13 @@ class _OtpPageState extends State<OtpPage>
 
       verificationCompleted: (PhoneAuthCredential credential) async {
         final result = await _auth.signInWithCredential(credential);
+        final fbUser = result.user;
+        if (fbUser != null) {
+          final idToken = await fbUser.getIdToken();
+          if (idToken != null) {
+            await AuthService.exchangeFirebaseToken(idToken);
+          }
+        }
         if (mounted) _routeAfterAuth(result);
       },
 

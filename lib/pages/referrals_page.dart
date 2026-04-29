@@ -118,7 +118,7 @@ ${s.referralLink}
                   fontWeight: FontWeight.w900)),
           const SizedBox(height: 4),
           const Text(
-            'عن كل صديق يسجّل بكودك ويُكمل أول حجز.',
+            'عن كل صديق يسجّل بكودك.',
             style: TextStyle(color: Colors.white70, fontSize: 13),
           ),
           const SizedBox(height: 16),
@@ -183,7 +183,7 @@ ${s.referralLink}
       Expanded(
           child: _statCard(
               label: 'مكافآت',
-              value: '${s.rewardedCount}',
+              value: '${s.referrals.where((r) => r.rewardAmount != null && r.rewardAmount! > 0).length}',
               color: Colors.green)),
       const SizedBox(width: 8),
       Expanded(
@@ -310,7 +310,7 @@ ${s.referralLink}
                       fontWeight: FontWeight.w700,
                       fontSize: 11)),
             ),
-            if (r.rewardAmount != null) ...[
+            if (r.rewardAmount != null && r.rewardAmount! > 0) ...[
               const SizedBox(height: 4),
               Text('+${fmt.format(r.rewardAmount!)}',
                   style: TextStyle(

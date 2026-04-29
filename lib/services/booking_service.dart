@@ -19,6 +19,7 @@ class BookingService {
     required DateTime checkOut,
     required int guestsCount,
     String? promoCode,
+    double walletAmount = 0,
   }) async {
     final data = await _api.post('/bookings', {
       'property_id': propertyId,
@@ -27,6 +28,7 @@ class BookingService {
       'guests_count': guestsCount,
       if (promoCode != null && promoCode.trim().isNotEmpty)
         'promo_code': promoCode.trim(),
+      if (walletAmount > 0) 'wallet_amount': walletAmount,
     });
     return BookingModel.fromJson(data as Map<String, dynamic>);
   }

@@ -72,11 +72,16 @@ async def redeem_preview(
     db: AsyncSession = Depends(get_db),
 ):
     wallet = await wallet_service.get_or_create_wallet(db, me.id)
+    settings = get_settings()
     cap = wallet_service.max_redeemable(subtotal)
     max_applicable = min(wallet.balance, cap)
-    settings = get_settings()
     reason = None
-    if wallet.balance >= cap and cap < wallet.balance:
+    if subtotal < settings.WALLET_MIN_REDEEM_SUBTOTAL:
+        reason = (
+            f"رصيد الدعوات يستخدم مع حجوزات من "
+            f"{settings.WALLET_MIN_REDEEM_SUBTOTAL:.0f} جنيه أو أكثر"
+        )
+    elif wallet.balance >= cap and cap < wallet.balance:
         reason = (
             f"الحد الأقصى {settings.WALLET_MAX_REDEEM_PERCENT:.0f}% "
             f"من قيمة الحجز"

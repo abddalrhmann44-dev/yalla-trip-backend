@@ -14,6 +14,7 @@ import '../models/property_model_api.dart';
 import '../services/booking_service.dart';
 import '../services/payment_service.dart';
 import '../services/promo_code_service.dart';
+import '../services/wallet_service.dart';
 import '../utils/api_client.dart';
 import '../utils/app_strings.dart';
 import '../utils/device_integrity.dart';
@@ -158,6 +159,7 @@ class PaymentPage extends StatefulWidget {
 }
 
 class _PaymentPageState extends State<PaymentPage> {
+  static const double _kCommissionRate = 0.10;
   String? _sel;
   bool _loading = false;
 
@@ -173,6 +175,9 @@ class _PaymentPageState extends State<PaymentPage> {
   double _discount = 0;
   bool _validatingPromo = false;
   String? _promoError;
+  RedeemPreview? _walletPreview;
+  bool _useWalletCredit = false;
+  bool _loadingWallet = true;
 
   // Device integrity — assume trusted until proven otherwise so the
   // page renders instantly; the native probe runs in the background
@@ -188,6 +193,42 @@ class _PaymentPageState extends State<PaymentPage> {
     super.initState();
     appSettings.addListener(_onLangChange);
     _checkDeviceIntegrity();
+    _loadWalletPreview();
+  }
+
+  Future<void> _loadWalletPreview() async {
+    final hadPreview = _walletPreview != null;
+    final subtotal = _walletPreviewSubtotal;
+    if (mounted) {
+      setState(() => _loadingWallet = true);
+    }
+    if (subtotal <= 0) {
+      if (!mounted) return;
+      setState(() {
+        _walletPreview = null;
+        _useWalletCredit = false;
+        _loadingWallet = false;
+      });
+      return;
+    }
+    try {
+      final preview = await WalletService.redeemPreview(subtotal);
+      if (!mounted) return;
+      setState(() {
+        _walletPreview = preview;
+        _useWalletCredit = hadPreview
+            ? _useWalletCredit && preview.maxRedeemable > 0
+            : preview.maxRedeemable > 0;
+        _loadingWallet = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _walletPreview = null;
+        _useWalletCredit = false;
+        _loadingWallet = false;
+      });
+    }
   }
 
   Future<void> _checkDeviceIntegrity() async {
@@ -230,6 +271,7 @@ class _PaymentPageState extends State<PaymentPage> {
           _appliedCode = null;
           _discount = 0;
         });
+        await _loadWalletPreview();
         return;
       }
       setState(() {
@@ -238,6 +280,7 @@ class _PaymentPageState extends State<PaymentPage> {
         _discount = res.discountAmount;
         _promoError = null;
       });
+      await _loadWalletPreview();
     } catch (_) {
       if (!mounted) return;
       setState(() {
@@ -254,15 +297,45 @@ class _PaymentPageState extends State<PaymentPage> {
       _promoError = null;
       _promoCtrl.clear();
     });
+    _loadWalletPreview();
   }
 
   // Wave 25 — for hybrid bookings the gateway only collects the
   // online deposit, so the "amount due now" the page advertises must
   // be the deposit (minus any promo) rather than the full grand total.
   int get _finalAmount =>
-      (widget.chargeableAmount - _discount)
+      _estimatedChargeableAmount
           .clamp(0, double.infinity)
           .toInt();
+
+  double get _walletDiscount =>
+      _useWalletCredit ? (_walletPreview?.maxRedeemable ?? 0) : 0;
+
+  double get _walletPreviewSubtotal {
+    final subtotal = widget.totalAmount.toDouble() - _discount;
+    return subtotal > 0 ? subtotal : 0;
+  }
+
+  double get _effectiveTotalAfterDiscounts =>
+      (widget.totalAmount.toDouble() - _discount - _walletDiscount)
+          .clamp(0, double.infinity);
+
+  double get _estimatedChargeableAmount {
+    final total = _effectiveTotalAfterDiscounts;
+    if (!widget.isCashOnArrival || total <= 0) return total;
+    final perNight = widget.property.pricePerNight;
+    if (perNight <= 0) return total;
+    final nightsNeeded = ((total * _kCommissionRate) / perNight).ceil();
+    final depositNights = nightsNeeded < 1 ? 1 : nightsNeeded;
+    final deposit = perNight * depositNights;
+    return deposit > total ? total : deposit;
+  }
+
+  double get _estimatedRemainingCash {
+    if (!widget.isCashOnArrival) return 0;
+    return (_effectiveTotalAfterDiscounts - _estimatedChargeableAmount)
+        .clamp(0, double.infinity);
+  }
 
   // ─────────────────────────────────────────────────────────────
   @override
@@ -291,6 +364,8 @@ class _PaymentPageState extends State<PaymentPage> {
               _orderCard(),
               const SizedBox(height: 12),
               _promoCard(),
+              const SizedBox(height: 12),
+              _walletCreditCard(),
               const SizedBox(height: 16),
               _escrowBanner(),
               if (!_deviceTrusted) ...[
@@ -515,12 +590,18 @@ class _PaymentPageState extends State<PaymentPage> {
               '- ${_discount.toStringAsFixed(0)} جنيه',
               color: _kGreen,
             ),
+          if (_walletDiscount > 0)
+            _row(
+              'رصيد الدعوات',
+              '- ${_walletDiscount.toStringAsFixed(0)} جنيه',
+              color: _kGreen,
+            ),
           Divider(height: 14, color: context.kBorder),
-          // For cash-on-arrival listings the visible "total" stays
-          // the trip-wide grand total — the deposit + cash split
-          // lives below in its own card so the guest sees both
-          // numbers at once and isn't surprised on arrival.
-          _row(S.totalPrice, '${widget.totalAmount} جنيه', bold: true),
+          _row(
+            S.totalPrice,
+            '${_effectiveTotalAfterDiscounts.toStringAsFixed(0)} جنيه',
+            bold: true,
+          ),
           if (widget.isCashOnArrival) ...[
             const SizedBox(height: 12),
             _depositSplitBox(),
@@ -564,7 +645,7 @@ class _PaymentPageState extends State<PaymentPage> {
         const SizedBox(height: 8),
         _row('تدفع الآن (عربون)', '$_finalAmount جنيه', bold: true),
         _row('تدفع كاش عند الوصول',
-            '${widget.remainingCash} جنيه'),
+            '${_estimatedRemainingCash.toStringAsFixed(0)} جنيه'),
       ]),
     );
   }
@@ -675,6 +756,67 @@ class _PaymentPageState extends State<PaymentPage> {
           ],
         ],
       ),
+    );
+  }
+
+  Widget _walletCreditCard() {
+    final preview = _walletPreview;
+    final canUse = preview != null && preview.maxRedeemable > 0;
+    final available = preview?.availableBalance ?? 0;
+    final reason = preview?.capReason;
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: context.kCard,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: context.kBorder),
+      ),
+      child: Row(children: [
+        Container(
+          width: 38,
+          height: 38,
+          decoration: BoxDecoration(
+            color: _kGreen.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: const Icon(Icons.account_balance_wallet_rounded,
+              color: _kGreen, size: 21),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('استخدم رصيد الدعوات',
+                  style: TextStyle(
+                      color: context.kText,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w800)),
+              const SizedBox(height: 3),
+              Text(
+                _loadingWallet
+                    ? 'جارى فحص الرصيد...'
+                    : canUse
+                        ? 'متاح خصم ${preview.maxRedeemable.toStringAsFixed(0)} جنيه من رصيدك'
+                        : reason ?? 'متاح عند حجوزات من 3000 جنيه أو أكثر',
+                style: TextStyle(color: context.kSub, fontSize: 11.5),
+              ),
+              if (!_loadingWallet && available > 0) ...[
+                const SizedBox(height: 2),
+                Text('رصيدك: ${available.toStringAsFixed(0)} جنيه',
+                    style: TextStyle(color: context.kSub, fontSize: 11)),
+              ],
+            ],
+          ),
+        ),
+        Switch(
+          value: _useWalletCredit && canUse,
+          activeThumbColor: _kGreen,
+          onChanged: canUse
+              ? (v) => setState(() => _useWalletCredit = v)
+              : null,
+        ),
+      ]),
     );
   }
 
@@ -992,6 +1134,7 @@ class _PaymentPageState extends State<PaymentPage> {
         checkOut: checkOutDt,
         guestsCount: widget.guests,
         promoCode: _appliedCode,
+        walletAmount: _walletDiscount,
       );
 
       // ── 2. Initiate payment with the chosen gateway ──────────

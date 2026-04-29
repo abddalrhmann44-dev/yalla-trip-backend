@@ -194,12 +194,18 @@ class _LoginPageState extends State<LoginPage> {
         return;
       }
       final ga = await user.authentication;
+      debugPrint('[GoogleSignIn] hasIdToken=${ga.idToken != null} '
+          'hasAccessToken=${ga.accessToken != null} email=${user.email}');
       final cred = GoogleAuthProvider.credential(
           accessToken: ga.accessToken, idToken: ga.idToken);
       final result = await _auth.signInWithCredential(cred);
       await _afterAuth(result);
-    } catch (_) {
-      _showError('حدث خطأ في تسجيل الدخول بـ Google');
+    } catch (e, st) {
+      debugPrint('[GoogleSignIn] FAILED: $e\n$st');
+      if (!mounted) return;
+      _showError(kDebugMode
+          ? 'Google: $e'
+          : 'حدث خطأ في تسجيل الدخول بـ Google');
     } finally {
       if (mounted) setState(() => _loading = false);
     }

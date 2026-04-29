@@ -3,6 +3,7 @@
 *.log
 *.pyc
 *.swp
+*.hprof
 .DS_Store
 
 # Local build-time secrets (Sentry DSN, etc.) — NEVER commit

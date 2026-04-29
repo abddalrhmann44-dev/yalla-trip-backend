@@ -29,9 +29,13 @@ class SharingService {
     'PUBLIC_APP_URL',
     defaultValue: 'https://talaa.app',
   );
+  static const String _appScheme = String.fromEnvironment(
+    'APP_LINK_SCHEME',
+    defaultValue: 'talaa',
+  );
 
   /// Shareable universal-link URL for a property.
-  String propertyUrl(int propertyId) => '$_publicBase/p/$propertyId';
+  String propertyUrl(int propertyId) => '$_appScheme://properties/$propertyId';
 
   /// Shareable referral link (used from Wave 11).
   String referralUrl(String code) =>

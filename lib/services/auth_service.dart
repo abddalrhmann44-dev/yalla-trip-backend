@@ -9,6 +9,7 @@ import 'package:http/http.dart' as http;
 
 import '../utils/api_client.dart';
 import '../utils/api_config.dart';
+import 'referral_link_service.dart';
 
 class AuthService {
   static final _api = ApiClient();
@@ -17,11 +18,21 @@ class AuthService {
   /// for a backend JWT and store it for future API calls.  The refresh
   /// token is also persisted so the client can silently rotate when
   /// the access token expires without re-prompting Firebase.
-  static Future<void> exchangeFirebaseToken(String firebaseIdToken) async {
+  static Future<void> exchangeFirebaseToken(
+    String firebaseIdToken, {
+    String? referralCode,
+  }) async {
+    final pendingReferralCode =
+        referralCode ?? await ReferralLinkService.getPendingReferralCode();
+    final body = <String, dynamic>{
+      'firebase_token': firebaseIdToken,
+      if (pendingReferralCode != null && pendingReferralCode.isNotEmpty)
+        'referral_code': pendingReferralCode,
+    };
     final response = await http.post(
       Uri.parse('${ApiConfig.baseUrl}/auth/verify-token'),
       headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'firebase_token': firebaseIdToken}),
+      body: jsonEncode(body),
     );
 
     if (response.statusCode == 200) {
@@ -29,6 +40,9 @@ class AuthService {
       final accessToken = data['access_token'] as String;
       final refreshToken = data['refresh_token'] as String?;
       await _api.setToken(accessToken, refreshToken: refreshToken);
+      if (pendingReferralCode != null && pendingReferralCode.isNotEmpty) {
+        await ReferralLinkService.clearPendingReferralCode();
+      }
     } else {
       final detail = _tryParseDetail(response.body);
       throw Exception(

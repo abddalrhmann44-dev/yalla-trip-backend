@@ -12,6 +12,16 @@
 					<string>com.googleusercontent.apps.862731638391-ukmp54bgfft9ui60k4scds7h4mskflt0</string>
 				</array>
 			</dict>
+			<dict>
+				<key>CFBundleTypeRole</key>
+				<string>Editor</string>
+				<key>CFBundleURLName</key>
+				<string>com.yallatrip.app</string>
+				<key>CFBundleURLSchemes</key>
+				<array>
+					<string>talaa</string>
+				</array>
+			</dict>
 		</array>
 		<key>CADisableMinimumFrameDurationOnPhone</key>
 		<true/>

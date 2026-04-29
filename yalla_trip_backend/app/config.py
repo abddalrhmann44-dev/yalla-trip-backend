@@ -149,6 +149,7 @@ class Settings(BaseSettings):
     # Percentage of a booking's subtotal that may be paid from wallet
     # credit.  Capped so fees + payouts cover the checkout cost.
     WALLET_MAX_REDEEM_PERCENT: float = 50.0
+    WALLET_MIN_REDEEM_SUBTOTAL: float = 3000.0
     # Public base URL used to build shareable referral links
     # (e.g. https://yalla-trip.com/signup?ref=ABC123).
     PUBLIC_APP_URL: str = "https://talaa.app"

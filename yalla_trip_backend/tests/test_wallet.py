@@ -79,20 +79,18 @@ async def test_referral_code_stable_across_calls(guest_client: AsyncClient):
 async def test_redeem_preview_caps_at_percentage(
     admin_client: AsyncClient, guest_client: AsyncClient,
 ):
-    """Balance 500, subtotal 600 → cap is 50% × 600 = 300."""
-    # Admin grants 500 EGP to guest (id=1)
     r = await admin_client.post(
         "/wallet/admin/1/adjust",
-        json={"amount": 500.0, "description": "promo credit"},
+        json={"amount": 2000.0, "description": "promo credit"},
     )
     assert r.status_code == 200, r.text
 
     r = await guest_client.post(
-        "/wallet/me/redeem/preview", params={"subtotal": 600.0}
+        "/wallet/me/redeem/preview", params={"subtotal": 3000.0}
     )
     data = r.json()
-    assert data["available_balance"] == 500.0
-    assert data["max_redeemable"] == 300.0      # capped by percentage
+    assert data["available_balance"] == 2000.0
+    assert data["max_redeemable"] == 1500.0
 
 
 # ══════════════════════════════════════════════════════════════
@@ -176,7 +174,8 @@ async def test_attach_referral_and_reward():
             db, invitee, code,
         )
         assert ref is not None
-        assert ref.status == ReferralStatus.pending
+        assert ref.status == ReferralStatus.rewarded
+        assert ref.reward_amount == 100.0
         await db.commit()
         invitee_id = invitee.id
         referrer_id = referrer.id
@@ -203,9 +202,7 @@ async def test_attach_referral_and_reward():
         rewarded = await wallet_service.reward_referrer_for_booking(
             db, booking,
         )
-        assert rewarded is not None
-        assert rewarded.status == ReferralStatus.rewarded
-        assert rewarded.reward_amount == 100.0       # default settings
+        assert rewarded is None
         await db.commit()
 
     # Referrer's wallet now carries the bonus.
@@ -273,9 +270,9 @@ async def test_reward_is_idempotent():
         db.add(booking)
         await db.flush()
         first = await wallet_service.reward_referrer_for_booking(db, booking)
-        # Second call should find no pending referrals → no reward.
+        # Reward was already paid at signup, so booking callbacks no-op.
         second = await wallet_service.reward_referrer_for_booking(db, booking)
-        assert first is not None
+        assert first is None
         assert second is None
         await db.commit()
 
@@ -315,15 +312,15 @@ async def test_booking_applies_wallet_discount(
         json={
             "property_id": prop.id,
             "check_in": date.today().isoformat(),
-            "check_out": (date.today() + timedelta(days=2)).isoformat(),
+            "check_out": (date.today() + timedelta(days=3)).isoformat(),
             "guests_count": 2,
-            "wallet_amount": 500.0,       # 50% of 2000 base = max allowed
+            "wallet_amount": 500.0,
         },
     )
     assert r.status_code == 201, r.text
     data = r.json()
     assert data["wallet_discount"] == 500.0
-    assert data["total_price"] == 1500.0    # 2000 base - 500 wallet
+    assert data["total_price"] == 2500.0
 
     # Wallet debited, ledger entry linked to booking.
     summary = (await guest_client.get("/wallet/me")).json()
@@ -343,9 +340,9 @@ async def test_booking_rejects_over_cap(guest_client: AsyncClient):
         json={
             "property_id": prop.id,
             "check_in": date.today().isoformat(),
-            "check_out": (date.today() + timedelta(days=2)).isoformat(),
+            "check_out": (date.today() + timedelta(days=3)).isoformat(),
             "guests_count": 2,
-            "wallet_amount": 1900.0,      # way over the 50% cap
+            "wallet_amount": 1900.0,
         },
     )
     assert r.status_code == 400

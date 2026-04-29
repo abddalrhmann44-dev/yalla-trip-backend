@@ -171,6 +171,58 @@ async def debit(
 
 
 # ── Referral flow ────────────────────────────────────────────
+async def _reward_referral(
+    db: AsyncSession,
+    ref: Referral,
+    *,
+    booking_id: int | None = None,
+) -> Referral:
+    settings = get_settings()
+    if settings.REFERRAL_REWARD_AMOUNT <= 0:
+        return ref
+
+    amount = settings.REFERRAL_REWARD_AMOUNT
+    cap = settings.REFERRAL_REWARD_MAX_COUNT
+    already_rewarded = (
+        await db.execute(
+            select(func.count(Referral.id))
+            .where(Referral.referrer_id == ref.referrer_id)
+            .where(Referral.status == ReferralStatus.rewarded)
+        )
+    ).scalar() or 0
+
+    capped = cap > 0 and already_rewarded >= cap
+    if not capped:
+        await credit(
+            db, ref.referrer_id, amount,
+            txn_type=WalletTxnType.referral_bonus,
+            description=(
+                f"مكافأة دعوة صديق / Referral bonus"
+                + (f" (booking #{booking_id})" if booking_id else " (signup)")
+            ),
+            referral_id=ref.id,
+            booking_id=booking_id,
+        )
+        ref.reward_amount = amount
+    else:
+        ref.reward_amount = 0.0
+
+    ref.status = ReferralStatus.rewarded
+    ref.qualifying_booking_id = booking_id
+    ref.rewarded_at = datetime.now(timezone.utc)
+    await db.flush()
+
+    logger.info(
+        "referral_rewarded",
+        referral_id=ref.id,
+        referrer_id=ref.referrer_id,
+        amount=0.0 if capped else amount,
+        capped=capped,
+        booking_id=booking_id,
+    )
+    return ref
+
+
 async def attach_referral_on_signup(
     db: AsyncSession, new_user: User, referral_code: str,
 ) -> Referral | None:
@@ -198,6 +250,8 @@ async def attach_referral_on_signup(
         )
     ).scalar_one_or_none()
     if existing is not None:
+        if existing.status == ReferralStatus.pending:
+            return await _reward_referral(db, existing)
         return existing
 
     ref = Referral(
@@ -218,6 +272,7 @@ async def attach_referral_on_signup(
             description="مكافأة التسجيل / Signup bonus",
             referral_id=ref.id,
         )
+    await _reward_referral(db, ref)
 
     logger.info(
         "referral_attached",
@@ -250,56 +305,15 @@ async def reward_referrer_for_booking(
     if ref is None:
         return None
 
-    # ── Cap check: how many rewarded referrals does the referrer
-    # already have?  Beyond REFERRAL_REWARD_MAX_COUNT we mark the
-    # Referral as rewarded (so it's consumed and accounted for in
-    # stats) but skip the wallet credit.
-    amount = settings.REFERRAL_REWARD_AMOUNT
-    cap = settings.REFERRAL_REWARD_MAX_COUNT
-    already_rewarded = (
-        await db.execute(
-            select(func.count(Referral.id))
-            .where(Referral.referrer_id == ref.referrer_id)
-            .where(Referral.status == ReferralStatus.rewarded)
-        )
-    ).scalar() or 0
-
-    capped = cap > 0 and already_rewarded >= cap
-    if not capped:
-        await credit(
-            db, ref.referrer_id, amount,
-            txn_type=WalletTxnType.referral_bonus,
-            description=(
-                f"مكافأة دعوة صديق / Referral bonus (booking #{booking.id})"
-            ),
-            referral_id=ref.id,
-            booking_id=booking.id,
-        )
-        ref.reward_amount = amount
-    else:
-        # No wallet credit – mark reward_amount as 0 for traceability.
-        ref.reward_amount = 0.0
-
-    ref.status = ReferralStatus.rewarded
-    ref.qualifying_booking_id = booking.id
-    ref.rewarded_at = datetime.now(timezone.utc)
-    await db.flush()
-
-    logger.info(
-        "referral_rewarded",
-        referral_id=ref.id,
-        referrer_id=ref.referrer_id,
-        amount=0.0 if capped else amount,
-        capped=capped,
-        booking_id=booking.id,
-    )
-    return ref
+    return await _reward_referral(db, ref, booking_id=booking.id)
 
 
 # ── Booking integration ──────────────────────────────────────
 def max_redeemable(subtotal: float) -> float:
     """Maximum wallet credit the user may apply to a subtotal."""
     settings = get_settings()
+    if subtotal < settings.WALLET_MIN_REDEEM_SUBTOTAL:
+        return 0.0
     pct = max(0.0, min(100.0, settings.WALLET_MAX_REDEEM_PERCENT))
     return round(subtotal * pct / 100.0, 2)
 
@@ -323,11 +337,17 @@ async def redeem_for_booking(
     """
     if requested <= 0:
         return 0.0, None
+    settings = get_settings()
+    if subtotal < settings.WALLET_MIN_REDEEM_SUBTOTAL:
+        raise ValueError(
+            f"استخدام رصيد الدعوات متاح للحجوزات من "
+            f"{settings.WALLET_MIN_REDEEM_SUBTOTAL:.0f} جنيه أو أكثر"
+        )
     cap = max_redeemable(subtotal)
     if requested > cap + 1e-6:
         raise ValueError(
             f"requested {requested} exceeds cap {cap} "
-            f"({get_settings().WALLET_MAX_REDEEM_PERCENT}% of subtotal)"
+            f"({settings.WALLET_MAX_REDEEM_PERCENT}% of subtotal)"
         )
 
     wallet = await get_or_create_wallet(db, user_id)

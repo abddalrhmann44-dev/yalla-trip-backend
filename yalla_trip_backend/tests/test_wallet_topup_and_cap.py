@@ -95,44 +95,8 @@ async def _make_user(uid: int, name: str) -> int:
 async def _simulate_rewarded_referral(
     referrer_id: int, invitee_id: int,
 ) -> None:
-    """Simulate a booking-driven reward so the referrer's cap advances."""
-    from datetime import date
-    from app.models.booking import Booking, BookingStatus, PaymentStatus
-    from app.models.property import Property, Category
-
+    """Simulate a signup-driven reward so the referrer's cap advances."""
     async with TestSession() as s:
-        prop = Property(
-            owner_id=referrer_id,
-            name=f"Cap test {invitee_id}",
-            area="الساحل الشمالي",
-            category=Category.chalet,
-            price_per_night=500.0,
-            bedrooms=1,
-            bathrooms=1,
-            max_guests=2,
-            total_rooms=1,
-        )
-        s.add(prop)
-        await s.flush()
-
-        booking = Booking(
-            property_id=prop.id,
-            guest_id=invitee_id,
-            owner_id=referrer_id,
-            check_in=date(2026, 1, 1),
-            check_out=date(2026, 1, 3),
-            guests_count=2,
-            total_price=1000.0,
-            platform_fee=80.0,
-            owner_payout=920.0,
-            booking_code=f"CAP{invitee_id:05d}",
-            status=BookingStatus.confirmed,
-            payment_status=PaymentStatus.paid,
-        )
-        s.add(booking)
-        await s.flush()
-
-        # Ensure a pending Referral row exists
         ref = Referral(
             referrer_id=referrer_id,
             invitee_id=invitee_id,
@@ -141,8 +105,7 @@ async def _simulate_rewarded_referral(
         )
         s.add(ref)
         await s.flush()
-
-        await wallet_service.reward_referrer_for_booking(s, booking)
+        await wallet_service._reward_referral(s, ref)
         await s.commit()
 
 
@@ -162,7 +125,7 @@ async def test_referral_cap_stops_credits_after_3():
         )).scalar_one_or_none()
         start_balance = w.balance if w else 0.0
 
-    # Create 4 invitees + drive 4 qualifying bookings
+    # Create 4 invitees + drive 4 rewarded signups
     for i in range(4):
         invitee_id = 90_000 + i
         await _make_user(invitee_id, f"Invitee {i}")
