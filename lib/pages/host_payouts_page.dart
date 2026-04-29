@@ -289,7 +289,7 @@ class _HostPayoutsPageState extends State<HostPayoutsPage>
                       color: AppColors.primary.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(4),
                     ),
-                    child: const Text('افتراضي',
+                    child: const Text('رئيسي',
                         style: TextStyle(
                             color: AppColors.primary,
                             fontSize: 10,
@@ -341,7 +341,7 @@ class _HostPayoutsPageState extends State<HostPayoutsPage>
           itemBuilder: (_) => [
             if (!a.isDefault)
               const PopupMenuItem(
-                  value: 'default', child: Text('تعيين كافتراضي')),
+                  value: 'default', child: Text('تعيين كحساب رئيسي')),
             const PopupMenuItem(
                 value: 'delete',
                 child: Text('حذف', style: TextStyle(color: Colors.red))),
@@ -775,7 +775,11 @@ class _AddBankAccountSheetState extends State<_AddBankAccountSheet> {
               ),
               const SizedBox(height: 10),
               SwitchListTile(
-                title: const Text('جعله الحساب الافتراضي'),
+                title: const Text('جعله الحساب الرئيسي'),
+                subtitle: const Text(
+                  'الأرباح هتتحول على الحساب ده تلقائياً',
+                  style: TextStyle(fontSize: 11),
+                ),
                 value: _isDefault,
                 onChanged: (v) => setState(() => _isDefault = v),
                 contentPadding: EdgeInsets.zero,
