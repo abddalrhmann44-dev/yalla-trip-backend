@@ -205,11 +205,11 @@ class TermsPage extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(children: [
-            const Icon(Icons.mail_outline_rounded,
+            const Icon(Icons.support_agent_rounded,
                 size: 18, color: _kBrand),
             const SizedBox(width: 8),
             Text(
-              ar ? 'للتواصل القانوني' : 'Legal contact',
+              ar ? 'طرق التواصل' : 'Contact us',
               style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w900,
@@ -219,24 +219,37 @@ class TermsPage extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             ar
-                ? 'أي استفسار بخصوص هذه السياسة أو طلب يتعلق ببياناتك '
-                  'الشخصية يُرسل إلى:'
-                : 'Questions about these Terms or requests regarding your '
-                  'personal data should be sent to:',
+                ? 'لأي استفسار بخصوص الشروط أو سياسة الخصوصية أو طلب '
+                  'يتعلق ببياناتك الشخصية، تواصل معنا عبر:'
+                : 'For any question about these Terms, the Privacy Policy, '
+                  'or a request regarding your personal data, contact us via:',
             style: TextStyle(fontSize: 12, color: context.kSub, height: 1.6),
           ),
+          const SizedBox(height: 10),
+          Row(children: [
+            const Icon(Icons.mail_outline_rounded, size: 16, color: _kBrand),
+            const SizedBox(width: 6),
+            const Expanded(
+              child: Text('support@talaa-trip.com',
+                  style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w800,
+                      color: _kBrand)),
+            ),
+          ]),
           const SizedBox(height: 6),
-          const Text('legal@talaa.app',
-              style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w800,
-                  color: _kBrand)),
-          const SizedBox(height: 4),
-          const Text('privacy@talaa.app',
-              style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w800,
-                  color: _kBrand)),
+          Row(children: [
+            const Icon(Icons.phone_rounded, size: 16, color: _kBrand),
+            const SizedBox(width: 6),
+            const Expanded(
+              child: Text('+20 107 077 1910',
+                  textDirection: TextDirection.ltr,
+                  style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w800,
+                      color: _kBrand)),
+            ),
+          ]),
         ],
       ),
     );
@@ -748,7 +761,7 @@ const _sections = <_Section>[
       'الأسس القانونية: تنفيذ العقد، الموافقة، الالتزام القانوني، والمصلحة المشروعة.',
       'المشاركة: بوابات الدفع (مثل Paymob)، خدمات الاستضافة السحابية، مزودو التحليلات، والجهات الرسمية بناءً على طلب قانوني. لا نبيع بياناتك أبداً.',
       'مدة الاحتفاظ: ما دام الحساب نشطاً، زائد 5 سنوات للسجلات المالية والقانونية وفق القانون المصري.',
-      'حقوقك: الوصول، التصحيح، الحذف، النقل، الاعتراض، سحب الموافقة. أرسل طلبك إلى: privacy@talaa.app.',
+      'حقوقك: الوصول، التصحيح، الحذف، النقل، الاعتراض، سحب الموافقة. أرسل طلبك إلى: support@talaa-trip.com أو واتساب +201070771910.',
       'قد نسجّل المحادثات داخل التطبيق لأغراض السلامة وحل النزاعات.',
       'جميع بيانات الدفع مُشفّرة طبقاً لمعايير PCI-DSS.',
     ],
@@ -759,7 +772,7 @@ const _sections = <_Section>[
       'Legal bases: contract performance, consent, legal obligation, and legitimate interest.',
       'Sharing: payment processors (e.g. Paymob), cloud-hosting providers, analytics vendors, and authorities upon lawful request. We never sell your data.',
       'Retention: for as long as your account is active, plus 5 years for financial/legal records as required by Egyptian law.',
-      'Your rights: access, rectification, deletion, portability, objection, withdrawal of consent. Send requests to: privacy@talaa.app.',
+      'Your rights: access, rectification, deletion, portability, objection, withdrawal of consent. Send requests to: support@talaa-trip.com or WhatsApp +201070771910.',
       'We may record in-app conversations for safety and dispute-resolution purposes.',
       'All payment data is encrypted to PCI-DSS standards.',
     ],
@@ -815,7 +828,7 @@ const _sections = <_Section>[
       'الحوالة: لا يحق لك نقل حقوقك أو التزاماتك للغير دون موافقة كتابية من المنصة، ويحق للمنصة نقل حقوقها في حالات الاندماج أو الاستحواذ.',
       'اللغة: في حال وجود تعارض بين النسخة العربية والإنجليزية، تسود النسخة العربية داخل مصر.',
       'الإخطارات: نتواصل معك عبر البريد الإلكتروني أو الهاتف المسجَّلين في الحساب أو عبر الإشعارات داخل التطبيق.',
-      'التواصل: support@talaa.app للدعم الفني، privacy@talaa.app للخصوصية، legal@talaa.app للمسائل القانونية.',
+      'التواصل: support@talaa-trip.com للدعم والخصوصية والمسائل القانونية، أو واتساب +201070771910.',
     ],
     itemsEn: [
       'Severability: if any provision is held invalid, the remaining provisions stay in full force and effect.',
@@ -824,7 +837,7 @@ const _sections = <_Section>[
       'Assignment: you may not assign your rights or obligations without the Platform\'s written consent; the Platform may assign its rights in connection with a merger or acquisition.',
       'Language: in the event of conflict between the Arabic and English versions, the Arabic version prevails within Egypt.',
       'Notices: we contact you via the email or phone registered in the account or via in-app notifications.',
-      'Contact: support@talaa.app for support, privacy@talaa.app for privacy, legal@talaa.app for legal matters.',
+      'Contact: support@talaa-trip.com for support, privacy and legal matters, or WhatsApp +201070771910.',
     ],
   ),
 ];

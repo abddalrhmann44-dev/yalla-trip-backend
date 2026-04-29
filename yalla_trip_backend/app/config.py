@@ -171,7 +171,11 @@ class Settings(BaseSettings):
     #
     # The defaults below are the Talaa founding team — override in .env
     # for different deployments. Case-insensitive.
-    ADMIN_EMAILS: str = "qaran12121@gmail.com,abdalrhamnmohamed4@gmail.com"
+    ADMIN_EMAILS: str = (
+        "qaran12121@gmail.com,"
+        "abdalrhamnmohamed4@gmail.com,"
+        "support@talaa-trip.com"
+    )
 
     @property
     def admin_emails_set(self) -> set[str]:
