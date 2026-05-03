@@ -171,9 +171,6 @@ class Settings(BaseSettings):
     #
     # The defaults below are the Talaa founding team — override in .env
     # for different deployments. Case-insensitive.
-    # NOTE: support@talaa-trip.com is NOT an admin — it's a public
-    # support address shown in the Terms / Privacy page.  Keep it
-    # out of this list.
     ADMIN_EMAILS: str = "qaran12121@gmail.com,abdalrhamnmohamed4@gmail.com"
 
     @property
