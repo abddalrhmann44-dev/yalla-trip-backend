@@ -36,6 +36,14 @@ router = APIRouter(prefix="/auth", tags=["Auth"])
 
 
 # ── Helpers ───────────────────────────────────────────────
+def _clip(s: str | None, max_len: int) -> str | None:
+    if s is None:
+        return None
+    if len(s) <= max_len:
+        return s
+    return s[:max_len]
+
+
 def _client_meta(request: Request) -> tuple[str | None, str | None]:
     """Extract a (user_agent, ip) pair from the incoming request.
 
@@ -113,12 +121,13 @@ async def verify_token(
                 initial_role = UserRole.admin
                 logger.info("user_bootstrapped_as_admin", email=email)
 
+            display = fb_info.get("display_name") or decoded.get("name") or "User"
             user = User(
                 firebase_uid=firebase_uid,
-                name=fb_info.get("display_name") or decoded.get("name", "User"),
+                name=_clip(display, 120) or "User",
                 email=email,
                 phone=fb_info.get("phone_number") or decoded.get("phone_number"),
-                avatar_url=fb_info.get("photo_url"),
+                avatar_url=_clip(fb_info.get("photo_url"), 512),
                 is_verified=decoded.get("email_verified", False),
                 role=initial_role,
             )

@@ -6,8 +6,9 @@ from contextlib import asynccontextmanager
 
 import structlog
 from fastapi import FastAPI, Request, status
-from fastapi.exceptions import RequestValidationError
+from fastapi.exceptions import RequestValidationError, ResponseValidationError
 from fastapi.responses import ORJSONResponse
+from sqlalchemy.exc import IntegrityError
 
 from app.config import get_settings
 from app.logging_config import configure_logging
@@ -123,6 +124,45 @@ def _sanitize_errors(errors: list[dict]) -> list[dict]:
     return clean
 
 
+@app.exception_handler(ResponseValidationError)
+async def response_validation_handler(
+    request: Request, exc: ResponseValidationError
+):
+    """Logged separately because a bare ``Exception`` handler matches
+    ``ResponseValidationError`` via the MRO before any generic logging
+    would explain *which* response field failed validation."""
+    logger.error(
+        "response_validation_failed",
+        path=request.url.path,
+        errors=exc.errors(),
+    )
+    return ORJSONResponse(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        content={
+            "detail": "Internal server error",
+            "detail_ar": "حدث خطأ في الخادم",
+        },
+    )
+
+
+@app.exception_handler(IntegrityError)
+async def integrity_handler(request: Request, exc: IntegrityError):
+    """Raised most often when a deferred commit hits a unique constraint
+    (e.g. duplicate email) after the route body already ran."""
+    logger.error(
+        "db_integrity_error",
+        path=request.url.path,
+        error=str(exc),
+    )
+    return ORJSONResponse(
+        status_code=status.HTTP_409_CONFLICT,
+        content={
+            "detail": "Request conflicts with existing data.",
+            "detail_ar": "تعارض مع بيانات موجودة مسبقاً",
+        },
+    )
+
+
 @app.exception_handler(RequestValidationError)
 async def validation_handler(request: Request, exc: RequestValidationError):
     errors = _sanitize_errors(exc.errors())
@@ -142,7 +182,12 @@ async def validation_handler(request: Request, exc: RequestValidationError):
 
 @app.exception_handler(Exception)
 async def generic_handler(request: Request, exc: Exception):
-    logger.error("unhandled_exception", path=request.url.path, error=str(exc))
+    logger.error(
+        "unhandled_exception",
+        path=request.url.path,
+        exc_type=type(exc).__name__,
+        error=str(exc),
+    )
     return ORJSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         content={
