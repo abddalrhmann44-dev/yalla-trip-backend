@@ -1,4 +1,12 @@
-"""Alembic env – synchronous migration runner that imports all models."""
+"""Alembic env – synchronous migration runner that imports all models.
+
+The database URL is resolved in this order:
+1. ``DATABASE_URL`` env var (set by Railway / production)
+2. ``Settings.DATABASE_URL_SYNC`` from pydantic-settings (reads .env)
+3. Local-dev fallback inside ``config.py`` when neither is set
+
+No hardcoded URLs live here — everything flows through ``config.py``.
+"""
 
 from logging.config import fileConfig
 
@@ -13,6 +21,9 @@ import app.models  # noqa: F401
 
 settings = get_settings()
 config = context.config
+
+# Override whatever alembic.ini declares with the actual DB URL
+# derived by pydantic-settings (env var → .env → local fallback).
 config.set_main_option("sqlalchemy.url", settings.DATABASE_URL_SYNC)
 
 if config.config_file_name is not None:

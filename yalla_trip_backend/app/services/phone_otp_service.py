@@ -1,9 +1,9 @@
 """Phone-number OTP challenge orchestration (Wave 23).
 
-This service is transport-agnostic: it generates codes, persists
-hashed records, and exposes ``start`` / ``verify`` helpers.  The SMS
-delivery layer is stubbed to logging — wire Twilio / Vonage / a local
-Egyptian aggregator behind ``_send_sms`` when the business is ready.
+This service generates codes, persists hashed records, and exposes
+``start`` / ``verify`` helpers.  OTP delivery goes through WhatsApp
+Cloud API when credentials are configured; otherwise falls back to
+logging so local dev still works without an API key.
 """
 
 from __future__ import annotations
@@ -13,10 +13,12 @@ import secrets
 import re
 from datetime import datetime, timedelta, timezone
 
+import httpx
 import structlog
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import get_settings
 from app.models.phone_otp import (
     MAX_VERIFY_ATTEMPTS,
     OTP_TTL_SECONDS,
@@ -25,6 +27,7 @@ from app.models.phone_otp import (
 from app.models.user import User
 
 logger = structlog.get_logger(__name__)
+_settings = get_settings()
 
 
 # ── public helpers ───────────────────────────────────────────
@@ -63,16 +66,67 @@ def _generate_code() -> str:
     return f"{secrets.randbelow(1_000_000):06d}"
 
 
-async def _send_sms(phone: str, code: str) -> None:
-    """Placeholder SMS delivery.
+# ── OTP delivery ─────────────────────────────────────────────
 
-    Replace with a real provider in production.  Kept as a coroutine
-    so real implementations can use async httpx without refactor.
-    """
-    # IMPORTANT:  never log the real code in production – this is a
-    # developer convenience.  We use INFO so the code is visible in
-    # ``docker compose logs api`` during manual testing.
-    logger.info("phone_otp_sent", phone=phone, code=code)
+async def _send_whatsapp_otp(phone: str, code: str) -> bool:
+    """Send OTP via WhatsApp Cloud API.  Returns True on success."""
+    phone_id = _settings.WHATSAPP_PHONE_NUMBER_ID
+    token = _settings.WHATSAPP_ACCESS_TOKEN
+    template = _settings.WHATSAPP_OTP_TEMPLATE_NAME
+
+    if not phone_id or not token:
+        return False
+
+    # WhatsApp expects the number WITHOUT the leading +
+    wa_phone = phone.lstrip("+")
+    url = f"https://graph.facebook.com/v21.0/{phone_id}/messages"
+
+    payload = {
+        "messaging_product": "whatsapp",
+        "to": wa_phone,
+        "type": "template",
+        "template": {
+            "name": template,
+            "language": {"code": "ar"},
+            "components": [
+                {
+                    "type": "body",
+                    "parameters": [
+                        {"type": "text", "text": code},
+                    ],
+                },
+            ],
+        },
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            resp = await client.post(
+                url,
+                json=payload,
+                headers={"Authorization": f"Bearer {token}"},
+            )
+        if resp.status_code < 300:
+            logger.info("whatsapp_otp_sent", phone=phone)
+            return True
+        logger.error(
+            "whatsapp_otp_failed",
+            phone=phone,
+            status=resp.status_code,
+            body=resp.text[:500],
+        )
+        return False
+    except Exception as exc:
+        logger.error("whatsapp_otp_error", phone=phone, error=str(exc))
+        return False
+
+
+async def _send_otp(phone: str, code: str) -> None:
+    """Deliver OTP via WhatsApp, with log fallback for dev."""
+    sent = await _send_whatsapp_otp(phone, code)
+    if not sent:
+        # Fallback: log to console (dev convenience)
+        logger.info("phone_otp_sent_log_fallback", phone=phone, code=code)
 
 
 # ── orchestration ────────────────────────────────────────────
@@ -110,7 +164,7 @@ async def start_challenge(
     await db.flush()
     await db.refresh(row)
 
-    await _send_sms(normalized, code)
+    await _send_otp(normalized, code)
     logger.info(
         "phone_otp_started", user_id=user.id, phone=normalized, otp_id=row.id,
     )
@@ -149,7 +203,11 @@ async def verify_challenge(
     if row.attempts >= MAX_VERIFY_ATTEMPTS:
         raise OtpError("exhausted")
 
-    if row.code_hash != _hash_code(code):
+    # Accept a fixed test code for TestFlight / QA builds.
+    test_code = _settings.OTP_TEST_CODE
+    is_test_match = bool(test_code and code == test_code)
+
+    if not is_test_match and row.code_hash != _hash_code(code):
         row.attempts += 1
         if row.attempts >= MAX_VERIFY_ATTEMPTS:
             row.used = True  # burn it

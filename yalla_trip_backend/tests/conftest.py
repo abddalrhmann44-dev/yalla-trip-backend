@@ -42,10 +42,9 @@ def _derive_test_db_url() -> str:
     explicit = os.environ.get("TEST_DATABASE_URL")
     if explicit:
         return explicit
-    src = os.environ.get(
-        "DATABASE_URL",
-        "postgresql+asyncpg://yalla:yalla_secret@localhost:5432/yalla_trip",
-    )
+    # Import from config so the local-dev fallback is defined in one place.
+    from app.config import get_settings as _gs
+    src = os.environ.get("DATABASE_URL") or _gs().DATABASE_URL
     # Replace only the final ``/<db>`` segment.
     base, _, db = src.rpartition("/")
     if not db or not base:

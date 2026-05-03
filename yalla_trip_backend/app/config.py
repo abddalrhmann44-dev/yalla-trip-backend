@@ -30,11 +30,17 @@ class Settings(BaseSettings):
     #   * ``postgresql+asyncpg://…``       – fully qualified async driver
     # ``_normalize_db_urls`` below upgrades it to the async form used
     # by the FastAPI engine and derives the sync form for Alembic.
-    DATABASE_URL: str = "postgresql+asyncpg://yalla:yalla_secret@localhost:5432/yalla_trip"
+    #
+    # On Railway / production the env var is always set by the
+    # platform.  The empty default triggers the local-dev fallback
+    # in ``_apply_local_dev_defaults`` below.
+    DATABASE_URL: str = ""
     DATABASE_URL_SYNC: str = ""
 
     # ── Redis ─────────────────────────────────────────────────
-    REDIS_URL: str = "redis://localhost:6379/0"
+    # Same pattern: empty → local-dev fallback; Railway injects
+    # the private URL via ``REDIS_URL`` env var.
+    REDIS_URL: str = ""
 
     # ── Firebase ──────────────────────────────────────────────
     FIREBASE_CREDENTIALS_JSON: str = "{}"
@@ -85,6 +91,16 @@ class Settings(BaseSettings):
     # in local dev / CI where the test-suite still relies on the
     # old trust-the-client behaviour.
     ALLOW_UNVERIFIED_WALLET_TOPUP: bool = False
+
+    # ── WhatsApp Cloud API (OTP delivery) ────────────────────
+    # Meta WhatsApp Business API credentials.  Leave blank to
+    # fall back to logging the OTP code (dev / CI convenience).
+    WHATSAPP_PHONE_NUMBER_ID: str = ""
+    WHATSAPP_ACCESS_TOKEN: str = ""
+    WHATSAPP_OTP_TEMPLATE_NAME: str = "talaa_otp"
+    # Fixed test code accepted alongside the real code.  Handy
+    # for TestFlight / internal QA.  Set to "" in production.
+    OTP_TEST_CODE: str = ""
 
     # ── FCM ───────────────────────────────────────────────────
     FCM_SERVER_KEY: str = ""
@@ -181,10 +197,28 @@ class Settings(BaseSettings):
             if e.strip()
         }
 
+    # ── Local-dev fallbacks ──────────────────────────────────
+    # When DATABASE_URL / REDIS_URL are empty (no env var, no .env
+    # file) we fall back to the local Docker Compose stack so
+    # ``python -m uvicorn app.main:app`` works out of the box.
+    # On Railway / production the env var is always set by the
+    # platform, so these fallbacks are never reached.
+    _LOCAL_DATABASE_URL = "postgresql+asyncpg://yalla:yalla_secret@localhost:5432/yalla_trip"
+    _LOCAL_REDIS_URL = "redis://localhost:6379/0"
+
+    @model_validator(mode="after")
+    def _apply_local_dev_defaults(self) -> "Settings":
+        if not self.DATABASE_URL:
+            self.DATABASE_URL = self._LOCAL_DATABASE_URL
+        if not self.REDIS_URL:
+            self.REDIS_URL = self._LOCAL_REDIS_URL
+        return self
+
     # ── Database URL normalisation ────────────────────────────
-    # Runs after the BaseSettings has loaded env vars / defaults.
-    # Handles the three real-world shapes of ``DATABASE_URL`` so
-    # dropping into Railway / Heroku / local-Docker all "just works".
+    # Runs after ``_apply_local_dev_defaults`` populates any empty
+    # URLs.  Handles the three real-world shapes of ``DATABASE_URL``
+    # so dropping into Railway / Heroku / local-Docker all
+    # "just works".
     @model_validator(mode="after")
     def _normalize_db_urls(self) -> "Settings":
         url = self.DATABASE_URL or ""
@@ -247,6 +281,18 @@ class Settings(BaseSettings):
                 "ALLOW_UNVERIFIED_WALLET_TOPUP must be False in "
                 "production — wallet top-ups must go through the "
                 "Paymob webhook."
+            )
+
+        if "localhost" in self.DATABASE_URL:
+            problems.append(
+                "DATABASE_URL still points to localhost — set the "
+                "Railway Postgres internal URL in env vars."
+            )
+
+        if "localhost" in self.REDIS_URL:
+            problems.append(
+                "REDIS_URL still points to localhost — set the "
+                "Railway Redis internal URL in env vars."
             )
 
         if problems:

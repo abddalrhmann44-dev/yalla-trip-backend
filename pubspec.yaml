@@ -81,7 +81,7 @@ flutter_launcher_icons:
   # icons would otherwise composite a separate background colour behind
   # an inset foreground (~ 66% size), which is exactly what we don't
   # want — the user's design must fill the full icon area itself.
-  image_path: "assets/images/icon.png"
+  image_path: "assets/images/icon_ios.png"
   # Background = the actual icon at full 108dp canvas (no inset → fills
   #              the entire launcher tile, including under the safe zone).
   # Foreground = a fully-transparent PNG so Android's safe-zone overlay
