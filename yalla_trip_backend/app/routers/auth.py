@@ -98,58 +98,72 @@ async def verify_token(
 
     firebase_uid = decoded["uid"]
 
-    # ── Lookup or create user ─────────────────────────────
-    result = await db.execute(select(User).where(User.firebase_uid == firebase_uid))
-    user = result.scalar_one_or_none()
+    try:
+        # ── Lookup or create user ─────────────────────────────
+        result = await db.execute(select(User).where(User.firebase_uid == firebase_uid))
+        user = result.scalar_one_or_none()
 
-    if user is None:
-        fb_info = await get_firebase_user(firebase_uid) or {}
-        email = fb_info.get("email") or decoded.get("email")
+        if user is None:
+            fb_info = await get_firebase_user(firebase_uid) or {}
+            email = fb_info.get("email") or decoded.get("email")
 
-        # Auto-promote bootstrap admin emails (configured via ADMIN_EMAILS env)
-        initial_role = UserRole.guest
-        if email and email.lower() in _settings.admin_emails_set:
-            initial_role = UserRole.admin
-            logger.info("user_bootstrapped_as_admin", email=email)
+            # Auto-promote bootstrap admin emails (configured via ADMIN_EMAILS env)
+            initial_role = UserRole.guest
+            if email and email.lower() in _settings.admin_emails_set:
+                initial_role = UserRole.admin
+                logger.info("user_bootstrapped_as_admin", email=email)
 
-        user = User(
-            firebase_uid=firebase_uid,
-            name=fb_info.get("display_name") or decoded.get("name", "User"),
-            email=email,
-            phone=fb_info.get("phone_number") or decoded.get("phone_number"),
-            avatar_url=fb_info.get("photo_url"),
-            is_verified=decoded.get("email_verified", False),
-            role=initial_role,
-        )
-        db.add(user)
-        await db.flush()
-        await db.refresh(user)
-        logger.info(
-            "user_created_from_firebase", user_id=user.id, role=user.role.value
-        )
-
-        # Wave 11: link referrer on first login if a valid ref code was
-        # passed in the verify-token payload.
-        if body.referral_code:
-            try:
-                await attach_referral_on_signup(db, user, body.referral_code)
-            except Exception as exc:      # pragma: no cover
-                logger.error("attach_referral_failed", err=str(exc))
-    else:
-        # Existing user — if their email is now in ADMIN_EMAILS and they
-        # aren't admin yet, promote them (one-way: never auto-demote).
-        if (
-            user.email
-            and user.email.lower() in _settings.admin_emails_set
-            and user.role != UserRole.admin
-        ):
-            user.role = UserRole.admin
+            user = User(
+                firebase_uid=firebase_uid,
+                name=fb_info.get("display_name") or decoded.get("name", "User"),
+                email=email,
+                phone=fb_info.get("phone_number") or decoded.get("phone_number"),
+                avatar_url=fb_info.get("photo_url"),
+                is_verified=decoded.get("email_verified", False),
+                role=initial_role,
+            )
+            db.add(user)
             await db.flush()
             await db.refresh(user)
-            logger.info("user_promoted_to_admin", user_id=user.id)
+            logger.info(
+                "user_created_from_firebase", user_id=user.id, role=user.role.value
+            )
 
-    # Fresh login starts a brand-new refresh-token family.
-    return await _issue_pair(db, user, request, family_id=None)
+            # Wave 11: link referrer on first login if a valid ref code was
+            # passed in the verify-token payload.
+            if body.referral_code:
+                try:
+                    await attach_referral_on_signup(db, user, body.referral_code)
+                except Exception as exc:      # pragma: no cover
+                    logger.error("attach_referral_failed", err=str(exc))
+        else:
+            # Existing user — if their email is now in ADMIN_EMAILS and they
+            # aren't admin yet, promote them (one-way: never auto-demote).
+            if (
+                user.email
+                and user.email.lower() in _settings.admin_emails_set
+                and user.role != UserRole.admin
+            ):
+                user.role = UserRole.admin
+                await db.flush()
+                await db.refresh(user)
+                logger.info("user_promoted_to_admin", user_id=user.id)
+
+        # Fresh login starts a brand-new refresh-token family.
+        return await _issue_pair(db, user, request, family_id=None)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.error(
+            "verify_token_failed",
+            firebase_uid=firebase_uid,
+            error=repr(exc),
+            error_type=type(exc).__name__,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Login failed: {type(exc).__name__}: {exc}",
+        )
 
 
 @router.post("/refresh", response_model=TokenPayload)

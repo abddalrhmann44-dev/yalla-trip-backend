@@ -77,11 +77,23 @@ async def change_role(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="لا يمكن منح صلاحيات الإدارة من هنا / Cannot self-grant admin",
         )
-    user.role = body.role
-    await db.flush()
-    await db.refresh(user)
-    logger.info("user_role_changed", user_id=user.id, new_role=body.role.value)
-    return UserOut.model_validate(user)
+    try:
+        user.role = body.role
+        await db.flush()
+        await db.refresh(user)
+        logger.info("user_role_changed", user_id=user.id, new_role=body.role.value)
+        return UserOut.model_validate(user)
+    except Exception as exc:
+        logger.error(
+            "role_change_failed",
+            user_id=user.id,
+            error=repr(exc),
+            error_type=type(exc).__name__,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Role change failed: {type(exc).__name__}: {exc}",
+        )
 
 
 @router.put("/me/fcm-token", response_model=MessageResponse)
