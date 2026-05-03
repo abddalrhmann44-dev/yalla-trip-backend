@@ -63,7 +63,7 @@ ENTRYPOINT ["/usr/bin/tini", "--"]
 
 # Gunicorn manages a pool of Uvicorn workers – resilient to crashes,
 # honours WORKERS env to scale horizontally on one machine.
-CMD ["sh", "-c", "gunicorn app.main:app \
+CMD ["sh", "-c", "alembic upgrade head && exec gunicorn app.main:app \
     --bind 0.0.0.0:${PORT} \
     --workers ${WORKERS} \
     --worker-class uvicorn.workers.UvicornWorker \
