@@ -25,10 +25,20 @@ from app.database import Base
 class Area(str, enum.Enum):
     ain_sokhna = "عين السخنة"
     north_coast = "الساحل الشمالي"
+    alamein = "العلمين الجديدة"
+    marsa_matrouh = "مرسى مطروح"
     gouna = "الجونة"
     hurghada = "الغردقة"
     sharm = "شرم الشيخ"
     ras_sedr = "رأس سدر"
+    dahab = "دهب"
+    cairo = "القاهرة"
+    alexandria = "اسكندرية"
+    fayoum = "الفيوم"
+    sahl_hasheesh = "سهل حشيش"
+    marsa_alam = "مرسى علم"
+    luxor = "الأقصر"
+    aswan = "أسوان"
 
 
 class Category(str, enum.Enum):
