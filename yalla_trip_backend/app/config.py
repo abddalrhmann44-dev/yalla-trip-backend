@@ -92,12 +92,11 @@ class Settings(BaseSettings):
     # old trust-the-client behaviour.
     ALLOW_UNVERIFIED_WALLET_TOPUP: bool = False
 
-    # ── WhatsApp Cloud API (OTP delivery) ────────────────────
-    # Meta WhatsApp Business API credentials.  Leave blank to
-    # fall back to logging the OTP code (dev / CI convenience).
-    WHATSAPP_PHONE_NUMBER_ID: str = ""
-    WHATSAPP_ACCESS_TOKEN: str = ""
-    WHATSAPP_OTP_TEMPLATE_NAME: str = "talaa_otp"
+    # ── WaAPI / wapilot (WhatsApp OTP delivery) ─────────────
+    # WaAPI gateway credentials.  Leave blank to fall back to
+    # logging the OTP code (dev / CI convenience).
+    WAPILOT_API_TOKEN: str = ""
+    WAPILOT_INSTANCE_ID: str = ""
     # Fixed test code accepted alongside the real code.  Handy
     # for TestFlight / internal QA.  Set to "" in production.
     OTP_TEST_CODE: str = ""

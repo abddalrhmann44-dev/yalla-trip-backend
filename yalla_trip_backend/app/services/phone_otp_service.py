@@ -66,48 +66,38 @@ def _generate_code() -> str:
     return f"{secrets.randbelow(1_000_000):06d}"
 
 
-# ── OTP delivery ─────────────────────────────────────────────
+# ── OTP delivery via WaAPI (wapilot) ─────────────────────────
 
 async def _send_whatsapp_otp(phone: str, code: str) -> bool:
-    """Send OTP via WhatsApp Cloud API.  Returns True on success."""
-    phone_id = _settings.WHATSAPP_PHONE_NUMBER_ID
-    token = _settings.WHATSAPP_ACCESS_TOKEN
-    template = _settings.WHATSAPP_OTP_TEMPLATE_NAME
+    """Send OTP via WaAPI (wapilot) gateway.  Returns True on success."""
+    token = _settings.WAPILOT_API_TOKEN
+    instance = _settings.WAPILOT_INSTANCE_ID
 
-    if not phone_id or not token:
+    if not token or not instance:
         return False
 
-    # WhatsApp expects the number WITHOUT the leading +
-    wa_phone = phone.lstrip("+")
-    url = f"https://graph.facebook.com/v21.0/{phone_id}/messages"
+    # WaAPI chatId format: {country_code}{number}@c.us  (no leading +)
+    chat_id = phone.lstrip("+") + "@c.us"
+    url = f"https://waapi.app/api/v1/instances/{instance}/client/action/send-message"
 
     payload = {
-        "messaging_product": "whatsapp",
-        "to": wa_phone,
-        "type": "template",
-        "template": {
-            "name": template,
-            "language": {"code": "ar"},
-            "components": [
-                {
-                    "type": "body",
-                    "parameters": [
-                        {"type": "text", "text": code},
-                    ],
-                },
-            ],
-        },
+        "chatId": chat_id,
+        "message": f"كود التحقق الخاص بك في طلعة: *{code}*\n\nلا تشارك هذا الكود مع أي شخص.",
     }
 
     try:
-        async with httpx.AsyncClient(timeout=10) as client:
+        async with httpx.AsyncClient(timeout=15) as client:
             resp = await client.post(
                 url,
                 json=payload,
-                headers={"Authorization": f"Bearer {token}"},
+                headers={
+                    "Authorization": f"Bearer {token}",
+                    "Accept": "application/json",
+                    "Content-Type": "application/json",
+                },
             )
         if resp.status_code < 300:
-            logger.info("whatsapp_otp_sent", phone=phone)
+            logger.info("whatsapp_otp_sent", phone=phone, instance=instance)
             return True
         logger.error(
             "whatsapp_otp_failed",
@@ -122,7 +112,7 @@ async def _send_whatsapp_otp(phone: str, code: str) -> bool:
 
 
 async def _send_otp(phone: str, code: str) -> None:
-    """Deliver OTP via WhatsApp, with log fallback for dev."""
+    """Deliver OTP via WhatsApp (WaAPI), with log fallback for dev."""
     sent = await _send_whatsapp_otp(phone, code)
     if not sent:
         # Fallback: log to console (dev convenience)
