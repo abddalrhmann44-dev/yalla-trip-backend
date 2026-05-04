@@ -947,67 +947,95 @@ async def upload_property_id_documents(
     contract is required — the owner's personal ID is the only
     document Talaa collects from the owner side.
     """
-    result = await db.execute(select(Property).where(Property.id == property_id))
-    prop = result.scalar_one_or_none()
-    if prop is None:
-        raise HTTPException(status_code=404, detail="العقار غير موجود / Property not found")
-    if prop.owner_id != user.id and user.role != UserRole.admin:
-        raise HTTPException(
-            status_code=403, detail="ليس لديك صلاحية / Not your property"
-        )
+    try:
+        result = await db.execute(select(Property).where(Property.id == property_id))
+        prop = result.scalar_one_or_none()
+        if prop is None:
+            raise HTTPException(status_code=404, detail="العقار غير موجود / Property not found")
+        if prop.owner_id != user.id and user.role != UserRole.admin:
+            raise HTTPException(
+                status_code=403, detail="ليس لديك صلاحية / Not your property"
+            )
 
-    front_ct = _normalise_image_ct(front.content_type)
-    back_ct = _normalise_image_ct(back.content_type)
-    if front_ct is None or back_ct is None:
-        raise HTTPException(
-            status_code=415,
-            detail="صيغة الصورة غير مدعومة / Unsupported image format",
+        front_ct = _normalise_image_ct(front.content_type)
+        back_ct = _normalise_image_ct(back.content_type)
+        logger.info(
+            "id_doc_upload_start",
+            property_id=property_id,
+            front_ct_raw=front.content_type,
+            back_ct_raw=back.content_type,
+            front_ct=front_ct,
+            back_ct=back_ct,
         )
+        if front_ct is None or back_ct is None:
+            raise HTTPException(
+                status_code=415,
+                detail="صيغة الصورة غير مدعومة / Unsupported image format",
+            )
 
-    # Upload both faces in parallel.  Critical: if one of the two
-    # PUTs succeeds and the other fails, we *must* delete the orphan
-    # to avoid leaking national-ID scans into S3 with no DB pointer.
-    front_url, back_url = await asyncio.gather(
-        upload_image(
-            front.file, folder=f"properties/{property_id}/id", content_type=front_ct,
-        ),
-        upload_image(
-            back.file, folder=f"properties/{property_id}/id", content_type=back_ct,
-        ),
-    )
-    if front_url is None or back_url is None:
-        # Roll back any partial upload so we never leave personal
-        # documents orphaned in S3.
-        if front_url is not None:
-            try:
-                await delete_image(front_url)
-            except Exception:  # pragma: no cover — best-effort cleanup
-                logger.exception(
-                    "id_document_orphan_cleanup_failed",
-                    url=front_url, property_id=property_id,
-                )
-        if back_url is not None:
-            try:
-                await delete_image(back_url)
-            except Exception:  # pragma: no cover
-                logger.exception(
-                    "id_document_orphan_cleanup_failed",
-                    url=back_url, property_id=property_id,
-                )
+        # Upload both faces in parallel.  Critical: if one of the two
+        # PUTs succeeds and the other fails, we *must* delete the orphan
+        # to avoid leaking national-ID scans into S3 with no DB pointer.
+        front_url, back_url = await asyncio.gather(
+            upload_image(
+                front.file, folder=f"properties/{property_id}/id", content_type=front_ct,
+            ),
+            upload_image(
+                back.file, folder=f"properties/{property_id}/id", content_type=back_ct,
+            ),
+        )
+        if front_url is None or back_url is None:
+            logger.error(
+                "id_doc_s3_upload_returned_none",
+                property_id=property_id,
+                front_url=front_url,
+                back_url=back_url,
+            )
+            # Roll back any partial upload so we never leave personal
+            # documents orphaned in S3.
+            if front_url is not None:
+                try:
+                    await delete_image(front_url)
+                except Exception:  # pragma: no cover — best-effort cleanup
+                    logger.exception(
+                        "id_document_orphan_cleanup_failed",
+                        url=front_url, property_id=property_id,
+                    )
+            if back_url is not None:
+                try:
+                    await delete_image(back_url)
+                except Exception:  # pragma: no cover
+                    logger.exception(
+                        "id_document_orphan_cleanup_failed",
+                        url=back_url, property_id=property_id,
+                    )
+            raise HTTPException(
+                status_code=500,
+                detail="فشل رفع البطاقة / Failed to upload ID images",
+            )
+
+        prop.id_document_front_url = front_url
+        prop.id_document_back_url = back_url
+        await db.flush()
+        await db.refresh(prop)
+        logger.info(
+            "property_id_documents_uploaded",
+            property_id=property_id, owner_id=user.id,
+        )
+        return PropertyOut.model_validate(prop)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.error(
+            "id_doc_upload_failed",
+            property_id=property_id,
+            error=repr(exc),
+            error_type=type(exc).__name__,
+        )
         raise HTTPException(
             status_code=500,
-            detail="فشل رفع البطاقة / Failed to upload ID images",
+            detail=f"فشل رفع البطاقة: {type(exc).__name__}: {exc}",
         )
-
-    prop.id_document_front_url = front_url
-    prop.id_document_back_url = back_url
-    await db.flush()
-    await db.refresh(prop)
-    logger.info(
-        "property_id_documents_uploaded",
-        property_id=property_id, owner_id=user.id,
-    )
-    return PropertyOut.model_validate(prop)
 
 
 @router.delete("/{property_id}/images", response_model=PropertyOut)
