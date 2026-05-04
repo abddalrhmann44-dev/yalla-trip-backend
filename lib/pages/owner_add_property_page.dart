@@ -8,6 +8,8 @@ import 'dart:io';
 import '../main.dart' show userProvider;
 import '../services/user_role_service.dart';
 import '../services/property_service.dart';
+import '../utils/api_client.dart';
+import '../utils/error_handler.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -508,24 +510,55 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
         'cash_on_arrival_enabled': _cashOnArrival,
       };
 
-      // Create property via API
-      final created = await PropertyService.createProperty(payload);
-
-      // Upload images if any
-      if (_pickedFiles.isNotEmpty) {
-        setState(() => _uploadingImages = true);
-        final files = _pickedFiles.map((xf) => File(xf.path)).toList();
-        await PropertyService.uploadImages(created.id, files);
-        setState(() => _uploadingImages = false);
+      // ── Step A: Create property via API ──
+      late final PropertyApi created;
+      try {
+        created = await PropertyService.createProperty(payload);
+      } catch (e) {
+        rethrow;  // will be caught below with "إنشاء العقار"
       }
 
-      // Upload owner's ID card (always required — last step)
+      // ── Step B: Upload gallery images ──
+      if (_pickedFiles.isNotEmpty) {
+        try {
+          setState(() => _uploadingImages = true);
+          final files = _pickedFiles.map((xf) => File(xf.path)).toList();
+          await PropertyService.uploadImages(created.id, files);
+          setState(() => _uploadingImages = false);
+        } catch (e) {
+          setState(() => _uploadingImages = false);
+          if (!mounted) return;
+          final msg = e is ApiException ? ErrorHandler.getDetailOrDefault(e) : '$e';
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('فشل رفع الصور: $msg'),
+              backgroundColor: const Color(0xFFE53935),
+            ),
+          );
+          // Property was created — continue to ID upload
+        }
+      }
+
+      // ── Step C: Upload owner's ID card ──
       if (_idFrontImage != null && _idBackImage != null) {
-        await PropertyService.uploadIdDocuments(
-          created.id,
-          front: File(_idFrontImage!.path),
-          back: File(_idBackImage!.path),
-        );
+        try {
+          await PropertyService.uploadIdDocuments(
+            created.id,
+            front: File(_idFrontImage!.path),
+            back: File(_idBackImage!.path),
+          );
+        } catch (e) {
+          if (!mounted) return;
+          setState(() => _isPublishing = false);
+          final msg = e is ApiException ? ErrorHandler.getDetailOrDefault(e) : '$e';
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('فشل رفع البطاقة: $msg'),
+              backgroundColor: const Color(0xFFE53935),
+            ),
+          );
+          return;
+        }
       }
 
       if (!mounted) return;
@@ -537,8 +570,9 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
         _uploadingImages = false;
       });
       if (!mounted) return;
+      final msg = e is ApiException ? ErrorHandler.getDetailOrDefault(e) : '$e';
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('حصل خطأ: $e'), backgroundColor: const Color(0xFFE53935)),
+        SnackBar(content: Text('فشل إنشاء العقار: $msg'), backgroundColor: const Color(0xFFE53935)),
       );
     }
   }
