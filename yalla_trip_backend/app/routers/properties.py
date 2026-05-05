@@ -50,14 +50,39 @@ _ALLOWED_IMAGE_MIMES = {
 }
 
 
-def _normalise_image_ct(content_type: str | None) -> str | None:
+_EXT_TO_MIME: dict[str, str] = {
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".png": "image/png",
+    ".webp": "image/webp",
+    ".gif": "image/gif",
+    ".heic": "image/jpeg",
+    ".heif": "image/jpeg",
+}
+
+
+def _normalise_image_ct(
+    content_type: str | None,
+    filename: str | None = None,
+) -> str | None:
     """Return a canonical S3 content-type, or ``None`` if unsupported.
 
     HEIC/HEIF are tagged as JPEG because ``image_picker`` on iOS
     transcodes to JPEG when ``imageQuality < 100`` — only the raw
     capture path lands as HEIC and the S3 layer expects JPEG.
+
+    When ``content_type`` is ``application/octet-stream`` (common with
+    the Dart ``http`` package on iOS), the MIME type is inferred from
+    the file extension instead of being rejected outright.
     """
     ct = (content_type or "").lower()
+
+    # Dart http MultipartFile often sends application/octet-stream on
+    # iOS — fall back to the filename extension.
+    if ct in ("application/octet-stream", "") and filename:
+        ext = "." + filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+        ct = _EXT_TO_MIME.get(ext, ct)
+
     if ct not in _ALLOWED_IMAGE_MIMES:
         return None
     if ct in ("image/heic", "image/heif"):
@@ -868,7 +893,7 @@ async def upload_property_images(
         accepted: list[tuple[UploadFile, str]] = []
         rejected: list[dict[str, str | None]] = []
         for f in files:
-            s3_ct = _normalise_image_ct(f.content_type)
+            s3_ct = _normalise_image_ct(f.content_type, f.filename)
             if s3_ct is None:
                 rejected.append({
                     "filename": f.filename,
@@ -985,8 +1010,8 @@ async def upload_property_id_documents(
                 status_code=403, detail="ليس لديك صلاحية / Not your property"
             )
 
-        front_ct = _normalise_image_ct(front.content_type)
-        back_ct = _normalise_image_ct(back.content_type)
+        front_ct = _normalise_image_ct(front.content_type, front.filename)
+        back_ct = _normalise_image_ct(back.content_type, back.filename)
         logger.info(
             "id_doc_upload_start",
             property_id=property_id,

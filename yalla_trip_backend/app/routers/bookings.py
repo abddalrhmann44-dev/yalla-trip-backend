@@ -412,7 +412,7 @@ async def create_booking(
 @router.get("/my", response_model=PaginatedResponse[BookingOut])
 async def my_bookings(
     page: int = Query(1, ge=1),
-    limit: int = Query(20, ge=1, le=100),
+    limit: int = Query(20, ge=1, le=200),
     status_filter: BookingStatus | None = None,
     user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db),
@@ -441,7 +441,7 @@ async def my_bookings(
 @router.get("/owner", response_model=PaginatedResponse[BookingOut])
 async def owner_bookings(
     page: int = Query(1, ge=1),
-    limit: int = Query(20, ge=1, le=100),
+    limit: int = Query(20, ge=1, le=200),
     status_filter: BookingStatus | None = None,
     user: User = Depends(require_role(UserRole.owner, UserRole.admin)),
     db: AsyncSession = Depends(get_db),

@@ -3,10 +3,32 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
 
 import 'api_config.dart';
 import 'secure_token_storage.dart';
 import '../main.dart' show appSettings;
+
+/// Map a filename to an explicit [MediaType] so the Dart ``http``
+/// package doesn't fall back to ``application/octet-stream`` on iOS.
+MediaType? _mimeFromFilename(String filename) {
+  final ext = filename.contains('.')
+      ? filename.split('.').last.toLowerCase()
+      : '';
+  const map = {
+    'jpg': 'image/jpeg',
+    'jpeg': 'image/jpeg',
+    'png': 'image/png',
+    'gif': 'image/gif',
+    'webp': 'image/webp',
+    'heic': 'image/heic',
+    'heif': 'image/heif',
+  };
+  final mime = map[ext];
+  if (mime == null) return null;
+  final parts = mime.split('/');
+  return MediaType(parts[0], parts[1]);
+}
 
 /// Unified HTTP client for communicating with the Talaa FastAPI backend.
 ///
@@ -120,7 +142,8 @@ class ApiClient {
       final name = fieldNames != null ? fieldNames[i] : fieldName;
       request.files.add(
         await http.MultipartFile.fromPath(name, file.path,
-            filename: filename),
+            filename: filename,
+            contentType: _mimeFromFilename(filename)),
       );
     }
 
