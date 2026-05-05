@@ -9,6 +9,7 @@ Adds: العلمين الجديدة, مرسى مطروح, دهب, القاهرة
 
 from typing import Sequence, Union
 
+import sqlalchemy as sa
 from alembic import op
 
 
@@ -33,10 +34,14 @@ _NEW_AREAS = [
 
 
 def upgrade() -> None:
-    # ALTER TYPE ... ADD VALUE cannot run inside a transaction on
-    # PostgreSQL < 12.  Alembic's ``autocommit_block`` handles this.
+    # ``ALTER TYPE … ADD VALUE`` cannot run inside a normal Alembic
+    # transaction on PG < 12.  Commit the migration transaction first,
+    # add the values, then let Alembic continue.
+    op.execute(sa.text("COMMIT"))
     for area in _NEW_AREAS:
-        op.execute(f"ALTER TYPE area ADD VALUE IF NOT EXISTS '{area}'")
+        op.execute(sa.text(
+            f"ALTER TYPE area ADD VALUE IF NOT EXISTS '{area}'"
+        ))
 
 
 def downgrade() -> None:

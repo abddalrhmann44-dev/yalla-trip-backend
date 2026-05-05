@@ -701,12 +701,26 @@ async def create_property(
     user: User = Depends(require_role(UserRole.owner, UserRole.admin)),
     db: AsyncSession = Depends(get_db),
 ):
-    prop = Property(**body.model_dump(), owner_id=user.id)
-    db.add(prop)
-    await db.flush()
-    await db.refresh(prop)
-    logger.info("property_created", property_id=prop.id, owner_id=user.id)
-    return PropertyOut.model_validate(prop)
+    try:
+        prop = Property(**body.model_dump(), owner_id=user.id)
+        db.add(prop)
+        await db.flush()
+        await db.refresh(prop)
+        logger.info("property_created", property_id=prop.id, owner_id=user.id)
+        return PropertyOut.model_validate(prop)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.error(
+            "property_create_failed",
+            error=repr(exc),
+            error_type=type(exc).__name__,
+            area=body.area if hasattr(body, 'area') else 'N/A',
+        )
+        raise HTTPException(
+            status_code=500,
+            detail=f"فشل إنشاء العقار: {type(exc).__name__}: {exc}",
+        )
 
 
 @router.put("/{property_id}", response_model=PropertyOut)
@@ -830,106 +844,120 @@ async def upload_property_images(
     instead of summing 40 sequential round-trips (~20s freeze on a
     typical phone connection in the previous implementation).
     """
-    result = await db.execute(
-        select(Property).where(
-            Property.id == property_id,
-            Property.deleted_at.is_(None),
+    try:
+        result = await db.execute(
+            select(Property).where(
+                Property.id == property_id,
+                Property.deleted_at.is_(None),
+            )
         )
-    )
-    prop = result.scalar_one_or_none()
-    if prop is None:
-        raise HTTPException(status_code=404, detail="العقار غير موجود / Property not found")
-    if prop.owner_id != user.id and user.role != UserRole.admin:
-        raise HTTPException(status_code=403, detail="ليس لديك صلاحية / Not your property")
+        prop = result.scalar_one_or_none()
+        if prop is None:
+            raise HTTPException(status_code=404, detail="العقار غير موجود / Property not found")
+        if prop.owner_id != user.id and user.role != UserRole.admin:
+            raise HTTPException(status_code=403, detail="ليس لديك صلاحية / Not your property")
 
-    if len(files) > 40:
+        if len(files) > 40:
+            raise HTTPException(
+                status_code=400,
+                detail="الحد الأقصى 40 صورة / Max 40 images",
+            )
+
+        # Pre-filter MIME types so we don't pay an S3 round-trip for
+        # files we already know we'll reject.
+        accepted: list[tuple[UploadFile, str]] = []
+        rejected: list[dict[str, str | None]] = []
+        for f in files:
+            s3_ct = _normalise_image_ct(f.content_type)
+            if s3_ct is None:
+                rejected.append({
+                    "filename": f.filename,
+                    "content_type": (f.content_type or "").lower() or None,
+                })
+                logger.warning(
+                    "property_image_rejected_mime",
+                    property_id=property_id,
+                    filename=f.filename,
+                    content_type=f.content_type,
+                )
+                continue
+            accepted.append((f, s3_ct))
+
+        async def _put_one(
+            f: UploadFile, s3_ct: str
+        ) -> tuple[UploadFile, str | None]:
+            url = await upload_image(
+                f.file,
+                folder=f"properties/{property_id}",
+                content_type=s3_ct,
+            )
+            return f, url
+
+        # Parallel upload.  ``return_exceptions=True`` so one failed file
+        # doesn't tank the whole batch — the caller still sees the
+        # successes via the response body, and the failures via the
+        # ``rejected`` list.
+        results = await asyncio.gather(
+            *[_put_one(f, s3_ct) for f, s3_ct in accepted],
+            return_exceptions=True,
+        )
+
+        urls: list[str] = list(prop.images or [])
+        for entry in results:
+            if isinstance(entry, BaseException):
+                logger.error(
+                    "property_image_s3_upload_exception",
+                    property_id=property_id,
+                    error=str(entry),
+                )
+                rejected.append({"filename": None, "content_type": None})
+                continue
+            f, url = entry
+            if url is None:
+                rejected.append({"filename": f.filename, "content_type": f.content_type})
+                logger.error(
+                    "property_image_s3_upload_failed",
+                    property_id=property_id,
+                    filename=f.filename,
+                )
+                continue
+            urls.append(url)
+
+        # If the caller sent files but *none* survived the pipeline,
+        # fail loudly rather than returning a misleading 200.
+        if files and not any(r for r in results if not isinstance(r, BaseException) and r[1]) and rejected:
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "message": "فشل رفع كل الصور / All image uploads failed",
+                    "rejected": rejected,
+                },
+            )
+
+        prop.images = urls
+        await db.flush()
+        await db.refresh(prop)
+        logger.info(
+            "property_images_uploaded",
+            property_id=property_id,
+            accepted=len(files) - len(rejected),
+            rejected=len(rejected),
+            total_now=len(urls),
+        )
+        return PropertyOut.model_validate(prop)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.error(
+            "property_images_upload_failed",
+            property_id=property_id,
+            error=repr(exc),
+            error_type=type(exc).__name__,
+        )
         raise HTTPException(
-            status_code=400,
-            detail="الحد الأقصى 40 صورة / Max 40 images",
+            status_code=500,
+            detail=f"فشل رفع الصور: {type(exc).__name__}: {exc}",
         )
-
-    # Pre-filter MIME types so we don't pay an S3 round-trip for
-    # files we already know we'll reject.
-    accepted: list[tuple[UploadFile, str]] = []
-    rejected: list[dict[str, str | None]] = []
-    for f in files:
-        s3_ct = _normalise_image_ct(f.content_type)
-        if s3_ct is None:
-            rejected.append({
-                "filename": f.filename,
-                "content_type": (f.content_type or "").lower() or None,
-            })
-            logger.warning(
-                "property_image_rejected_mime",
-                property_id=property_id,
-                filename=f.filename,
-                content_type=f.content_type,
-            )
-            continue
-        accepted.append((f, s3_ct))
-
-    async def _put_one(
-        f: UploadFile, s3_ct: str
-    ) -> tuple[UploadFile, str | None]:
-        url = await upload_image(
-            f.file,
-            folder=f"properties/{property_id}",
-            content_type=s3_ct,
-        )
-        return f, url
-
-    # Parallel upload.  ``return_exceptions=True`` so one failed file
-    # doesn't tank the whole batch — the caller still sees the
-    # successes via the response body, and the failures via the
-    # ``rejected`` list.
-    results = await asyncio.gather(
-        *[_put_one(f, s3_ct) for f, s3_ct in accepted],
-        return_exceptions=True,
-    )
-
-    urls: list[str] = list(prop.images or [])
-    for entry in results:
-        if isinstance(entry, BaseException):
-            logger.error(
-                "property_image_s3_upload_exception",
-                property_id=property_id,
-                error=str(entry),
-            )
-            rejected.append({"filename": None, "content_type": None})
-            continue
-        f, url = entry
-        if url is None:
-            rejected.append({"filename": f.filename, "content_type": f.content_type})
-            logger.error(
-                "property_image_s3_upload_failed",
-                property_id=property_id,
-                filename=f.filename,
-            )
-            continue
-        urls.append(url)
-
-    # If the caller sent files but *none* survived the pipeline,
-    # fail loudly rather than returning a misleading 200.
-    if files and not any(r for r in results if not isinstance(r, BaseException) and r[1]) and rejected:
-        raise HTTPException(
-            status_code=400,
-            detail={
-                "message": "فشل رفع كل الصور / All image uploads failed",
-                "rejected": rejected,
-            },
-        )
-
-    prop.images = urls
-    await db.flush()
-    await db.refresh(prop)
-    logger.info(
-        "property_images_uploaded",
-        property_id=property_id,
-        accepted=len(files) - len(rejected),
-        rejected=len(rejected),
-        total_now=len(urls),
-    )
-    return PropertyOut.model_validate(prop)
 
 
 @router.post("/{property_id}/id-documents", response_model=PropertyOut)
