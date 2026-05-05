@@ -84,8 +84,16 @@ class Property(Base):
     name: Mapped[str] = mapped_column(String(200), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
 
-    area: Mapped[Area] = mapped_column(Enum(Area), nullable=False, index=True)
-    category: Mapped[Category] = mapped_column(Enum(Category), nullable=False, index=True)
+    area: Mapped[Area] = mapped_column(
+        Enum(Area, values_callable=lambda obj: [e.value for e in obj]),
+        nullable=False,
+        index=True,
+    )
+    category: Mapped[Category] = mapped_column(
+        Enum(Category, values_callable=lambda obj: [e.value for e in obj]),
+        nullable=False,
+        index=True,
+    )
 
     price_per_night: Mapped[float] = mapped_column(Float, nullable=False)
     weekend_price: Mapped[float | None] = mapped_column(Float, nullable=True)

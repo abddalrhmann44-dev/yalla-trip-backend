@@ -98,3 +98,18 @@ async def health_check(response: Response, db: AsyncSession = Depends(get_db)):
 async def liveness():
     """Liveness only — the process is running and can answer HTTP."""
     return {"status": "alive", "uptime_seconds": round(time.time() - _APP_STARTED_AT, 1)}
+
+
+@router.get("/health/db-enums")
+async def db_enums(db: AsyncSession = Depends(get_db)):
+    """Diagnostic: list current PostgreSQL enum values for 'area'."""
+    try:
+        result = await db.execute(text(
+            "SELECT enumlabel FROM pg_enum "
+            "JOIN pg_type ON pg_enum.enumtypid = pg_type.oid "
+            "WHERE pg_type.typname = 'area' ORDER BY enumsortorder"
+        ))
+        values = [row[0] for row in result.fetchall()]
+        return {"area_enum_values": values, "count": len(values)}
+    except Exception as exc:
+        return {"error": str(exc)}
