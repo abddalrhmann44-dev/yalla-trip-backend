@@ -26,6 +26,24 @@ class UserRoleService extends ChangeNotifier {
   // ── Cache بعد أول load ──────────────────────────────────────
   UserRole? _cached;
 
+  // ── Admin "shadow" guest mode ───────────────────────────────
+  // Admins implicitly have owner privileges (``isOwner`` returns
+  // true when the backend role is ``admin``).  When an admin taps
+  // "Guest Mode" on their profile we don't want to PUT
+  // ``/users/me/role`` with ``guest`` — that would silently demote
+  // them and strip their admin powers on the server.  Instead we
+  // flip this local flag: the UI treats them as a guest for the
+  // duration of the session, but the backend role stays ``admin``.
+  bool _localGuestOverride = false;
+
+  bool get localGuestOverride => _localGuestOverride;
+
+  void setGuestOverride(bool value) {
+    if (_localGuestOverride == value) return;
+    _localGuestOverride = value;
+    notifyListeners();
+  }
+
   /// Synchronous accessor for the last-known role.  Returns ``null``
   /// before the first ``getRole()`` resolves; callers that just need
   /// "guest until proven otherwise" should fall back to
@@ -35,8 +53,10 @@ class UserRoleService extends ChangeNotifier {
 
   /// Convenience for ``cachedRole == UserRole.owner`` — the home
   /// page reads this on every rebuild so guests don't pay for a
-  /// null-check ladder.
-  bool get isOwnerSync => _cached == UserRole.owner;
+  /// null-check ladder.  Respects ``_localGuestOverride`` so an
+  /// admin who opted into guest mode sees the guest tab set.
+  bool get isOwnerSync =>
+      !_localGuestOverride && _cached == UserRole.owner;
 
   // ── احفظ الـ role عبر API ─────────────────────────────────────
   Future<void> saveRole(UserRole role) async {
@@ -68,8 +88,10 @@ class UserRoleService extends ChangeNotifier {
 
   // ── Reset عند logout ─────────────────────────────────────────
   void clearCache() {
-    if (_cached == null) return;
+    final hadCache = _cached != null;
+    final hadOverride = _localGuestOverride;
     _cached = null;
-    notifyListeners();
+    _localGuestOverride = false;
+    if (hadCache || hadOverride) notifyListeners();
   }
 }

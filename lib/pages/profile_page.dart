@@ -59,7 +59,14 @@ class _ProfilePageState extends State<ProfilePage> {
   String get _name => userProvider.name;
   String get _email => userProvider.email;
   String get _phone => userProvider.phone;
-  bool get _isOwner => userProvider.isOwner;
+  // ``_isOwner`` drives whether we render the owner banner + dashboard
+  // section vs the "become an owner" card.  For admins who opted into
+  // shadow-guest mode we want to render the guest layout even though
+  // the backend role is still ``admin``, so we AND the provider flag
+  // with ``!localGuestOverride``.
+  bool get _isOwner =>
+      userProvider.isOwner &&
+      !UserRoleService.instance.localGuestOverride;
   bool get _loading => userProvider.loading && !userProvider.hasUser;
 
   @override
@@ -69,12 +76,16 @@ class _ProfilePageState extends State<ProfilePage> {
       AuthGuard.requireOrPop(context, feature: 'تدخل على ملفك');
     }
     userProvider.addListener(_onUserChanged);
+    // Rebuild when the admin toggles shadow-guest mode so the owner
+    // banner / dashboard section swap in place.
+    UserRoleService.instance.addListener(_onUserChanged);
     _loadProfile();
   }
 
   @override
   void dispose() {
     userProvider.removeListener(_onUserChanged);
+    UserRoleService.instance.removeListener(_onUserChanged);
     super.dispose();
   }
 
@@ -163,9 +174,13 @@ class _ProfilePageState extends State<ProfilePage> {
 
     if (confirm != true) return;
 
-    // Defense-in-depth: admins must never trigger a guest⇄owner role
-    // switch — it would silently demote them on the backend.
-    if (userProvider.isAdmin) return;
+    // Admins can flip out of shadow-guest mode here without touching
+    // the backend role (which is already ``admin`` / implicit owner).
+    if (userProvider.isAdmin) {
+      UserRoleService.instance.setGuestOverride(false);
+      await _loadProfile();
+      return;
+    }
 
     try {
       await UserRoleService.instance.saveRole(UserRole.owner);
@@ -186,8 +201,16 @@ class _ProfilePageState extends State<ProfilePage> {
 
   // ── Switch back to Guest ──────────────────────────────────
   Future<void> _becomeGuest() async {
-    // Defense-in-depth: admins keep their privileges; never demote.
-    if (userProvider.isAdmin) return;
+    // For admins: use a local "shadow guest" override instead of
+    // PUT /users/me/role.  Demoting an admin to guest on the backend
+    // would strip their admin powers permanently — so we just flip a
+    // local flag that makes the UI render the guest layout while the
+    // server role stays ``admin``.
+    if (userProvider.isAdmin) {
+      UserRoleService.instance.setGuestOverride(true);
+      await _loadProfile();
+      return;
+    }
     try {
       await UserRoleService.instance.saveRole(UserRole.guest);
       await _loadProfile();
