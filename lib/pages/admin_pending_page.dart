@@ -44,9 +44,7 @@ class _AdminPendingPageState extends State<AdminPendingPage> {
 
   Future<void> _load() async {
     try {
-      final all = await AdminService.getProperties(limit: 100);
-      // Pending = not yet available (awaiting admin approval)
-      final pending = all.where((p) => !p.isAvailable).toList();
+      final pending = await AdminService.getPendingProperties(limit: 100);
       if (mounted) setState(() { _pending = pending; _loading = false; });
     } catch (_) {
       if (mounted) setState(() => _loading = false);

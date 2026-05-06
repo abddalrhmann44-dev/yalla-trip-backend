@@ -78,6 +78,18 @@ class AdminService {
         .toList();
   }
 
+  static Future<List<PropertyApi>> getPendingProperties({
+    int page = 1,
+    int limit = 100,
+  }) async {
+    final data = await _api.get(
+      '/admin/properties/pending?page=$page&limit=$limit',
+    );
+    return (data['items'] as List)
+        .map((e) => PropertyApi.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
   static Future<PropertyApi> approveProperty(int id) async {
     final data = await _api.put('/admin/properties/$id/approve', {});
     return PropertyApi.fromJson(data as Map<String, dynamic>);

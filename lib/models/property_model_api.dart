@@ -84,6 +84,8 @@ class PropertyApi {
   final List<PropertyServiceItem> services;
   final double rating;
   final int reviewCount;
+  final String status;
+  final String? adminNote;
   final bool isAvailable;
   final bool isFeatured;
   final bool instantBooking;
@@ -123,6 +125,8 @@ class PropertyApi {
     this.services = const [],
     this.rating = 0,
     this.reviewCount = 0,
+    this.status = 'pending',
+    this.adminNote,
     this.isAvailable = true,
     this.isFeatured = false,
     this.instantBooking = false,
@@ -163,6 +167,8 @@ class PropertyApi {
           [],
       rating: (j['rating'] ?? 0).toDouble(),
       reviewCount: j['review_count'] ?? 0,
+      status: j['status'] ?? 'pending',
+      adminNote: j['admin_note'],
       isAvailable: j['is_available'] ?? true,
       isFeatured: j['is_featured'] ?? false,
       instantBooking: j['instant_booking'] ?? false,
@@ -180,6 +186,8 @@ class PropertyApi {
   /// (toggle availability, edit) so the UI can reflect the new state
   /// instantly without re-fetching the entire row from the server.
   PropertyApi copyWith({
+    String? status,
+    String? adminNote,
     bool? isAvailable,
     bool? isFeatured,
     bool? instantBooking,
@@ -215,6 +223,8 @@ class PropertyApi {
       services: services,
       rating: rating,
       reviewCount: reviewCount,
+      status: status ?? this.status,
+      adminNote: adminNote ?? this.adminNote,
       isAvailable: isAvailable ?? this.isAvailable,
       isFeatured: isFeatured ?? this.isFeatured,
       instantBooking: instantBooking ?? this.instantBooking,
