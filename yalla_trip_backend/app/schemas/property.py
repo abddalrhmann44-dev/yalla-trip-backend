@@ -2,13 +2,52 @@
 
 from __future__ import annotations
 
+import re
 from datetime import date, datetime
-from typing import List, Optional
+from typing import Any, List, Optional
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
-from app.models.property import Area, Category, PropertyStatus
+from app.models.property import Area, AudienceType, Category, PropertyStatus
 from app.schemas.user import UserBrief
+
+
+# ── Description content guard (Wave 28) ───────────────────
+# Owners abuse the description field to drop their phone number or
+# WhatsApp / Telegram links so guests can bypass the platform.  Reject
+# any payload that matches one of these patterns.  We strip Arabic /
+# Western digit variants and zero-width spaces first so the regex can't
+# be defeated with ``\u200b`` insertions.
+_AR_DIGITS = str.maketrans("٠١٢٣٤٥٦٧٨٩", "0123456789")
+_PHONE_RE = re.compile(r"(?:\+?\d[\s\-]?){7,}")
+_URL_RE = re.compile(
+    r"(?:https?://|www\.|\b\w+\.(?:com|net|org|me|io|app)\b|t\.me/|wa\.me/)",
+    re.IGNORECASE,
+)
+
+
+def _validate_description(value: str | None) -> str | None:
+    if value is None:
+        return None
+    # Normalise Arabic digits + remove zero-width / RTL marks before
+    # pattern matching so users can't sneak ``+​٢٠١`` past us.
+    normalised = (
+        value.translate(_AR_DIGITS)
+        .replace("\u200b", "")
+        .replace("\u200c", "")
+        .replace("\u200d", "")
+        .replace("\u200e", "")
+        .replace("\u200f", "")
+    )
+    if _URL_RE.search(normalised):
+        raise ValueError(
+            "ممنوع إضافة روابط في الوصف / Links not allowed in description"
+        )
+    if _PHONE_RE.search(normalised):
+        raise ValueError(
+            "ممنوع إضافة أرقام تليفون في الوصف / Phone numbers not allowed in description"
+        )
+    return value
 
 
 # ── Category rule sets ────────────────────────────────────
@@ -17,6 +56,11 @@ _UTILITY_CATEGORIES = {Category.chalet}
 
 # Cleaning fee (housekeeping)
 _CLEANING_FEE_CATEGORIES = {Category.chalet, Category.villa, Category.day_use}
+
+# Village / compound fees + optional paid parking — chalet & villa only.
+# Hotels and resorts must include all of these in the room rate (Wave 28
+# spec).
+_VILLAGE_PARKING_CATEGORIES = {Category.chalet, Category.villa}
 
 # Multiple bookable rooms
 _MULTI_ROOM_CATEGORIES = {Category.hotel, Category.resort}
@@ -29,6 +73,9 @@ _CLOSING_TIME_CATEGORIES = {Category.aqua_park, Category.day_use}
 
 # Boats — price is per hour, no rooms, configurable trip duration
 _BOAT_CATEGORIES = {Category.boat}
+
+# Day-use bills per-guest, not per-night.
+_DAY_USE_CATEGORIES = {Category.day_use}
 
 
 # ── Service schema ────────────────────────────────────────
@@ -80,20 +127,32 @@ class PropertyCreate(BaseModel):
     description: Optional[str] = None
     area: Area
     category: Category
-    price_per_night: float = Field(..., gt=0)
-    weekend_price: Optional[float] = Field(None, gt=0)
+    # Day-use lists may legitimately submit price_per_night = 0 because
+    # they bill per-person; relax the constraint to ``ge=0`` and let the
+    # category_rules validator enforce the per-category invariant.
+    price_per_night: float = Field(..., ge=0)
+    weekend_price: Optional[float] = Field(None, ge=0)
     cleaning_fee: float = Field(0.0, ge=0)
     electricity_fee: float = Field(0.0, ge=0)
     water_fee: float = Field(0.0, ge=0)
+    village_fees: float = Field(0.0, ge=0)
+    parking_is_free: bool = True
+    parking_fee: float = Field(0.0, ge=0)
     security_deposit: float = Field(0.0, ge=0)
     bedrooms: int = Field(1, ge=0)
     bathrooms: int = Field(1, ge=0)
     max_guests: int = Field(4, ge=1)
+    audience_type: AudienceType = AudienceType.both
+    price_per_person: Optional[float] = Field(None, ge=0)
     total_rooms: int = Field(1, ge=0)
     closing_time: Optional[str] = Field(None, pattern=r"^\d{2}:\d{2}$")
     trip_duration_hours: Optional[int] = Field(None, ge=1, le=24)
     services: Optional[List[PropertyService]] = []
     amenities: Optional[List[str]] = []
+    amenity_photos: Optional[List[dict]] = None
+    nearby_photos: Optional[List[str]] = None
+    location_link: Optional[str] = Field(None, max_length=500)
+    village_name: Optional[str] = Field(None, max_length=200)
     instant_booking: bool = False
     # Wave 24 — owner opts in to chat-based price negotiation.
     negotiable: bool = False
@@ -101,6 +160,24 @@ class PropertyCreate(BaseModel):
     cash_on_arrival_enabled: bool = False
     latitude: Optional[float] = None
     longitude: Optional[float] = None
+
+    @field_validator("description")
+    @classmethod
+    def _description_no_phone_or_links(cls, v: str | None) -> str | None:
+        return _validate_description(v)
+
+    @field_validator("location_link")
+    @classmethod
+    def _location_link_must_be_url(cls, v: str | None) -> str | None:
+        if v is None or not v.strip():
+            return None
+        v = v.strip()
+        # Accept http(s), maps.app.goo.gl, goo.gl/maps, google.com/maps.
+        if not re.match(r"^https?://", v, re.IGNORECASE):
+            raise ValueError(
+                "رابط الموقع لازم يبدأ بـ https:// / Location link must be a valid URL"
+            )
+        return v
 
     @model_validator(mode="after")
     def category_rules(self) -> "PropertyCreate":
@@ -114,6 +191,35 @@ class PropertyCreate(BaseModel):
         # Cleaning fee: chalets, villas, day-use only
         if cat not in _CLEANING_FEE_CATEGORIES:
             self.cleaning_fee = 0.0
+        # Village fees + paid parking: chalets / villas only.  Hotels &
+        # resorts must include both in their room rate — anything sent
+        # for those categories is silently zero'd out.
+        if cat not in _VILLAGE_PARKING_CATEGORIES:
+            self.village_fees = 0.0
+            self.parking_is_free = True
+            self.parking_fee = 0.0
+        # Day-use billing: price_per_person required, price_per_night
+        # is treated as the per-person rate's mirror so legacy filters
+        # (price ranges on the home page) still match these listings.
+        if cat in _DAY_USE_CATEGORIES:
+            if self.price_per_person is None or self.price_per_person <= 0:
+                raise ValueError(
+                    "رحلة اليوم الواحد لازم يكون لها سعر للفرد / Day-use needs price_per_person"
+                )
+            # Mirror the per-person price into price_per_night so the
+            # ``min_price`` / ``max_price`` filters and the home-screen
+            # cards both keep working without special-casing day-use.
+            self.price_per_night = self.price_per_person
+            self.weekend_price = None
+        else:
+            # Non-day-use listings ignore any price_per_person sent by
+            # the client to avoid leaking misleading pricing into the
+            # detail page.
+            self.price_per_person = None
+            if self.price_per_night <= 0:
+                raise ValueError(
+                    "السعر لازم يكون أكبر من صفر / price_per_night must be > 0"
+                )
         # Capacity rules
         if cat in _UNLIMITED_CATEGORIES:
             self.total_rooms = 0  # 0 = unlimited
@@ -122,7 +228,9 @@ class PropertyCreate(BaseModel):
         # Closing time: beaches & aqua parks only
         if cat not in _CLOSING_TIME_CATEGORIES:
             self.closing_time = None
-        # Boat specifics — no rooms/bathrooms; duration defaults to 4h
+        # Boat specifics — no rooms/bathrooms; duration defaults to 4h.
+        # Wave 28: weekend_price is now permitted for boats too (host
+        # can charge a higher per-hour rate on Friday/Saturday).
         if cat in _BOAT_CATEGORIES:
             self.bedrooms = 0
             self.bathrooms = 0
@@ -139,26 +247,40 @@ class PropertyUpdate(BaseModel):
     description: Optional[str] = None
     area: Optional[Area] = None
     category: Optional[Category] = None
-    price_per_night: Optional[float] = Field(None, gt=0)
-    weekend_price: Optional[float] = Field(None, gt=0)
+    price_per_night: Optional[float] = Field(None, ge=0)
+    weekend_price: Optional[float] = Field(None, ge=0)
     cleaning_fee: Optional[float] = Field(None, ge=0)
     electricity_fee: Optional[float] = Field(None, ge=0)
     water_fee: Optional[float] = Field(None, ge=0)
+    village_fees: Optional[float] = Field(None, ge=0)
+    parking_is_free: Optional[bool] = None
+    parking_fee: Optional[float] = Field(None, ge=0)
     security_deposit: Optional[float] = Field(None, ge=0)
     bedrooms: Optional[int] = Field(None, ge=0)
     bathrooms: Optional[int] = Field(None, ge=0)
     max_guests: Optional[int] = Field(None, ge=1)
+    audience_type: Optional[AudienceType] = None
+    price_per_person: Optional[float] = Field(None, ge=0)
     total_rooms: Optional[int] = Field(None, ge=0)
     closing_time: Optional[str] = Field(None, pattern=r"^\d{2}:\d{2}$")
     trip_duration_hours: Optional[int] = Field(None, ge=1, le=24)
     services: Optional[List[PropertyService]] = None
     amenities: Optional[List[str]] = None
+    amenity_photos: Optional[List[dict]] = None
+    nearby_photos: Optional[List[str]] = None
+    location_link: Optional[str] = Field(None, max_length=500)
+    village_name: Optional[str] = Field(None, max_length=200)
     is_available: Optional[bool] = None
     instant_booking: Optional[bool] = None
     negotiable: Optional[bool] = None
     cash_on_arrival_enabled: Optional[bool] = None
     latitude: Optional[float] = None
     longitude: Optional[float] = None
+
+    @field_validator("description")
+    @classmethod
+    def _description_no_phone_or_links(cls, v: str | None) -> str | None:
+        return _validate_description(v)
 
     @model_validator(mode="after")
     def category_rules(self) -> "PropertyUpdate":
@@ -171,12 +293,18 @@ class PropertyUpdate(BaseModel):
                 self.security_deposit = 0.0
             if cat not in _CLEANING_FEE_CATEGORIES:
                 self.cleaning_fee = 0.0
+            if cat not in _VILLAGE_PARKING_CATEGORIES:
+                self.village_fees = 0.0
+                self.parking_is_free = True
+                self.parking_fee = 0.0
             if cat in _UNLIMITED_CATEGORIES:
                 self.total_rooms = 0
             elif cat not in _MULTI_ROOM_CATEGORIES:
                 self.total_rooms = 1
             if cat not in _CLOSING_TIME_CATEGORIES:
                 self.closing_time = None
+            if cat not in _DAY_USE_CATEGORIES:
+                self.price_per_person = None
         return self
 
 
@@ -220,6 +348,9 @@ class PropertyOut(BaseModel):
     cleaning_fee: float
     electricity_fee: float
     water_fee: float
+    village_fees: float = 0.0
+    parking_is_free: bool = True
+    parking_fee: float = 0.0
     security_deposit: float
     total_rooms: int
     closing_time: Optional[str] = None
@@ -227,6 +358,12 @@ class PropertyOut(BaseModel):
     bedrooms: int
     bathrooms: int
     max_guests: int
+    audience_type: AudienceType = AudienceType.both
+    price_per_person: Optional[float] = None
+    location_link: Optional[str] = None
+    village_name: Optional[str] = None
+    amenity_photos: Optional[List[dict]] = []
+    nearby_photos: Optional[List[str]] = []
     id_document_front_url: Optional[str] = None
     id_document_back_url: Optional[str] = None
     images: Optional[List[str]] = []

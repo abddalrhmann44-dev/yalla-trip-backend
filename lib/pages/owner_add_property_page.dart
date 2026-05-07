@@ -6,6 +6,7 @@
 
 import 'dart:io';
 import '../main.dart' show userProvider;
+import '../models/property_model_api.dart';
 import '../services/user_role_service.dart';
 import '../services/property_service.dart';
 import '../utils/api_client.dart';
@@ -122,7 +123,11 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
   // Step 3
   final _nameCtrl = TextEditingController();
   final _villageCtrl = TextEditingController();
-  final _addressCtrl = TextEditingController();
+  // Wave 28: ``_mapsLinkCtrl`` replaces the legacy free-form
+  // "detailed address" textbox.  Hosts paste a Google Maps URL and the
+  // detail page renders a tappable button that opens the map at the
+  // exact pin — a much better UX than guessing from a paragraph.
+  final _mapsLinkCtrl = TextEditingController();
   final _descCtrl = TextEditingController();
   String? _selLocation;
   String _checkin = '14:00';
@@ -130,13 +135,15 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
 
   // Step 4
   int _bedrooms = 1;
-  int _beds = 1;
   int _bathrooms = 1;
   int _guests = 2;
   int _hotelRooms = 1;
   // Boat-specific: max people + trip duration (hours).
   int _boatPeople = 6;
   int _boatHours = 4;
+  // Wave 28: replaces the old free-form "عدد الأسرّة" counter.
+  // Values match the backend ``AudienceType`` enum.
+  String _audienceType = 'both';
 
   // Step 5 — Amenities (كلها إجبارية من منظور "الحد الأدنى = اختار 1")
   late List<_Toggle> _amenities;
@@ -151,6 +158,18 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
   final _priceCtrl = TextEditingController();
   final _weekendCtrl = TextEditingController();
   final _cleaningCtrl = TextEditingController();
+  // Wave 28: chalet/villa village fees (e.g. resort entry).
+  final _villageFeesCtrl = TextEditingController();
+  // Wave 28: chalet utility fees (electricity / water).
+  final _electricityCtrl = TextEditingController();
+  final _waterCtrl = TextEditingController();
+  // Wave 28: optional paid parking — only collected if !parkingIsFree.
+  // Even when paid the value is informational and NOT added to the
+  // booking total (host collects on arrival).
+  bool _parkingIsFree = true;
+  final _parkingFeeCtrl = TextEditingController();
+  // Wave 28: day-use per-person price.
+  final _pricePerPersonCtrl = TextEditingController();
 
   // Step 9
   String _bookingMode = 'instant';
@@ -253,11 +272,16 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
     _pageCtrl.dispose();
     _nameCtrl.dispose();
     _villageCtrl.dispose();
-    _addressCtrl.dispose();
+    _mapsLinkCtrl.dispose();
     _descCtrl.dispose();
     _priceCtrl.dispose();
     _weekendCtrl.dispose();
     _cleaningCtrl.dispose();
+    _villageFeesCtrl.dispose();
+    _electricityCtrl.dispose();
+    _waterCtrl.dispose();
+    _parkingFeeCtrl.dispose();
+    _pricePerPersonCtrl.dispose();
     super.dispose();
   }
 
@@ -285,20 +309,29 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
 
       case 2: // المعلومات الأساسية
         if (_nameCtrl.text.trim().isEmpty) {
-          return 'اكتب اسم العقار';
+          return _isDayUse ? 'اكتب اسم الشاطئ' : 'اكتب اسم العقار';
         }
         if (_selLocation == null) {
           return 'اختار المنطقة';
         }
-        if (_villageCtrl.text.trim().isEmpty) {
+        // Village name only matters for chalet/villa/hotel/resort.  Day-use
+        // and boat skip it because the listing is the location itself.
+        if (!_isDayUse && !_isBoat && _villageCtrl.text.trim().isEmpty) {
           return 'اكتب اسم القرية أو المجمع';
         }
-        if (_addressCtrl.text.trim().isEmpty) {
-          return 'اكتب العنوان التفصيلي';
+        // Wave 28: maps link is required (replaces detailed address).
+        final link = _mapsLinkCtrl.text.trim();
+        if (link.isEmpty) {
+          return 'حط لينك الموقع من جوجل ماب';
+        }
+        if (!RegExp(r'^https?://', caseSensitive: false).hasMatch(link)) {
+          return 'لينك الموقع لازم يبدأ بـ https://';
         }
         if (_descCtrl.text.trim().length < 20) {
           return 'اكتب وصف للعقار (20 حرف على الأقل)';
         }
+        final descError = _checkDescriptionContent(_descCtrl.text);
+        if (descError != null) return descError;
         return null;
 
       case 3: // تفاصيل العقار — الـ counters دايماً ≥ 1 فمفيش validation
@@ -317,13 +350,28 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
         return null;
 
       case 7: // التسعير
+        // Day-use bills per-person, no nightly / weekend split.
+        if (_isDayUse) {
+          final pp = int.tryParse(_pricePerPersonCtrl.text.trim());
+          if (pp == null || pp <= 0) {
+            return 'اكتب سعر الفرد الواحد';
+          }
+          return null;
+        }
         final price = int.tryParse(_priceCtrl.text.trim());
         if (price == null || price <= 0) {
-          return 'اكتب السعر العادي في الليلة';
+          return _isBoat
+              ? 'اكتب السعر في الساعة'
+              : 'اكتب السعر العادي في الليلة';
         }
+        // Weekend price is required for every other category, including
+        // boat (Wave 28: lets the host charge a higher Friday/Saturday
+        // hourly rate).
         final weekend = int.tryParse(_weekendCtrl.text.trim());
         if (weekend == null || weekend <= 0) {
-          return 'اكتب سعر الويك إند';
+          return _isBoat
+              ? 'اكتب سعر الويك إند في الساعة'
+              : 'اكتب سعر الويك إند';
         }
         return null;
 
@@ -479,11 +527,20 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
     setState(() => _isPublishing = true);
     try {
       final isBoat = _isBoat;
+      final isDayUse = _isDayUse;
+      final isChaletOrVilla = _isChalet || _isVilla;
 
-      // Build request payload matching PropertyCreate schema.
-      // For boats, ``price_per_night`` is semantically a price-per-hour
-      // and ``max_guests`` is the number of passengers; the backend
-      // understands this via the ``boat`` category.
+      // Build request payload matching PropertyCreate schema.  Three
+      // category-shaped variants:
+      //   • boat:    price_per_night = hourly rate; weekend_price = weekend hourly rate.
+      //   • day-use: price_per_person drives billing; price_per_night is
+      //              ignored server-side (mirrored from price_per_person
+      //              in the validator) but we still send a positive value
+      //              so the schema's ``ge=0`` doesn't trip.
+      //   • stay:    price_per_night + weekend_price + optional fees.
+      final pricePerPerson = isDayUse
+          ? (int.tryParse(_pricePerPersonCtrl.text.trim()) ?? 0)
+          : null;
       final payload = <String, dynamic>{
         'name': _nameCtrl.text.trim(),
         'description': _descCtrl.text.trim().isNotEmpty
@@ -491,16 +548,40 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
             : null,
         'area': _selLocation ?? '',
         'category': _selType?.key ?? '',
-        'price_per_night': int.tryParse(_priceCtrl.text) ?? 0,
-        if (!isBoat) 'weekend_price': int.tryParse(_weekendCtrl.text),
-        if (!isBoat) 'cleaning_fee': int.tryParse(_cleaningCtrl.text) ?? 0,
-        'bedrooms': isBoat ? 0 : _bedrooms,
-        'bathrooms': isBoat ? 0 : _bathrooms,
+        'audience_type': _audienceType,
+        'price_per_night': isDayUse
+            ? (pricePerPerson ?? 0)
+            : (int.tryParse(_priceCtrl.text) ?? 0),
+        if (isDayUse) 'price_per_person': pricePerPerson,
+        if (!isDayUse) 'weekend_price': int.tryParse(_weekendCtrl.text),
+        // Cleaning fee only travels with chalet / villa / day-use; the
+        // backend zeroes it out for everyone else but suppressing it on
+        // the wire keeps the payload tidy.
+        if (isChaletOrVilla)
+          'cleaning_fee': int.tryParse(_cleaningCtrl.text) ?? 0,
+        if (_isChalet) ...{
+          'electricity_fee': int.tryParse(_electricityCtrl.text) ?? 0,
+          'water_fee': int.tryParse(_waterCtrl.text) ?? 0,
+        },
+        if (isChaletOrVilla) ...{
+          'village_fees': int.tryParse(_villageFeesCtrl.text) ?? 0,
+          'parking_is_free': _parkingIsFree,
+          'parking_fee':
+              _parkingIsFree ? 0 : (int.tryParse(_parkingFeeCtrl.text) ?? 0),
+        },
+        'bedrooms': (isBoat || isDayUse) ? 0 : _bedrooms,
+        'bathrooms': (isBoat || isDayUse) ? 0 : _bathrooms,
         'max_guests': isBoat ? _boatPeople : _guests,
         'total_rooms': isBoat
             ? 0
             : (_selType?.key == 'فندق' ? _hotelRooms : 0),
         if (isBoat) 'trip_duration_hours': _boatHours,
+        // Wave 28: village name + Google Maps URL travel as their own
+        // top-level keys (the backend split them out of description).
+        if (!isDayUse && !isBoat && _villageCtrl.text.trim().isNotEmpty)
+          'village_name': _villageCtrl.text.trim(),
+        if (_mapsLinkCtrl.text.trim().isNotEmpty)
+          'location_link': _mapsLinkCtrl.text.trim(),
         'amenities': _amenities
             .where((a) => a.selected)
             .map((a) => a.label)
@@ -638,6 +719,41 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
   // ══════════════════════════════════════════════════════════
 
   bool get _isBoat => _selType?.key == 'مركب';
+  bool get _isDayUse => _selType?.key == 'رحلة يوم واحد';
+  bool get _isHotelOrResort =>
+      _selType?.key == 'فندق' || _selType?.key == 'منتجع';
+  bool get _isChalet => _selType?.key == 'شاليه';
+  bool get _isVilla => _selType?.key == 'فيلا';
+
+  /// Validates the description has no embedded phone numbers or links.
+  /// Mirrors the backend regex in ``app/schemas/property.py``.
+  /// Returns null when clean, otherwise the localised error message.
+  String? _checkDescriptionContent(String text) {
+    final ar = '٠١٢٣٤٥٦٧٨٩';
+    final en = '0123456789';
+    var normalised = text;
+    for (var i = 0; i < ar.length; i++) {
+      normalised = normalised.replaceAll(ar[i], en[i]);
+    }
+    normalised = normalised
+        .replaceAll('\u200b', '')
+        .replaceAll('\u200c', '')
+        .replaceAll('\u200d', '')
+        .replaceAll('\u200e', '')
+        .replaceAll('\u200f', '');
+    final urlRe = RegExp(
+      r'(?:https?:\/\/|www\.|\b\w+\.(?:com|net|org|me|io|app)\b|t\.me\/|wa\.me\/)',
+      caseSensitive: false,
+    );
+    final phoneRe = RegExp(r'(?:\+?\d[\s\-]?){7,}');
+    if (urlRe.hasMatch(normalised)) {
+      return 'ممنوع إضافة روابط في الوصف';
+    }
+    if (phoneRe.hasMatch(normalised)) {
+      return 'ممنوع إضافة أرقام تليفون في الوصف';
+    }
+    return null;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1027,6 +1143,11 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
   //  STEP 3 — INFO
   // ══════════════════════════════════════════════════════════
   Widget _buildStep3() {
+    final descError = _checkDescriptionContent(_descCtrl.text);
+    final nameLabel = _isDayUse ? 'اسم الشاطئ *' : 'اسم العقار *';
+    final nameHint = _isDayUse
+        ? 'مثال: شاطئ كليوباترا'
+        : 'مثال: شاليه فاخر بإطلالة بحر';
     return ListView(padding: const EdgeInsets.all(20), children: [
       Text('المعلومات الأساسية',
           style: TextStyle(
@@ -1034,7 +1155,7 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
       const SizedBox(height: 6),
       _requiredLabel('كل الحقول مطلوبة'),
       const SizedBox(height: 16),
-      _field(_nameCtrl, 'اسم العقار *', 'مثال: شاليه فاخر بإطلالة بحر'),
+      _field(_nameCtrl, nameLabel, nameHint),
       const SizedBox(height: 14),
       DropdownButtonFormField<String>(
         initialValue: _selLocation,
@@ -1045,34 +1166,88 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
         onChanged: (v) => setState(() => _selLocation = v),
       ),
       const SizedBox(height: 14),
-      _field(_villageCtrl, 'اسم القرية / المجمع *', 'مثال: بورتو السخنة'),
-      const SizedBox(height: 14),
-      _field(_addressCtrl, 'العنوان التفصيلي *', 'مثال: كيلو 108، طريق السخنة'),
+      // Village / compound name — only meaningful for stays.  Day-use
+      // beach passes and boat trips skip this row.
+      if (!_isDayUse && !_isBoat) ...[
+        _field(_villageCtrl, 'اسم القرية / المجمع *', 'مثال: بورتو السخنة'),
+        const SizedBox(height: 14),
+      ],
+      // Wave 28: Google Maps URL replaces the legacy detailed address.
+      _field(_mapsLinkCtrl, 'لينك الموقع على جوجل ماب *',
+          'https://maps.app.goo.gl/...',
+          keyboardType: TextInputType.url),
+      const SizedBox(height: 6),
+      Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: _kOcean.withValues(alpha: 0.06),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(children: [
+          const Icon(Icons.info_outline_rounded, size: 14, color: _kOcean),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              'افتح خرائط جوجل، اختار العقار، اضغط مشاركة، انسخ اللينك وحطه هنا.',
+              style: TextStyle(
+                  fontSize: 11, color: context.kSub, height: 1.3),
+            ),
+          ),
+        ]),
+      ),
       const SizedBox(height: 14),
       _field(_descCtrl, 'وصف العقار *',
           'اكتب وصف شامل للعقار، المميزات، والتجربة...',
           maxLines: 5),
       const SizedBox(height: 6),
-      Text(
-        '${_descCtrl.text.trim().length} / 20 حرف كحد أدنى',
-        style: TextStyle(
-            fontSize: 11,
-            color: _descCtrl.text.trim().length >= 20 ? _kGreen : context.kSub),
-      ),
-      const SizedBox(height: 20),
-      Text('أوقات الدخول والخروج',
+      // Description guards: minimum length AND no embedded phone/links.
+      if (descError != null)
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            color: _kRed.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Row(children: [
+            const Icon(Icons.warning_amber_rounded,
+                size: 14, color: _kRed),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(descError,
+                  style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: _kRed)),
+            ),
+          ]),
+        )
+      else
+        Text(
+          '${_descCtrl.text.trim().length} / 20 حرف كحد أدنى — ممنوع أرقام تليفون أو روابط',
           style: TextStyle(
-              fontSize: 15, fontWeight: FontWeight.w800, color: context.kText)),
-      const SizedBox(height: 10),
-      Row(children: [
-        Expanded(
-            child: _timeField(
-                'وقت الوصول', _checkin, (v) => setState(() => _checkin = v))),
-        const SizedBox(width: 12),
-        Expanded(
-            child: _timeField('وقت المغادرة', _checkout,
-                (v) => setState(() => _checkout = v))),
-      ]),
+              fontSize: 11,
+              color:
+                  _descCtrl.text.trim().length >= 20 ? _kGreen : context.kSub),
+        ),
+      // Check-in / check-out times only matter for overnight stays.
+      if (!_isDayUse && !_isBoat) ...[
+        const SizedBox(height: 20),
+        Text('أوقات الدخول والخروج',
+            style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w800,
+                color: context.kText)),
+        const SizedBox(height: 10),
+        Row(children: [
+          Expanded(
+              child: _timeField('وقت الوصول', _checkin,
+                  (v) => setState(() => _checkin = v))),
+          const SizedBox(width: 12),
+          Expanded(
+              child: _timeField('وقت المغادرة', _checkout,
+                  (v) => setState(() => _checkout = v))),
+        ]),
+      ],
     ]);
   }
 
@@ -1121,6 +1296,22 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
       ]);
     }
 
+    // ── Day-use layout: just the audience selector (no rooms / beds /
+    // max-guests counter; price-per-person handles capacity organically).
+    if (_isDayUse) {
+      return ListView(padding: const EdgeInsets.all(20), children: [
+        Text('تفاصيل الشاطئ',
+            style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w900,
+                color: context.kText)),
+        const SizedBox(height: 6),
+        _optionalLabel('اختار الفئة المستهدفة'),
+        const SizedBox(height: 16),
+        _audienceSelector(),
+      ]);
+    }
+
     // ── Default property layout ──
     return ListView(padding: const EdgeInsets.all(20), children: [
       Text('تفاصيل العقار',
@@ -1129,7 +1320,6 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
       const SizedBox(height: 16),
       _counter('🛏️  غرف النوم', _bedrooms,
           (v) => setState(() => _bedrooms = v), 1, 20),
-      _counter('🛌  الأسرة', _beds, (v) => setState(() => _beds = v), 1, 30),
       _counter('🚿  الحمامات', _bathrooms,
           (v) => setState(() => _bathrooms = v), 1, 10),
       _counter(
@@ -1137,7 +1327,71 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
       if (_selType?.key == 'فندق')
         _counter('🚪  عدد الغرف المتاحة', _hotelRooms,
             (v) => setState(() => _hotelRooms = v), 1, 300),
+      const SizedBox(height: 8),
+      // Wave 28: replaces the old "عدد الأسرّة" counter that was never
+      // surfaced anywhere on the guest side.  Audience policy IS
+      // surfaced — guests see a chip on the property card.
+      _audienceSelector(),
     ]);
+  }
+
+  Widget _audienceSelector() {
+    const opts = [
+      ('family_only', '👨\u200d👩\u200d👧', 'عائلات فقط'),
+      ('youth_only', '🧑\u200d🤝\u200d🧑', 'شباب فقط'),
+      ('both', '🤝', 'الاتنين عادي'),
+    ];
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: context.kCard,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: context.kBorder),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text('الفئة المستهدفة',
+            style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w800,
+                color: context.kText)),
+        const SizedBox(height: 10),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: opts.map((o) {
+            final (key, emoji, label) = o;
+            final sel = _audienceType == key;
+            return GestureDetector(
+              onTap: () => setState(() => _audienceType = key),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: sel
+                      ? _kOcean.withValues(alpha: 0.1)
+                      : context.kSand,
+                  borderRadius: BorderRadius.circular(30),
+                  border: Border.all(
+                      color: sel ? _kOcean : context.kBorder,
+                      width: sel ? 2 : 1.5),
+                ),
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  Text(emoji, style: const TextStyle(fontSize: 16)),
+                  const SizedBox(width: 6),
+                  Text(label,
+                      style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: sel ? _kOcean : context.kText)),
+                ]),
+              ),
+            );
+          }).toList(),
+        ),
+      ]),
+    );
   }
 
   // ══════════════════════════════════════════════════════════
@@ -1345,6 +1599,7 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
   //  STEP 8 — PRICING
   // ══════════════════════════════════════════════════════════
   Widget _buildStep8() {
+    // ── Boat: per-hour pricing + weekend per-hour ──
     if (_isBoat) {
       return ListView(padding: const EdgeInsets.all(20), children: [
         Text('تسعير المركب',
@@ -1356,6 +1611,13 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
         _requiredLabel('السعر للساعة الواحدة'),
         const SizedBox(height: 16),
         _priceField(_priceCtrl, 'السعر في الساعة *', 'لكل ساعة رحلة',
+            required: true),
+        const SizedBox(height: 14),
+        // Wave 28: weekend hourly rate is now mandatory for boats too —
+        // that's what was tripping the "اكتب سعر الويك إند" guard on
+        // upload before this migration.
+        _priceField(_weekendCtrl, 'سعر الويك إند في الساعة *',
+            'جمعة وسبت',
             required: true),
         const SizedBox(height: 10),
         Container(
@@ -1378,32 +1640,157 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
         ),
       ]);
     }
+
+    // ── Day-use: price-per-person, no weekend split, no fees ──
+    if (_isDayUse) {
+      return ListView(padding: const EdgeInsets.all(20), children: [
+        Text('تسعير رحلة اليوم الواحد',
+            style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w900,
+                color: context.kText)),
+        const SizedBox(height: 6),
+        _requiredLabel('سعر الفرد الواحد'),
+        const SizedBox(height: 16),
+        _priceField(_pricePerPersonCtrl, 'سعر الفرد *', 'لكل ضيف',
+            required: true),
+        const SizedBox(height: 10),
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: _kOcean.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(children: [
+            const Icon(Icons.info_outline_rounded,
+                color: _kOcean, size: 18),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'الإجمالي يحسب تلقائياً = سعر الفرد × عدد الضيوف.',
+                style: TextStyle(fontSize: 12, color: context.kText),
+              ),
+            ),
+          ]),
+        ),
+      ]);
+    }
+
+    // ── Hotel / Resort: only nightly + weekend.  Cleaning, electricity,
+    // water and parking are mandatorily included in the room rate, so
+    // the form hides those rows entirely.
+    if (_isHotelOrResort) {
+      return ListView(padding: const EdgeInsets.all(20), children: [
+        Text('التسعير',
+            style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w900,
+                color: context.kText)),
+        const SizedBox(height: 6),
+        _requiredLabel('السعر العادي وسعر الويك إند مطلوبين'),
+        const SizedBox(height: 16),
+        _priceField(_priceCtrl, 'السعر العادي *', 'في الليلة',
+            required: true),
+        const SizedBox(height: 14),
+        _priceField(_weekendCtrl, 'سعر الويك إند *', 'جمعة وسبت',
+            required: true),
+        const SizedBox(height: 14),
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: _kGreen.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(children: [
+            const Icon(Icons.check_circle_rounded,
+                color: _kGreen, size: 18),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'النظافة والكهرباء والمية والمواقف كلها بتبقى شاملة في السعر.',
+                style: TextStyle(fontSize: 12, color: context.kText),
+              ),
+            ),
+          ]),
+        ),
+      ]);
+    }
+
+    // ── Chalet / Villa: full pricing form with village fees, parking,
+    // cleaning, and (chalet only) utility fees.  ──
     return ListView(padding: const EdgeInsets.all(20), children: [
       Text('التسعير',
           style: TextStyle(
-              fontSize: 22, fontWeight: FontWeight.w900, color: context.kText)),
+              fontSize: 22,
+              fontWeight: FontWeight.w900,
+              color: context.kText)),
       const SizedBox(height: 6),
       _requiredLabel('السعر العادي وسعر الويك إند مطلوبين'),
       const SizedBox(height: 16),
-      _priceField(_priceCtrl, 'السعر العادي *', 'في الليلة', required: true),
+      _priceField(_priceCtrl, 'السعر العادي *', 'في الليلة',
+          required: true),
       const SizedBox(height: 14),
-      _priceField(_weekendCtrl, 'سعر الويك إند *', 'جمعة وسبت', required: true),
-      const SizedBox(height: 14),
-      Row(children: [
-        Expanded(
-            child: _priceField(_cleaningCtrl, 'رسوم التنظيف', 'لكل إقامة')),
-        const SizedBox(width: 8),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-          decoration: BoxDecoration(
-            color: context.kSub.withValues(alpha: 0.08),
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Text('اختياري',
-              style: TextStyle(
-                  fontSize: 11, fontWeight: FontWeight.w700, color: context.kSub)),
+      _priceField(_weekendCtrl, 'سعر الويك إند *', 'جمعة وسبت',
+          required: true),
+      const SizedBox(height: 18),
+      Text('رسوم إضافية',
+          style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w800,
+              color: context.kText)),
+      const SizedBox(height: 8),
+      _optionalLabel('اختياري — تظهر للضيف ضمن تفاصيل التكلفة'),
+      const SizedBox(height: 12),
+      // Wave 28: village fees come BEFORE cleaning per spec.
+      _priceField(_villageFeesCtrl, 'رسوم القرية / المجمع',
+          'لكل إقامة'),
+      const SizedBox(height: 12),
+      _priceField(_cleaningCtrl, 'رسوم التنظيف', 'لكل إقامة'),
+      if (_isChalet) ...[
+        const SizedBox(height: 12),
+        _priceField(_electricityCtrl, 'رسوم الكهرباء', 'لكل إقامة'),
+        const SizedBox(height: 12),
+        _priceField(_waterCtrl, 'رسوم المياه', 'لكل إقامة'),
+      ],
+      const SizedBox(height: 18),
+      // Parking row — toggle + conditional fee.
+      Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: context.kCard,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: context.kBorder),
         ),
-      ]),
+        child:
+            Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            const Text('🅿️', style: TextStyle(fontSize: 22)),
+            const SizedBox(width: 10),
+            Expanded(
+                child: Text('مواقف السيارات مجانية',
+                    style: TextStyle(
+                        fontSize: 14.5,
+                        fontWeight: FontWeight.w800,
+                        color: context.kText))),
+            Switch.adaptive(
+              value: _parkingIsFree,
+              activeThumbColor: _kOcean,
+              onChanged: (v) => setState(() => _parkingIsFree = v),
+              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+          ]),
+          if (!_parkingIsFree) ...[
+            const SizedBox(height: 10),
+            _priceField(_parkingFeeCtrl, 'رسوم المواقف', 'لكل إقامة'),
+            const SizedBox(height: 6),
+            Text(
+              'المبلغ ده الضيف بيدفعه لك كاش عند الوصول — مش بيتحسب ضمن إجمالي الحجز.',
+              style: TextStyle(
+                  fontSize: 11, color: context.kSub, height: 1.3),
+            ),
+          ],
+        ]),
+      ),
     ]);
   }
 
@@ -1676,10 +2063,11 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
       );
 
   Widget _field(TextEditingController c, String label, String hint,
-          {int maxLines = 1}) =>
+          {int maxLines = 1, TextInputType? keyboardType}) =>
       TextField(
         controller: c,
         maxLines: maxLines,
+        keyboardType: keyboardType,
         onChanged: (_) => setState(() {}), // لتحديث عداد الحروف
         decoration: _inputDec(label).copyWith(
             hintText: hint, hintStyle: TextStyle(color: context.kBorder)),

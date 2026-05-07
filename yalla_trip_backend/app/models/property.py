@@ -62,6 +62,19 @@ class PropertyStatus(str, enum.Enum):
     needs_edit = "needs_edit"
 
 
+class AudienceType(str, enum.Enum):
+    """Owner-declared audience policy for the listing.
+
+    Surfaces as a badge on the property card / detail page so guests
+    self-select before booking.  ``both`` is the default for legacy
+    listings that predate this column (server_default in the migration).
+    """
+
+    family_only = "family_only"
+    youth_only = "youth_only"
+    both = "both"
+
+
 class CancellationPolicy(str, enum.Enum):
     """Airbnb-style cancellation tiers.
 
@@ -100,6 +113,25 @@ class Property(Base):
     cleaning_fee: Mapped[float] = mapped_column(Float, default=0.0, server_default="0")
     electricity_fee: Mapped[float] = mapped_column(Float, default=0.0, server_default="0")
     water_fee: Mapped[float] = mapped_column(Float, default=0.0, server_default="0")
+    # ── Village / compound fees (Wave 28) ──
+    # Per-stay village or compound fees (e.g. resort entry). Applies
+    # only to chalet / villa categories; zeroed-out for hotel & resort
+    # in the category_rules validator (those are mandatorily inclusive).
+    village_fees: Mapped[float] = mapped_column(
+        Float, default=0.0, server_default="0"
+    )
+    # ── Parking (Wave 28) ──
+    # When ``parking_is_free`` is True the parking_fee is informational
+    # only and never added to the booking total.  When False the host
+    # charges ``parking_fee`` per stay but it is STILL not added to the
+    # booking total — guests pay parking on arrival.  This mirrors the
+    # user's spec: "if paid, don't include in total cost".
+    parking_is_free: Mapped[bool] = mapped_column(
+        Boolean, default=True, server_default="true", nullable=False
+    )
+    parking_fee: Mapped[float] = mapped_column(
+        Float, default=0.0, server_default="0"
+    )
     security_deposit: Mapped[float] = mapped_column(Float, default=0.0, server_default="0")
 
     total_rooms: Mapped[int] = mapped_column(Integer, default=1, server_default="1")
@@ -116,6 +148,58 @@ class Property(Base):
     bedrooms: Mapped[int] = mapped_column(Integer, default=1)
     bathrooms: Mapped[int] = mapped_column(Integer, default=1)
     max_guests: Mapped[int] = mapped_column(Integer, default=4)
+
+    # ── Audience policy (Wave 28) ──
+    # Replaces the legacy free-form "beds" counter that used to be
+    # surfaced in the property details step.  Hosts now declare who
+    # their listing is for and the badge appears in the amenities chip
+    # row on the property page.
+    audience_type: Mapped[AudienceType] = mapped_column(
+        Enum(
+            AudienceType,
+            values_callable=lambda obj: [e.value for e in obj],
+        ),
+        default=AudienceType.both,
+        server_default=AudienceType.both.value,
+        nullable=False,
+    )
+
+    # ── Day-use price per person (Wave 28) ──
+    # For ``Category.day_use`` the host bills per guest, not per night.
+    # ``price_per_night`` is treated as 0 in this case; the booking
+    # service multiplies ``price_per_person * guests`` instead.  NULL for
+    # every other category.
+    price_per_person: Mapped[float | None] = mapped_column(
+        Float, nullable=True,
+    )
+
+    # ── Location link (Wave 28) ──
+    # Replaces the legacy free-form "detailed address" textbox with a
+    # tappable Google Maps URL.  The Flutter detail page renders this
+    # as an external launcher button so guests open Google Maps with
+    # the exact pin instead of guessing from a paragraph of Arabic text.
+    location_link: Mapped[str | None] = mapped_column(
+        String(500), nullable=True,
+    )
+    # ``village_name`` was previously concatenated into description by
+    # legacy clients; promote it to its own column so the detail page
+    # can show "القرية / المجمع" cleanly above the maps button.
+    village_name: Mapped[str | None] = mapped_column(
+        String(200), nullable=True,
+    )
+
+    # ── Optional photos (Wave 28) ──
+    # ``amenity_photos`` is a list of {"label": str, "url": str} pairs;
+    # JSON-typed because the count varies per host and indexing isn't
+    # needed.  ``nearby_photos`` is a flat list of S3 URLs of the
+    # surrounding area (restaurants / cafes / beach), so it stays as
+    # an ARRAY for cheaper read paths in the gallery widget.
+    amenity_photos: Mapped[list[dict] | None] = mapped_column(
+        JSONB, nullable=True, default=list,
+    )
+    nearby_photos: Mapped[list[str] | None] = mapped_column(
+        ARRAY(String(512)), nullable=True, default=list,
+    )
 
     images: Mapped[list[str] | None] = mapped_column(
         ARRAY(String(512)), nullable=True, default=list

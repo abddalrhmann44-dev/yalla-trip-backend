@@ -72,6 +72,12 @@ class PropertyApi {
   final double cleaningFee;
   final double electricityFee;
   final double waterFee;
+  final double villageFees;
+  /// Whether parking is free for guests.  When false, [parkingFee] is
+  /// the per-stay charge collected by the host on arrival — it is NOT
+  /// added to the booking total (Wave 28 spec).
+  final bool parkingIsFree;
+  final double parkingFee;
   final double securityDeposit;
   final int totalRooms;
   final String? closingTime;
@@ -79,9 +85,26 @@ class PropertyApi {
   final int bedrooms;
   final int bathrooms;
   final int maxGuests;
+  /// Audience policy: ``family_only`` | ``youth_only`` | ``both``.
+  /// Surfaces as a chip in the property card / detail page.
+  final String audienceType;
+  /// For day-use listings the host bills per guest — this is the price
+  /// per person.  ``null`` for every other category.
+  final double? pricePerPerson;
   final List<String> images;
   final List<String> amenities;
   final List<PropertyServiceItem> services;
+  /// Optional list of `{label, url}` pairs — one entry per amenity the
+  /// host attached a photo to (e.g. AC, kitchen).
+  final List<Map<String, String>> amenityPhotos;
+  /// Optional photos of the surrounding area (restaurants / cafes /
+  /// beach) to boost discovery.
+  final List<String> nearbyPhotos;
+  /// Tappable Google Maps URL.  Replaces the legacy free-form detailed
+  /// address textbox — ``null`` for old listings that predate Wave 28.
+  final String? locationLink;
+  /// Free-form village / compound name (e.g. "بورتو السخنة").
+  final String? villageName;
   final double rating;
   final int reviewCount;
   final String status;
@@ -113,6 +136,9 @@ class PropertyApi {
     this.cleaningFee = 0,
     this.electricityFee = 0,
     this.waterFee = 0,
+    this.villageFees = 0,
+    this.parkingIsFree = true,
+    this.parkingFee = 0,
     this.securityDeposit = 0,
     this.totalRooms = 1,
     this.closingTime,
@@ -120,9 +146,15 @@ class PropertyApi {
     this.bedrooms = 1,
     this.bathrooms = 1,
     this.maxGuests = 4,
+    this.audienceType = 'both',
+    this.pricePerPerson,
     this.images = const [],
     this.amenities = const [],
     this.services = const [],
+    this.amenityPhotos = const [],
+    this.nearbyPhotos = const [],
+    this.locationLink,
+    this.villageName,
     this.rating = 0,
     this.reviewCount = 0,
     this.status = 'pending',
@@ -152,6 +184,9 @@ class PropertyApi {
       cleaningFee: (j['cleaning_fee'] ?? 0).toDouble(),
       electricityFee: (j['electricity_fee'] ?? 0).toDouble(),
       waterFee: (j['water_fee'] ?? 0).toDouble(),
+      villageFees: (j['village_fees'] ?? 0).toDouble(),
+      parkingIsFree: j['parking_is_free'] ?? true,
+      parkingFee: (j['parking_fee'] ?? 0).toDouble(),
       securityDeposit: (j['security_deposit'] ?? 0).toDouble(),
       totalRooms: j['total_rooms'] ?? 1,
       closingTime: j['closing_time'],
@@ -159,12 +194,25 @@ class PropertyApi {
       bedrooms: j['bedrooms'] ?? 1,
       bathrooms: j['bathrooms'] ?? 1,
       maxGuests: j['max_guests'] ?? 4,
+      audienceType: (j['audience_type'] ?? 'both') as String,
+      pricePerPerson: j['price_per_person'] != null
+          ? (j['price_per_person'] as num).toDouble()
+          : null,
       images: List<String>.from(j['images'] ?? []),
       amenities: List<String>.from(j['amenities'] ?? []),
       services: (j['services'] as List<dynamic>?)
               ?.map((s) => PropertyServiceItem.fromJson(s as Map<String, dynamic>))
               .toList() ??
           [],
+      amenityPhotos: (j['amenity_photos'] as List<dynamic>?)
+              ?.map((e) => Map<String, String>.from(
+                  (e as Map<String, dynamic>).map(
+                      (k, v) => MapEntry(k, v?.toString() ?? ''))))
+              .toList() ??
+          const [],
+      nearbyPhotos: List<String>.from(j['nearby_photos'] ?? const []),
+      locationLink: j['location_link'] as String?,
+      villageName: j['village_name'] as String?,
       rating: (j['rating'] ?? 0).toDouble(),
       reviewCount: j['review_count'] ?? 0,
       status: j['status'] ?? 'pending',
