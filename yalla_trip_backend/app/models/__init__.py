@@ -4,6 +4,7 @@ from app.models.booking import Booking
 from app.models.review import Review
 from app.models.notification import Notification
 from app.models.favorite import Favorite
+from app.models.recently_viewed import RecentlyViewed
 from app.models.chat import (
     Conversation,
     ConversationStatus,
@@ -44,6 +45,7 @@ __all__ = [
     "Review",
     "Notification",
     "Favorite",
+    "RecentlyViewed",
     "Conversation",
     "ConversationStatus",
     "Message",

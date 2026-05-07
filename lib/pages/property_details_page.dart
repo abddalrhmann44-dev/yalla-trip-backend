@@ -64,6 +64,10 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
       _loading = false;
       _loadSimilar();
       _loadReviews();
+      // Wave 28: record the view so the home page's "Recently viewed"
+      // carousel surfaces this listing on the user's next visit.
+      // Fire-and-forget — guests / network errors are swallowed.
+      PropertyService.markPropertyViewed(_prop!.id);
     } else {
       _loadProperty();
     }
@@ -76,6 +80,8 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
       setState(() { _prop = prop; _loading = false; });
       _loadSimilar();
       _loadReviews();
+      // Wave 28: record the view (see initState comment).
+      PropertyService.markPropertyViewed(prop.id);
     } on ApiException catch (e) {
       if (mounted) setState(() { _error = ErrorHandler.getMessage(e); _loading = false; });
     } catch (_) {

@@ -39,6 +39,7 @@ from app.routers import (
     promo_codes,
     wallet,
     properties,
+    recently_viewed,
     reports,
     reviews,
     phone_otp,
@@ -221,6 +222,7 @@ app.include_router(notifications.router)
 app.include_router(devices.router)
 app.include_router(offers.router)
 app.include_router(favorites.router)
+app.include_router(recently_viewed.router)
 app.include_router(chat.router)
 app.include_router(phone_otp.router)
 app.include_router(health.router)
