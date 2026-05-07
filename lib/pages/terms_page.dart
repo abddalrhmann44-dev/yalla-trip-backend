@@ -16,8 +16,29 @@
 // ═══════════════════════════════════════════════════════════════
 
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../main.dart' show appSettings;
 import '../widgets/constants.dart';
+
+// ── Brand contact constants (Wave 28) ──────────────────
+// Centralised so we never drift between the footer card, the
+// privacy section bullet and the closing "Contact" bullet — if the
+// number / email change in the future, this is the single edit.
+const _kSupportEmail = 'support@talaa-trip.com';
+const _kSupportPhone = '+201070771908';
+// Display form (‎ force LTR so RTL paragraphs don't flip the digits).
+const _kSupportPhoneDisplay = '\u200e$_kSupportPhone';
+// wa.me requires the number without the leading + sign.
+const _kSupportWhatsAppUrl = 'https://wa.me/201070771908';
+const _kSupportMailtoUrl = 'mailto:$_kSupportEmail';
+
+Future<void> _openExternal(String url) async {
+  final uri = Uri.parse(url);
+  // ``LaunchMode.externalApplication`` opens WhatsApp / the email
+  // client directly instead of the in-app web view, which is what
+  // users expect when tapping a phone or email contact.
+  await launchUrl(uri, mode: LaunchMode.externalApplication);
+}
 
 // Unified brand accent (same orange used across profile + wallet).
 const _kBrand = Color(0xFFFF6B35);
@@ -111,7 +132,7 @@ class TermsPage extends StatelessWidget {
             borderRadius: BorderRadius.circular(10),
           ),
           child: Text(
-            ar ? 'آخر تحديث: أبريل 2026' : 'Last updated: April 2026',
+            ar ? 'آخر تحديث: مايو 2026' : 'Last updated: May 2026',
             style: const TextStyle(
                 fontSize: 10,
                 color: Colors.white,
@@ -225,18 +246,53 @@ class TermsPage extends StatelessWidget {
                   'personal data should be sent to:',
             style: TextStyle(fontSize: 12, color: context.kSub, height: 1.6),
           ),
-          const SizedBox(height: 6),
-          const Text('legal@talaa.app',
-              style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w800,
-                  color: _kBrand)),
-          const SizedBox(height: 4),
-          const Text('privacy@talaa.app',
-              style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w800,
-                  color: _kBrand)),
+          const SizedBox(height: 8),
+          // ── Email contact (tappable → mailto) ──
+          InkWell(
+            onTap: () => _openExternal(_kSupportMailtoUrl),
+            borderRadius: BorderRadius.circular(8),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Row(children: [
+                const Icon(Icons.alternate_email_rounded,
+                    size: 16, color: _kBrand),
+                const SizedBox(width: 8),
+                const Text(
+                  _kSupportEmail,
+                  style: TextStyle(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w800,
+                      color: _kBrand,
+                      decoration: TextDecoration.underline,
+                      decorationColor: _kBrand),
+                ),
+              ]),
+            ),
+          ),
+          // ── WhatsApp contact (tappable → wa.me) ──
+          InkWell(
+            onTap: () => _openExternal(_kSupportWhatsAppUrl),
+            borderRadius: BorderRadius.circular(8),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Row(children: [
+                // Inline emoji keeps the dependency footprint zero —
+                // works on every platform without a font asset.
+                const Text('💬', style: TextStyle(fontSize: 14)),
+                const SizedBox(width: 6),
+                Text(
+                  ar ? 'واتساب: $_kSupportPhoneDisplay'
+                     : 'WhatsApp: $_kSupportPhoneDisplay',
+                  style: const TextStyle(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w800,
+                      color: _kBrand,
+                      decoration: TextDecoration.underline,
+                      decorationColor: _kBrand),
+                ),
+              ]),
+            ),
+          ),
         ],
       ),
     );
@@ -748,7 +804,7 @@ const _sections = <_Section>[
       'الأسس القانونية: تنفيذ العقد، الموافقة، الالتزام القانوني، والمصلحة المشروعة.',
       'المشاركة: بوابات الدفع (مثل Paymob)، خدمات الاستضافة السحابية، مزودو التحليلات، والجهات الرسمية بناءً على طلب قانوني. لا نبيع بياناتك أبداً.',
       'مدة الاحتفاظ: ما دام الحساب نشطاً، زائد 5 سنوات للسجلات المالية والقانونية وفق القانون المصري.',
-      'حقوقك: الوصول، التصحيح، الحذف، النقل، الاعتراض، سحب الموافقة. أرسل طلبك إلى: privacy@talaa.app.',
+      'حقوقك: الوصول، التصحيح، الحذف، النقل، الاعتراض، سحب الموافقة. أرسل طلبك إلى: support@talaa-trip.com أو واتساب +201070771908.',
       'قد نسجّل المحادثات داخل التطبيق لأغراض السلامة وحل النزاعات.',
       'جميع بيانات الدفع مُشفّرة طبقاً لمعايير PCI-DSS.',
     ],
@@ -759,7 +815,7 @@ const _sections = <_Section>[
       'Legal bases: contract performance, consent, legal obligation, and legitimate interest.',
       'Sharing: payment processors (e.g. Paymob), cloud-hosting providers, analytics vendors, and authorities upon lawful request. We never sell your data.',
       'Retention: for as long as your account is active, plus 5 years for financial/legal records as required by Egyptian law.',
-      'Your rights: access, rectification, deletion, portability, objection, withdrawal of consent. Send requests to: privacy@talaa.app.',
+      'Your rights: access, rectification, deletion, portability, objection, withdrawal of consent. Send requests to: support@talaa-trip.com or WhatsApp +201070771908.',
       'We may record in-app conversations for safety and dispute-resolution purposes.',
       'All payment data is encrypted to PCI-DSS standards.',
     ],
@@ -815,7 +871,7 @@ const _sections = <_Section>[
       'الحوالة: لا يحق لك نقل حقوقك أو التزاماتك للغير دون موافقة كتابية من المنصة، ويحق للمنصة نقل حقوقها في حالات الاندماج أو الاستحواذ.',
       'اللغة: في حال وجود تعارض بين النسخة العربية والإنجليزية، تسود النسخة العربية داخل مصر.',
       'الإخطارات: نتواصل معك عبر البريد الإلكتروني أو الهاتف المسجَّلين في الحساب أو عبر الإشعارات داخل التطبيق.',
-      'التواصل: support@talaa.app للدعم الفني، privacy@talaa.app للخصوصية، legal@talaa.app للمسائل القانونية.',
+      'التواصل: support@talaa-trip.com للدعم الفني والخصوصية والمسائل القانونية، أو واتساب +201070771908.',
     ],
     itemsEn: [
       'Severability: if any provision is held invalid, the remaining provisions stay in full force and effect.',
@@ -824,7 +880,7 @@ const _sections = <_Section>[
       'Assignment: you may not assign your rights or obligations without the Platform\'s written consent; the Platform may assign its rights in connection with a merger or acquisition.',
       'Language: in the event of conflict between the Arabic and English versions, the Arabic version prevails within Egypt.',
       'Notices: we contact you via the email or phone registered in the account or via in-app notifications.',
-      'Contact: support@talaa.app for support, privacy@talaa.app for privacy, legal@talaa.app for legal matters.',
+      'Contact: support@talaa-trip.com for support, privacy and legal matters, or WhatsApp +201070771908.',
     ],
   ),
 ];
