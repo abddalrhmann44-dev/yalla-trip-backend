@@ -224,7 +224,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   int _heroIdx = 0;
   int _navIdx = 0;
   bool _isLoading = true;
-  Map<String, int> _areaCounts = {}; // counts from API
 
   // ── Filter State ───────────────────────────────────
   String _filterArea = 'الكل';
@@ -308,7 +307,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     Future.delayed(const Duration(milliseconds: 1200), () {
       if (mounted) setState(() => _isLoading = false);
       _fadeCtrl.forward();
-      _loadAreaCounts();
       _loadOffers();
     });
 
@@ -363,19 +361,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     super.dispose();
   }
 
-  // ── Helpers ────────────────────────────────────────
-
-  // ── Load area property counts ───────────────────
-  Future<void> _loadAreaCounts() async {
-    try {
-      final props = await PropertyService.getProperties();
-      final counts = <String, int>{};
-      for (final p in props) {
-        if (p.area.isNotEmpty) counts[p.area] = (counts[p.area] ?? 0) + 1;
-      }
-      if (mounted) setState(() => _areaCounts = counts);
-    } catch (_) {}
-  }
+  // ── Helpers ───────────────────────────────
 
   // ════════════════════════════════════════════════
   //  BUILD
@@ -1390,29 +1376,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                             Shadow(color: Colors.black54, blurRadius: 6)
                           ],
                         )),
-                    // Show the count badge only when the area has live
-                    // listings.  Empty areas render no badge at all
-                    // (no placeholder copy) so destinations the user
-                    // is actively browsing always look "open".
-                    if ((_areaCounts[d.name] ?? 0) > 0) ...[
-                      const SizedBox(height: 5),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 9, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.22),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                              color: Colors.white.withValues(alpha: 0.3)),
-                        ),
-                        child: Text(
-                            '${_areaCounts[d.name]} عقار',
-                            style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 10,
-                                fontWeight: FontWeight.w700)),
-                      ),
-                    ],
                   ]),
             ),
           ]),
