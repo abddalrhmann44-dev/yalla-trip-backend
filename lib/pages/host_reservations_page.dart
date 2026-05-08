@@ -42,15 +42,16 @@ class _HostReservationsPageState extends State<HostReservationsPage> {
     setState(() => _loading = true);
     try {
       final list = await BookingService.getOwnerBookings(limit: 200);
-      // Surface only hybrid bookings (the legacy ones don't need any
-      // host action here — they go through the existing payouts
-      // cycle).  We intentionally keep settled / no-show ones in the
-      // list as a read-only audit trail.
-      final filtered = list.where((b) => b.isCashOnArrival).toList()
+      // Show every owner booking — hybrid (cash-on-arrival) ones get
+      // the inline "استلمت الكاش / لم يحضر" actions; legacy
+      // 100%-online bookings render as a read-only audit row so the
+      // host always finds their reservations from the dashboard
+      // counter inside this page.
+      final all = [...list]
         ..sort((a, b) => b.checkIn.compareTo(a.checkIn));
       if (!mounted) return;
       setState(() {
-        _bookings = filtered;
+        _bookings = all;
         _loading = false;
       });
     } catch (e) {
@@ -187,7 +188,7 @@ class _HostReservationsPageState extends State<HostReservationsPage> {
     return Scaffold(
       backgroundColor: context.kSand,
       appBar: AppBar(
-        title: const Text('استلام الكاش',
+        title: const Text('حجوزاتي',
             style: TextStyle(fontWeight: FontWeight.w900)),
         backgroundColor: Colors.white,
         elevation: 0,
@@ -210,7 +211,7 @@ class _HostReservationsPageState extends State<HostReservationsPage> {
                           child: Padding(
                             padding: EdgeInsets.all(24),
                             child: Text(
-                              'لا توجد حجوزات بدفع جزئى حالياً',
+                              'لا توجد حجوزات بعد',
                               style: TextStyle(
                                   fontSize: 14, fontWeight: FontWeight.w800),
                             ),
@@ -255,10 +256,25 @@ class _HostReservationsPageState extends State<HostReservationsPage> {
         const SizedBox(height: 6),
         Text('الضيف: ${b.guest?.name ?? "—"}',
             style: TextStyle(fontSize: 12.5, color: context.kSub)),
+        const SizedBox(height: 6),
+        Text(
+          '${_fmtDate(b.checkIn)} → ${_fmtDate(b.checkOut)}  •  ${b.nights} ليالى',
+          style: TextStyle(fontSize: 12, color: context.kSub),
+        ),
         const SizedBox(height: 8),
-        _cashStatusPill(b),
+        Row(children: [
+          _statusPill(b),
+          if (b.isCashOnArrival) ...[
+            const SizedBox(width: 8),
+            Expanded(child: _cashStatusPill(b)),
+          ] else
+            const Spacer(),
+        ]),
         const SizedBox(height: 10),
-        _amountsRow(b),
+        if (b.isCashOnArrival)
+          _amountsRow(b)
+        else
+          _legacyTotalRow(b),
         if (_canConfirmCash(b) || _canReportNoShow(b)) ...[
           const SizedBox(height: 12),
           Row(children: [
@@ -353,6 +369,65 @@ class _HostReservationsPageState extends State<HostReservationsPage> {
         ),
       ),
     ]);
+  }
+
+  /// Compact status pill for the booking-level state machine
+  /// (pending / confirmed / completed / cancelled).  Used alongside
+  /// the cash-collection pill so hosts can tell at a glance both
+  /// whether the booking itself is live and whether the cash leg
+  /// has been settled.
+  Widget _statusPill(BookingModel b) {
+    final color = switch (b.status) {
+      'confirmed' => _kGreen,
+      'completed' => const Color(0xFF6366F1),
+      'cancelled' => _kRed,
+      _ => _kOrange,
+    };
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withValues(alpha: 0.4)),
+      ),
+      child: Text(b.statusAr,
+          style: TextStyle(
+              fontSize: 11.5, fontWeight: FontWeight.w800, color: color)),
+    );
+  }
+
+  /// Read-only total row for legacy (100%-online) bookings — keeps
+  /// the page useful as a general reservations list rather than
+  /// only showing the hybrid cash-on-arrival cards.
+  Widget _legacyTotalRow(BookingModel b) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF5F5F5),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFFE0E0E0)),
+      ),
+      child: Row(children: [
+        Icon(Icons.payments_rounded, size: 16, color: context.kSub),
+        const SizedBox(width: 8),
+        Text('إجمالى الحجز',
+            style: TextStyle(fontSize: 12, color: context.kSub)),
+        const Spacer(),
+        Text(
+          '${b.totalPrice.toStringAsFixed(0)} جنيه',
+          style: TextStyle(
+              fontSize: 13.5,
+              fontWeight: FontWeight.w900,
+              color: context.kText),
+        ),
+      ]),
+    );
+  }
+
+  String _fmtDate(DateTime d) {
+    final dd = d.day.toString().padLeft(2, '0');
+    final mm = d.month.toString().padLeft(2, '0');
+    return '$dd/$mm/${d.year}';
   }
 
   Widget _miniStat(String label, String value, Color color) {

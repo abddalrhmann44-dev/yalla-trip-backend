@@ -11,6 +11,7 @@ import '../widgets/constants.dart';
 import '../main.dart' show appSettings;
 import '../models/property_model_api.dart';
 import '../services/admin_service.dart';
+import 'admin_property_review_page.dart';
 
 const _kOcean  = Color(0xFFFF6B35);
 const _kGreen  = Color(0xFF4CAF50);
@@ -187,6 +188,19 @@ class _AdminPendingPageState extends State<AdminPendingPage> {
     );
   }
 
+  /// Opens the full review page for the tapped pending listing.  We
+  /// pop the inbox onto a Material route and refresh the queue when
+  /// the page returns ``true`` (i.e. an action was taken).
+  Future<void> _openReview(PropertyApi p) async {
+    final acted = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => AdminPropertyReviewPage(property: p),
+      ),
+    );
+    if (acted == true) _load();
+  }
+
   // ── Property Card ────────────────────────────────────────
   Widget _propertyCard(PropertyApi p) {
     final name = p.name;
@@ -197,7 +211,13 @@ class _AdminPendingPageState extends State<AdminPendingPage> {
     final createdAt = p.createdAt;
     final price = p.pricePerNight.toInt();
 
-    return Container(
+    return GestureDetector(
+      // Tap anywhere on the card body — the action buttons below have
+      // their own GestureDetectors and intercept their own tap region
+      // so this won't accidentally trigger Approve/Reject.
+      behavior: HitTestBehavior.opaque,
+      onTap: () => _openReview(p),
+      child: Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
         color: context.kCard,
@@ -325,6 +345,7 @@ class _AdminPendingPageState extends State<AdminPendingPage> {
           ]),
         ),
       ]),
+      ),
     );
   }
 

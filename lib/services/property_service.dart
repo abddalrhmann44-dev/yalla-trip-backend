@@ -270,35 +270,4 @@ class PropertyService {
     final data = await _api.get('/properties/services');
     return data as Map<String, dynamic>;
   }
-
-  // ── Recently viewed (Wave 28) ─────────────────────────────
-  //
-  // Backed by the ``recently_viewed`` table on the server: one row
-  // per (user, property) — re-views just bump ``viewed_at``.
-
-  /// Fire-and-forget: tell the backend the current user just opened
-  /// the property-details page for [propertyId].  Silently swallows
-  /// 401s (guests) and network failures so a slow API never blocks
-  /// the details page from rendering.
-  static Future<void> markPropertyViewed(int propertyId) async {
-    try {
-      await _api.post('/recently-viewed/$propertyId', const {});
-    } catch (_) {
-      // Best-effort logging only.  Never surface to the UI.
-    }
-  }
-
-  /// List the current user's most-recently-viewed properties (newest
-  /// first).  Returns an empty list for guests / network errors so
-  /// callers can render a "no history yet" placeholder unconditionally.
-  static Future<List<PropertyApi>> getRecentlyViewed({int limit = 10}) async {
-    try {
-      final data = await _api.get('/recently-viewed?limit=$limit');
-      return (data as List)
-          .map((e) => PropertyApi.fromJson(e as Map<String, dynamic>))
-          .toList();
-    } catch (_) {
-      return const <PropertyApi>[];
-    }
-  }
 }

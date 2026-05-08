@@ -313,12 +313,18 @@ async def host_summary(db: AsyncSession, host_id: int) -> dict:
         Booking.check_out <= cutoff,
     )
 
+    # ``unpaid_balance`` is the headline number on the host dashboard
+    # (“الرصيد المتاح للسحب”).  Earlier iterations summed *every*
+    # unpaid booking — including ones that hadn't completed or were
+    # still inside the 24h dispute window — which made hosts see
+    # money before they'd actually earned it.  We now apply the full
+    # eligibility predicate so the balance only counts bookings that
+    # are ready to be paid out: completed, payment captured, past
+    # the hold cutoff, and not already queued/paid.
     agg = (
         await db.execute(
             select(
-                _sum_where(
-                    Booking.payout_status == BookingPayoutStatus.unpaid.value
-                ).label("unpaid_balance"),
+                _sum_where(*eligibility_predicates).label("unpaid_balance"),
                 _sum_where(
                     Booking.payout_status == BookingPayoutStatus.queued.value
                 ).label("queued_balance"),

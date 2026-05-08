@@ -157,7 +157,9 @@ class PropertyCreate(BaseModel):
     # Wave 24 — owner opts in to chat-based price negotiation.
     negotiable: bool = False
     # Wave 25 — owner opts in to deposit-online + cash-on-arrival flow.
-    cash_on_arrival_enabled: bool = False
+    # Default True (May 2026) so every booking collects 1-night deposit
+    # online and the rest as cash on arrival; hosts can still opt-out.
+    cash_on_arrival_enabled: bool = True
     latitude: Optional[float] = None
     longitude: Optional[float] = None
 
@@ -378,7 +380,7 @@ class PropertyOut(BaseModel):
     is_verified: bool = False
     instant_booking: bool
     negotiable: bool = False
-    cash_on_arrival_enabled: bool = False
+    cash_on_arrival_enabled: bool = True
     offer_price: Optional[float] = None
     offer_start: Optional[datetime] = None
     offer_end: Optional[datetime] = None

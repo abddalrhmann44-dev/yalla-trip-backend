@@ -23,7 +23,6 @@ Design notes
 
 from __future__ import annotations
 
-import math
 from dataclasses import dataclass
 
 
@@ -114,15 +113,15 @@ def compute_deposit_breakdown(
         )
 
     # ── Hybrid flow ──────────────────────────────────────────
-    # Number of whole nights the deposit must span to cover the
-    # commission.  ``ceil`` ensures we never under-collect; ``max(1,
-    # …)`` keeps the floor at a single night for short stays where
-    # the commission is naturally smaller than one night.
-    if price_per_night > 0:
-        nights_for_commission = math.ceil(total_commission / price_per_night)
-    else:  # defensive — caller already guards this
-        nights_for_commission = 1
-    deposit_nights = max(1, nights_for_commission)
+    # Product rule (May 2026): the online deposit is always **one
+    # night's rate** regardless of trip length, so the guest sees a
+    # predictable "ادفع ليلة واحدة دلوقتى" amount and the rest is
+    # collected as cash on arrival.  This intentionally accepts the
+    # risk that for very long stays the deposit may be smaller than
+    # the platform commission — the ``no_show_*`` fallback below
+    # still tracks one-night commission so cancellation refunds and
+    # no-show payouts stay correctly sized.
+    deposit_nights = 1
 
     deposit_raw = price_per_night * deposit_nights
     # Never ask the guest to pre-pay more than the full stay.  This

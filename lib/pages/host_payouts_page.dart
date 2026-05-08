@@ -64,12 +64,35 @@ class _HostPayoutsPageState extends State<HostPayoutsPage>
     return Scaffold(
       backgroundColor: context.kSand,
       appBar: AppBar(
-        title: const Text('أرباحي'),
+        title: const Text(
+          'أرباحي',
+          style: TextStyle(
+            fontWeight: FontWeight.w900,
+            fontSize: 18,
+          ),
+        ),
+        centerTitle: true,
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
+        elevation: 0,
+        // Critical fix — explicit label colors so the tab text stops
+        // “disappearing” against the orange app bar (default labelColor
+        // pulls from ColorScheme.primary which collides here).
         bottom: TabBar(
           controller: _tabs,
           indicatorColor: Colors.white,
+          indicatorWeight: 3,
+          indicatorSize: TabBarIndicatorSize.label,
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.white.withValues(alpha: 0.7),
+          labelStyle: const TextStyle(
+            fontWeight: FontWeight.w900,
+            fontSize: 13.5,
+          ),
+          unselectedLabelStyle: const TextStyle(
+            fontWeight: FontWeight.w700,
+            fontSize: 13.5,
+          ),
           tabs: const [
             Tab(text: 'الأرصدة'),
             Tab(text: 'الحسابات'),
@@ -78,9 +101,10 @@ class _HostPayoutsPageState extends State<HostPayoutsPage>
         ),
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(
+              child: CircularProgressIndicator(color: AppColors.primary))
           : _error != null
-              ? Center(child: Text(_error!))
+              ? _errorState()
               : TabBarView(
                   controller: _tabs,
                   children: [
@@ -92,137 +116,385 @@ class _HostPayoutsPageState extends State<HostPayoutsPage>
     );
   }
 
-  // ── Tab 1: Balances ─────────────────────────────────────
+  // ── Error state ─────────────────────────────────────────────
+  Widget _errorState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(28),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.cloud_off_rounded,
+                size: 56, color: context.kSub),
+            const SizedBox(height: 12),
+            Text(
+              'تعذّر تحميل بيانات الأرباح',
+              style: TextStyle(
+                color: context.kText,
+                fontSize: 15,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              _error ?? '',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: context.kSub, fontSize: 12),
+            ),
+            const SizedBox(height: 16),
+            FilledButton.icon(
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 20, vertical: 12),
+              ),
+              onPressed: _load,
+              icon: const Icon(Icons.refresh_rounded),
+              label: const Text('إعادة المحاولة'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── Tab 1: Balances ───────────────────────────────────
+  // Hero card on top (the number the host actually cares about),
+  // followed by two compact stat tiles and an inline call-to-action
+  // when no payout method is on file.  Generous spacing + soft
+  // shadows keep the page calm to read.
   Widget _balancesTab() {
     final s = _summary!;
     final df = intl.DateFormat('dd/MM/yyyy');
     return RefreshIndicator(
+      color: AppColors.primary,
       onRefresh: _load,
       child: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(16, 18, 16, 24),
         children: [
-          _balanceCard(
-            title: 'الرصيد المتاح للسحب',
+          _heroBalanceCard(
             value: s.pendingBalance,
-            icon: Icons.account_balance_wallet_rounded,
-            color: Colors.green,
-            note:
-                '${s.eligibleBookingCount} حجز مكتمل بعد فترة الحجز الاحتياطية',
+            eligibleBookings: s.eligibleBookingCount,
           ),
-          const SizedBox(height: 10),
-          _balanceCard(
-            title: 'قيد التحويل',
-            value: s.queuedBalance,
-            icon: Icons.sync_rounded,
-            color: Colors.orange,
-            note: 'في دفعات قيد المعالجة من الإدارة',
-          ),
-          const SizedBox(height: 10),
-          _balanceCard(
-            title: 'إجمالي المسحوب',
-            value: s.paidTotal,
-            icon: Icons.verified_rounded,
-            color: AppColors.primary,
-            note: s.lastPaidAt != null
-                ? 'آخر تحويل: ${df.format(s.lastPaidAt!)}'
-                : 'لم يتم تحويل أي مبلغ بعد',
-          ),
-          const SizedBox(height: 24),
-          if (_accounts.isEmpty)
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: Colors.orange.shade50,
-                borderRadius: BorderRadius.circular(12),
-                border:
-                    Border.all(color: Colors.orange.shade300, width: 1),
+          const SizedBox(height: 14),
+          Row(children: [
+            Expanded(
+              child: _statTile(
+                icon: Icons.sync_rounded,
+                color: Colors.orange.shade700,
+                title: 'قيد التحويل',
+                value: s.queuedBalance.toStringAsFixed(0),
+                suffix: 'جنيه',
               ),
-              child: Row(children: [
-                Icon(Icons.info_outline, color: Colors.orange.shade800),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'أضف حساب بنكي أو محفظة قبل استحقاق أول تحويل',
-                    style: TextStyle(color: Colors.orange.shade900),
-                  ),
-                ),
-              ]),
             ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _statTile(
+                icon: Icons.verified_rounded,
+                color: AppColors.primary,
+                title: 'إجمالي المسحوب',
+                value: s.paidTotal.toStringAsFixed(0),
+                suffix: 'جنيه',
+              ),
+            ),
+          ]),
+          const SizedBox(height: 8),
+          if (s.lastPaidAt != null)
+            Padding(
+              padding: const EdgeInsets.only(right: 4, top: 4),
+              child: Text(
+                'آخر تحويل: ${df.format(s.lastPaidAt!)}',
+                style: TextStyle(color: context.kSub, fontSize: 11.5),
+              ),
+            ),
+          if (_accounts.isEmpty) ...[
+            const SizedBox(height: 18),
+            _ctaCard(
+              icon: Icons.account_balance_rounded,
+              title: 'أضف حسابك البنكي',
+              body:
+                  'علشان نقدر نحوّللك الأرباح فور استحقاقها، سجّل IBAN جديد.',
+              cta: 'إضافة حساب الآن',
+              onTap: () {
+                _tabs.animateTo(1);
+                _openAddAccountSheet();
+              },
+            ),
+          ],
         ],
       ),
     );
   }
 
-  Widget _balanceCard({
-    required String title,
+  /// Big gradient card that anchors the page — the available balance
+  /// is the single most important number for the host so we give it
+  /// a confident, branded treatment.
+  Widget _heroBalanceCard({
     required double value,
-    required IconData icon,
-    required Color color,
-    required String note,
+    required int eligibleBookings,
   }) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(20, 22, 20, 20),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topRight,
+          end: Alignment.bottomLeft,
+          colors: [Color(0xFFFF8A65), Color(0xFFFF6B35)],
+        ),
+        borderRadius: BorderRadius.circular(22),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFFF6B35).withValues(alpha: 0.28),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(
+                Icons.account_balance_wallet_rounded,
+                color: Colors.white,
+                size: 22,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Text(
+              'الرصيد المتاح للسحب',
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.9),
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ]),
+          const SizedBox(height: 16),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                value.toStringAsFixed(0),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 38,
+                  fontWeight: FontWeight.w900,
+                  height: 1,
+                ),
+              ),
+              const SizedBox(width: 6),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Text(
+                  'جنيه',
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.9),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Container(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.18),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              const Icon(Icons.event_available_rounded,
+                  color: Colors.white, size: 14),
+              const SizedBox(width: 6),
+              Text(
+                '$eligibleBookings حجز مكتمل',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ]),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Compact stat tile used in the row beneath the hero card.
+  Widget _statTile({
+    required IconData icon,
+    required Color color,
+    required String title,
+    required String value,
+    required String suffix,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: context.kCard,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: context.kBorder),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
-      child: Row(children: [
-        Container(
-          width: 48,
-          height: 48,
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(icon, color: color, size: 18),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: context.kSub,
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ]),
+          const SizedBox(height: 12),
+          RichText(
+            text: TextSpan(children: [
+              TextSpan(
+                text: value,
+                style: TextStyle(
+                  color: context.kText,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              TextSpan(
+                text: ' $suffix',
+                style: TextStyle(
+                  color: context.kSub,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ]),
           ),
-          child: Icon(icon, color: color, size: 24),
-        ),
-        const SizedBox(width: 14),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(title,
-                  style: TextStyle(
-                      color: context.kSub,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600)),
-              const SizedBox(height: 4),
-              Text('${value.toStringAsFixed(0)} جنيه',
-                  style: TextStyle(
-                      color: context.kText,
-                      fontSize: 22,
-                      fontWeight: FontWeight.w900)),
-              const SizedBox(height: 2),
-              Text(note,
-                  style:
-                      TextStyle(color: context.kSub, fontSize: 11)),
-            ],
-          ),
-        ),
-      ]),
+        ],
+      ),
     );
   }
 
-  // ── Tab 2: Accounts ─────────────────────────────────────
+  /// Full-width call-to-action panel — used in the Balances tab when
+  /// the host has zero registered payout methods.
+  Widget _ctaCard({
+    required IconData icon,
+    required String title,
+    required String body,
+    required String cta,
+    required VoidCallback onTap,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.primary.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+            color: AppColors.primary.withValues(alpha: 0.25), width: 1),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon,
+                  color: AppColors.primary, size: 20),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                title,
+                style: TextStyle(
+                  color: context.kText,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ),
+          ]),
+          const SizedBox(height: 10),
+          Text(
+            body,
+            style: TextStyle(
+              color: context.kSub,
+              fontSize: 12.5,
+              height: 1.5,
+            ),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            height: 44,
+            child: FilledButton.icon(
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              onPressed: onTap,
+              icon: const Icon(Icons.add_rounded, size: 18),
+              label: Text(
+                cta,
+                style: const TextStyle(
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Tab 2: Accounts ───────────────────────────────────
   Widget _accountsTab() {
     return Stack(children: [
       RefreshIndicator(
+        color: AppColors.primary,
         onRefresh: _load,
         child: _accounts.isEmpty
-            ? ListView(
-                padding: const EdgeInsets.all(40),
-                children: [
-                  Icon(Icons.account_balance_outlined,
-                      size: 64, color: Colors.grey.shade400),
-                  const SizedBox(height: 12),
-                  Text('لم تضف حساب بنكي بعد',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: Colors.grey.shade600)),
-                ],
-              )
+            ? _accountsEmptyState()
             : ListView.builder(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+                padding: const EdgeInsets.fromLTRB(16, 18, 16, 110),
                 itemCount: _accounts.length,
                 itemBuilder: (_, i) => _accountTile(_accounts[i]),
               ),
@@ -232,13 +504,95 @@ class _HostPayoutsPageState extends State<HostPayoutsPage>
         right: 16,
         child: FloatingActionButton.extended(
           onPressed: _openAddAccountSheet,
-          icon: const Icon(Icons.add),
-          label: const Text('حساب جديد'),
+          icon: const Icon(Icons.add_rounded),
+          label: const Text(
+            'حساب جديد',
+            style: TextStyle(fontWeight: FontWeight.w900),
+          ),
           backgroundColor: AppColors.primary,
           foregroundColor: Colors.white,
+          elevation: 3,
         ),
       ),
     ]);
+  }
+
+  /// Friendlier empty state for the Accounts tab — the previous one
+  /// was just a faint icon + line which the user could miss.  Now we
+  /// surface a centred panel + a primary action so the next step is
+  /// unmistakable.
+  Widget _accountsEmptyState() {
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(24, 60, 24, 60),
+      children: [
+        Container(
+          padding: const EdgeInsets.all(22),
+          decoration: BoxDecoration(
+            color: context.kCard,
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(color: context.kBorder),
+          ),
+          child: Column(
+            children: [
+              Container(
+                width: 78,
+                height: 78,
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.account_balance_outlined,
+                  size: 38,
+                  color: AppColors.primary,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'مفيش حساب بنكي لسّة',
+                style: TextStyle(
+                  color: context.kText,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'سجّل حساب IBAN عشان نقدر نحوّللك الأرباح فور استحقاقها.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: context.kSub,
+                  fontSize: 12.5,
+                  height: 1.6,
+                ),
+              ),
+              const SizedBox(height: 18),
+              SizedBox(
+                width: double.infinity,
+                height: 46,
+                child: FilledButton.icon(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                  onPressed: _openAddAccountSheet,
+                  icon: const Icon(Icons.add_rounded),
+                  label: const Text(
+                    'إضافة حساب بنكي',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
   }
 
   Widget _accountTile(BankAccount a) {
@@ -255,20 +609,35 @@ class _HostPayoutsPageState extends State<HostPayoutsPage>
         break;
     }
     return Container(
-      margin: const EdgeInsets.only(bottom: 10),
+      margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: context.kCard,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: a.isDefault
               ? AppColors.primary.withValues(alpha: 0.5)
               : context.kBorder,
           width: a.isDefault ? 1.5 : 1,
         ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Row(children: [
-        Icon(icon, color: AppColors.primary, size: 26),
+        Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            color: AppColors.primary.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(icon, color: AppColors.primary, size: 22),
+        ),
         const SizedBox(width: 12),
         Expanded(
           child: Column(

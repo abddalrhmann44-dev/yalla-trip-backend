@@ -196,7 +196,9 @@ class AppAssets {
   AppAssets._();
 
   static const String logo        = 'assets/images/logo.png';
-  static const String splash      = 'assets/images/splash.png';
+  // Splash is rendered by `SplashPage` via Lottie
+  // (`assets/animations/splash screen.json`) — no static PNG needed.
+  static const String splash      = 'assets/animations/splash screen.json';
   static const String placeholder = 'assets/images/placeholder.png';
 }
 

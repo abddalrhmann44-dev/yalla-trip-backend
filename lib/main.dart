@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'firebase_options.dart';
 
@@ -27,6 +26,7 @@ import 'services/notification_service.dart';
 import 'services/deep_link_service.dart';
 import 'services/sentry_service.dart';
 import 'pages/admin/admin_main_page.dart';
+import 'pages/splash_page.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'providers/user_provider.dart';
 import 'providers/favorites_provider.dart';
@@ -175,11 +175,15 @@ class TalaaApp extends StatelessWidget {
           ),
         );
       },
-      // No splash, no onboarding — straight to AuthGate, which
-      // itself drops into HomePage regardless of auth state (login
-      // is pushed on-demand only when a gated action is tapped).
-      home: const AuthGate(),
+      // Brand splash → AuthGate.  The splash plays the Lottie reveal
+      // for ~2s then `pushReplacementNamed('/auth')`, so cold-start
+      // users see the Talaa logo before any data-driven UI.  AuthGate
+      // itself still drops into HomePage regardless of auth state
+      // (login is pushed on-demand only when a gated action is
+      // tapped) — the splash is purely cosmetic, never a gate.
+      home: const SplashPage(nextRoute: '/auth'),
       routes: {
+        '/auth': (_) => const AuthGate(),
         '/login': (_) => const LoginPage(),
         '/register': (_) => const RegisterPage(),
         '/onboarding': (_) => const OnboardingPage(),
@@ -262,23 +266,31 @@ class TalaaApp extends StatelessWidget {
       outline: outline,
     );
 
+    // Cairo is bundled locally (see pubspec `flutter.fonts`) — set it
+    // as the theme-wide `fontFamily` so EVERY widget inherits it,
+    // including ones that don't pull from `textTheme` (e.g. raw
+    // `Text(...)` without a style, third-party widgets, AppBar titles).
+    // Widgets that hard-code ``fontFamily: 'monospace'`` (referral
+    // codes, txn IDs, audit log) continue to override per-call so
+    // they stay monospace.
+    const cairo = 'Cairo';
+
     final base = ThemeData(
       useMaterial3: true,
       brightness: brightness,
       colorScheme: scheme,
       scaffoldBackgroundColor: scaffoldBg,
       cardColor: card,
+      fontFamily: cairo,
     );
 
-    // Apply Cairo to every default text style.  Widgets that hard-code
-    // ``fontFamily: 'monospace'`` (referral codes, txn IDs, audit log)
-    // continue to override per-call so they stay monospace.
-    final cairoTextTheme = GoogleFonts.cairoTextTheme(base.textTheme).apply(
+    final cairoTextTheme = base.textTheme.apply(
+      fontFamily: cairo,
       bodyColor: onBg,
       displayColor: onBg,
     );
-    final cairoPrimaryTextTheme =
-        GoogleFonts.cairoTextTheme(base.primaryTextTheme).apply(
+    final cairoPrimaryTextTheme = base.primaryTextTheme.apply(
+      fontFamily: cairo,
       bodyColor: onBg,
       displayColor: onBg,
     );
@@ -335,8 +347,10 @@ class TalaaApp extends StatelessWidget {
           foregroundColor: scheme.onPrimary,
           elevation: 0,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-          textStyle: GoogleFonts.cairo(
-              fontSize: 15, fontWeight: FontWeight.w800),
+          textStyle: const TextStyle(
+              fontFamily: cairo,
+              fontSize: 15,
+              fontWeight: FontWeight.w800),
         ),
       ),
     );

@@ -9,6 +9,7 @@ import '../main.dart' show userProvider;
 import '../models/property_model_api.dart';
 import '../services/user_role_service.dart';
 import '../services/property_service.dart';
+import '../services/offer_service.dart';
 import '../utils/api_client.dart';
 import '../utils/error_handler.dart';
 import 'package:image_picker/image_picker.dart';
@@ -171,6 +172,17 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
   // Wave 28: day-use per-person price.
   final _pricePerPersonCtrl = TextEditingController();
 
+  // ── Step 8 — Limited-time offer (Wave 28) ───────────────────────
+  // Optional: when [_hasOffer] is true, the form requires a discounted
+  // price strictly less than the regular nightly / per-person rate plus
+  // a [_offerStart, _offerEnd] window in the future.  After the
+  // property is created we POST /offers/{id} so the listing surfaces in
+  // the home-page Offers section with a live countdown.
+  bool _hasOffer = false;
+  final _offerPriceCtrl = TextEditingController();
+  DateTime? _offerStart;
+  DateTime? _offerEnd;
+
   // Step 9
   String _bookingMode = 'instant';
   bool _autoConfirm = true;
@@ -282,7 +294,101 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
     _waterCtrl.dispose();
     _parkingFeeCtrl.dispose();
     _pricePerPersonCtrl.dispose();
+    _offerPriceCtrl.dispose();
     super.dispose();
+  }
+
+  // ── Offer helpers (Wave 28) ───────────────────────────────
+  /// The "regular" price the offer is discounting.  For day-use
+  /// listings that's price-per-person; for everything else it's the
+  /// nightly / hourly rate from [_priceCtrl].
+  int? get _basePriceForOffer => _isDayUse
+      ? int.tryParse(_pricePerPersonCtrl.text.trim())
+      : int.tryParse(_priceCtrl.text.trim());
+
+  /// Convenience: combines [showDatePicker] + [showTimePicker] into a
+  /// single async flow and returns a UTC-anchored [DateTime] (or null
+  /// if either picker is dismissed).
+  Future<DateTime?> _pickDateTime({
+    DateTime? initial,
+    DateTime? firstDate,
+  }) async {
+    final now = DateTime.now();
+    final init = initial ?? now.add(const Duration(hours: 1));
+    final date = await showDatePicker(
+      context: context,
+      initialDate: init,
+      firstDate: firstDate ?? now,
+      lastDate: now.add(const Duration(days: 365)),
+    );
+    if (date == null || !mounted) return null;
+    final time = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(init),
+    );
+    if (time == null) return null;
+    return DateTime(date.year, date.month, date.day, time.hour, time.minute);
+  }
+
+  String _fmtDateTime(DateTime dt) {
+    String two(int n) => n.toString().padLeft(2, '0');
+    return '${dt.year}/${two(dt.month)}/${two(dt.day)} — ${two(dt.hour)}:${two(dt.minute)}';
+  }
+
+  /// Step 7 (تسعير) validator.  Bundled into its own method because
+  /// the shape varies per category and — since Wave 28 — we also
+  /// need to validate the optional limited-time offer block (
+  /// [_hasOffer] toggle below the regular price form).
+  String? _validatePricingStep() {
+    // ── 1) Per-category mandatory pricing fields.
+    if (_isDayUse) {
+      final pp = int.tryParse(_pricePerPersonCtrl.text.trim());
+      if (pp == null || pp <= 0) {
+        return 'اكتب سعر الفرد الواحد';
+      }
+    } else {
+      final price = int.tryParse(_priceCtrl.text.trim());
+      if (price == null || price <= 0) {
+        return _isBoat
+            ? 'اكتب السعر في الساعة'
+            : 'اكتب السعر العادي في الليلة';
+      }
+      final weekend = int.tryParse(_weekendCtrl.text.trim());
+      if (weekend == null || weekend <= 0) {
+        return _isBoat
+            ? 'اكتب سعر الويك إند في الساعة'
+            : 'اكتب سعر الويك إند';
+      }
+    }
+
+    // ── 2) Optional limited-time offer (Wave 28).
+    if (_hasOffer) {
+      final off = int.tryParse(_offerPriceCtrl.text.trim());
+      if (off == null || off <= 0) {
+        return 'اكتب السعر المخفّض للعرض';
+      }
+      final base = _basePriceForOffer ?? 0;
+      if (base <= 0) {
+        return 'حدد السعر العادي قبل ما تضيف عرض';
+      }
+      if (off >= base) {
+        return 'السعر المخفّض لازم يقل عن السعر العادي';
+      }
+      if (_offerStart == null) {
+        return 'حدد تاريخ بداية العرض';
+      }
+      if (_offerEnd == null) {
+        return 'حدد تاريخ نهاية العرض';
+      }
+      if (!_offerEnd!.isAfter(_offerStart!)) {
+        return 'لازم يكون نهاية العرض بعد بدايته';
+      }
+      if (_offerEnd!.isBefore(DateTime.now())) {
+        return 'تاريخ نهاية العرض لازم يكون في المستقبل';
+      }
+    }
+
+    return null;
   }
 
   // ══════════════════════════════════════════════════════════
@@ -349,31 +455,11 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
       case 6: // المناطق القريبة — اختياري
         return null;
 
-      case 7: // التسعير
-        // Day-use bills per-person, no nightly / weekend split.
-        if (_isDayUse) {
-          final pp = int.tryParse(_pricePerPersonCtrl.text.trim());
-          if (pp == null || pp <= 0) {
-            return 'اكتب سعر الفرد الواحد';
-          }
-          return null;
-        }
-        final price = int.tryParse(_priceCtrl.text.trim());
-        if (price == null || price <= 0) {
-          return _isBoat
-              ? 'اكتب السعر في الساعة'
-              : 'اكتب السعر العادي في الليلة';
-        }
-        // Weekend price is required for every other category, including
-        // boat (Wave 28: lets the host charge a higher Friday/Saturday
-        // hourly rate).
-        final weekend = int.tryParse(_weekendCtrl.text.trim());
-        if (weekend == null || weekend <= 0) {
-          return _isBoat
-              ? 'اكتب سعر الويك إند في الساعة'
-              : 'اكتب سعر الويك إند';
-        }
-        return null;
+      case 7: // التسعير — delegated to a dedicated method since the
+        // shape varies a lot per-category (boat / day-use / hotel /
+        // chalet) and we now also need to validate the optional
+        // limited-time offer block (Wave 28).
+        return _validatePricingStep();
 
       case 8: // إعدادات الحجز — دايماً كاملة (bookingMode له default)
         return null;
@@ -639,6 +725,35 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
             ),
           );
           return;
+        }
+      }
+
+      // ── Step D: Activate limited-time offer (Wave 28) ──────────────
+      // The /offers endpoint is post-create-only since it needs a
+      // property id.  We never *block* publish on this — if the offer
+      // call fails we still surface the success dialog for the listing
+      // itself and just toast the offer-specific error.
+      if (_hasOffer && _offerStart != null && _offerEnd != null) {
+        try {
+          final off = double.parse(_offerPriceCtrl.text.trim());
+          await OfferService.createOffer(
+            propertyId: created.id,
+            offerPrice: off,
+            offerStart: _offerStart!,
+            offerEnd: _offerEnd!,
+          );
+        } catch (e) {
+          if (mounted) {
+            final msg = e is ApiException
+                ? ErrorHandler.getDetailOrDefault(e)
+                : '$e';
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('العقار اتنشر، بس فشل تفعيل العرض: $msg'),
+                backgroundColor: const Color(0xFFE53935),
+              ),
+            );
+          }
         }
       }
 
@@ -1638,6 +1753,8 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
             ),
           ]),
         ),
+        const SizedBox(height: 18),
+        _buildOfferSection(),
       ]);
     }
 
@@ -1673,6 +1790,8 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
             ),
           ]),
         ),
+        const SizedBox(height: 18),
+        _buildOfferSection(),
       ]);
     }
 
@@ -1713,6 +1832,8 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
             ),
           ]),
         ),
+        const SizedBox(height: 18),
+        _buildOfferSection(),
       ]);
     }
 
@@ -1791,7 +1912,167 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
           ],
         ]),
       ),
+      const SizedBox(height: 18),
+      _buildOfferSection(),
     ]);
+  }
+
+  // ══════════════════════════════════════════════════════════
+  //  STEP 8.5 — LIMITED-TIME OFFER (shared by all categories)
+  //  Owner toggles ``عرض محدود الوقت`` to expose three inputs:
+  //   • discounted price (must be < the regular base price)
+  //   • start date+time
+  //   • end   date+time
+  //  After the property is created we POST /offers/{id} so it surfaces
+  //  in the home page Offers section with a live countdown.
+  // ══════════════════════════════════════════════════════════
+  Widget _buildOfferSection() {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: context.kCard,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: _hasOffer ? _kOrange : context.kBorder,
+          width: _hasOffer ? 1.5 : 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            const Text('⏱️', style: TextStyle(fontSize: 22)),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'عرض محدود الوقت',
+                    style: TextStyle(
+                      fontSize: 14.5,
+                      fontWeight: FontWeight.w800,
+                      color: context.kText,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'خلي العقار يظهر في قسم العروض بعداد تنازلي',
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      color: context.kSub,
+                      height: 1.3,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Switch.adaptive(
+              value: _hasOffer,
+              activeThumbColor: _kOrange,
+              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              onChanged: (v) => setState(() => _hasOffer = v),
+            ),
+          ]),
+          if (_hasOffer) ...[
+            const SizedBox(height: 14),
+            _priceField(
+              _offerPriceCtrl,
+              _isDayUse
+                  ? 'السعر المخفّض للفرد *'
+                  : (_isBoat
+                      ? 'السعر المخفّض في الساعة *'
+                      : 'السعر المخفّض في الليلة *'),
+              'لازم يقل عن السعر العادي',
+              required: true,
+            ),
+            const SizedBox(height: 12),
+            _offerDateTile(
+              icon: Icons.play_arrow_rounded,
+              label: 'بداية العرض',
+              value: _offerStart,
+              onTap: () async {
+                final dt = await _pickDateTime(initial: _offerStart);
+                if (dt == null) return;
+                setState(() => _offerStart = dt);
+              },
+            ),
+            const SizedBox(height: 10),
+            _offerDateTile(
+              icon: Icons.stop_rounded,
+              label: 'نهاية العرض',
+              value: _offerEnd,
+              onTap: () async {
+                final dt = await _pickDateTime(
+                  initial: _offerEnd ?? _offerStart,
+                  firstDate: _offerStart,
+                );
+                if (dt == null) return;
+                setState(() => _offerEnd = dt);
+              },
+            ),
+            if (_offerPriceCtrl.text.trim().isNotEmpty &&
+                (_basePriceForOffer ?? 0) > 0) ...[
+              const SizedBox(height: 10),
+              Builder(builder: (_) {
+                final base = _basePriceForOffer!;
+                final off = int.tryParse(_offerPriceCtrl.text.trim()) ?? 0;
+                if (off <= 0 || off >= base) return const SizedBox.shrink();
+                final pct = (((base - off) / base) * 100).round();
+                return Row(children: [
+                  const Icon(Icons.local_offer_rounded,
+                      color: _kGreen, size: 14),
+                  const SizedBox(width: 5),
+                  Text(
+                    'خصم $pct% لـ $off بدل $base ج.م',
+                    style: const TextStyle(
+                      color: _kGreen,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ]);
+              }),
+            ],
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _offerDateTile({
+    required IconData icon,
+    required String label,
+    required DateTime? value,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        decoration: BoxDecoration(
+          color: context.kSand,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: context.kBorder),
+        ),
+        child: Row(children: [
+          Icon(icon, size: 18, color: _kOrange),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              value == null ? label : '$label — ${_fmtDateTime(value)}',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: value == null ? context.kSub : context.kText,
+              ),
+            ),
+          ),
+          Icon(Icons.calendar_month_rounded, size: 18, color: context.kSub),
+        ]),
+      ),
+    );
   }
 
   // ══════════════════════════════════════════════════════════

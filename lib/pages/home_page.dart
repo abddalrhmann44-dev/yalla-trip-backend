@@ -5,6 +5,7 @@
 // ═══════════════════════════════════════════════════════════════
 
 import 'dart:async';
+import 'dart:math' show Random;
 import 'package:flutter/material.dart';
 import '../main.dart' show appSettings, userProvider;
 import 'package:flutter/services.dart';
@@ -20,6 +21,7 @@ import 'profile_page.dart';
 import 'property_details_page.dart';
 import '../models/property_model_api.dart';
 import '../services/property_service.dart';
+import '../services/recently_viewed_service.dart';
 import 'chat_inbox_page.dart';
 import 'favorites_page.dart';
 import 'notifications_page.dart';
@@ -207,55 +209,6 @@ class _Dest {
   const _Dest(this.name, this.emoji, this.grad, this.imagePath);
 }
 
-// ── App recommendations (Wave 28) ────────────────────────
-// Editorial picks the home shows below the popular carousels —
-// gives the app a voice ("اقعد في دهب") and a way to surface
-// underbooked but high-quality areas the algorithm wouldn't promote
-// on its own.  Each card just deep-links into ``AreaResultsPage``.
-class _Recommendation {
-  final String area;
-  final String imagePath;
-  final String headlineAr;
-  final String headlineEn;
-  final String subtitleAr;
-  final String subtitleEn;
-  const _Recommendation({
-    required this.area,
-    required this.imagePath,
-    required this.headlineAr,
-    required this.headlineEn,
-    required this.subtitleAr,
-    required this.subtitleEn,
-  });
-}
-
-const _kRecommendations = <_Recommendation>[
-  _Recommendation(
-    area: 'دهب',
-    imagePath: 'assets/images/destinations/dahb.jpg',
-    headlineAr: 'اقعد في دهب',
-    headlineEn: 'Stay in Dahab',
-    subtitleAr: 'جو هادي، غوص خيالي، وجبال سينا',
-    subtitleEn: 'Calm vibes, world-class diving, Sinai mountains',
-  ),
-  _Recommendation(
-    area: 'الساحل الشمالي',
-    imagePath: 'assets/images/destinations/north_coast.jpg',
-    headlineAr: 'اقعد في الساحل',
-    headlineEn: 'Stay on the North Coast',
-    subtitleAr: 'رمال بيضاء، بحر تركواز، وتجمعات عصرية',
-    subtitleEn: 'White sand, turquoise sea, lively compounds',
-  ),
-  _Recommendation(
-    area: 'رأس سدر',
-    imagePath: 'assets/images/destinations/ras_sedr.jpg',
-    headlineAr: 'جرب رأس سدر',
-    headlineEn: 'Try Ras Sudr',
-    subtitleAr: 'جنة الويند سرفو الكايتسرف',
-    subtitleEn: 'A wind-surfing & kite-surfing paradise',
-  ),
-];
-
 // ────────────────────────────────────────────────────────────────
 //  HOME PAGE
 // ────────────────────────────────────────────────────────────────
@@ -357,8 +310,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       if (mounted) setState(() => _isLoading = false);
       _fadeCtrl.forward();
       _loadOffers();
-      _loadRecentlyViewed();
-      _loadPopular();
     });
 
     // Hero auto-scroll every 4s
@@ -557,23 +508,13 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           SliverToBoxAdapter(child: _buildDestinations()),
           SliverToBoxAdapter(child: _buildOffersSection()),
           SliverToBoxAdapter(child: _buildRecentlyViewedSection()),
-          SliverToBoxAdapter(
-            child: _buildPopularSection(
-              areaKey: 'الغردقة',
-              titleAr: 'الأكثر طلباً في الغردقة',
-              titleEn: 'Popular in Hurghada',
-              list: _popularHurghada,
-            ),
-          ),
-          SliverToBoxAdapter(
-            child: _buildPopularSection(
-              areaKey: 'شرم الشيخ',
-              titleAr: 'الأكثر طلباً في شرم الشيخ',
-              titleEn: 'Popular in Sharm El Sheikh',
-              list: _popularSharm,
-            ),
-          ),
-          SliverToBoxAdapter(child: _buildRecommendationsSection()),
+          // Wave 30 � replaced the two area-pinned "Popular in
+          // Hurghada / Sharm" rows with a single random pick of
+          // chalets + hotels (per user request).  The shuffle runs
+          // once per session in `_loadOffers` so the order stays
+          // stable across rebuilds and feels curated, not jittery.
+          SliverToBoxAdapter(child: _buildRandomChaletsAndHotels()),
+          SliverToBoxAdapter(child: _buildRecommendationBanners()),
           const SliverToBoxAdapter(child: SizedBox(height: 110)),
         ],
       ),
@@ -1489,546 +1430,443 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   List<PropertyApi>? _featuredOffers;
   bool _offersLoading = true;
 
-  // ── Recently viewed (Wave 28) ────────────────────
-  // ``null`` = not loaded yet, ``[]`` = loaded but empty (guest or
-  // first-time user).  The widget hides itself in the empty case.
-  List<PropertyApi>? _recentlyViewed;
+  /// Wave 28 � cache of every approved listing fetched in [_loadOffers].
+  /// We reuse it so the "Recently viewed" + future Popular rows don't
+  /// each trigger their own ``getProperties`` round-trip.
+  List<PropertyApi> _allProperties = const [];
 
-  Future<void> _loadRecentlyViewed() async {
-    final list = await PropertyService.getRecentlyViewed(limit: 10);
-    if (!mounted) return;
-    setState(() => _recentlyViewed = list);
-  }
+  /// Wave 30 � a shuffled subset of [_allProperties] limited to
+  /// chalets (شاليه) and hotels (فندق).  Computed once per session
+  /// in [_loadOffers] so the order doesn't jitter on every rebuild.
+  /// Empty until offers finish loading, or when the catalog has no
+  /// matching listings yet.
+  List<PropertyApi> _randomPicks = const [];
 
-  // ── Popular by area (Wave 28) ──────────────────
-  // "Popular in {city}" carousels mirror airbnb's home flow: each
-  // section is a fetch-by-area sorted by rating.  Hidden when an
-  // area has zero published listings so we never show an empty
-  // header.  Failures are swallowed — a degraded API shouldn't blank
-  // out the whole home screen.
-  List<PropertyApi>? _popularHurghada;
-  List<PropertyApi>? _popularSharm;
-
-  Future<void> _loadPopular() async {
-    // Run the two fetches in parallel; they hit the same endpoint
-    // but with different ``area`` query params and don't depend on
-    // each other, so awaiting them sequentially would just block the
-    // home screen for nothing.
-    final results = await Future.wait([
-      _safeFetchByArea('الغردقة'),
-      _safeFetchByArea('شرم الشيخ'),
-    ]);
-    if (!mounted) return;
-    setState(() {
-      _popularHurghada = results[0];
-      _popularSharm = results[1];
-    });
-  }
-
-  Future<List<PropertyApi>> _safeFetchByArea(String area) async {
-    try {
-      // ``sort_by=rating`` so the highest-rated listings rise to the
-      // top of each carousel — that's what "Popular" should mean
-      // (most-loved by other guests, not most-recently created).
-      return await PropertyService.getProperties(
-        area: area,
-        sortBy: 'rating',
-        limit: 10,
-      );
-    } catch (_) {
-      return const <PropertyApi>[];
-    }
-  }
+  /// Wave 28 � hydrated PropertyApi objects for the IDs the guest
+  /// opened in [PropertyDetailsPage] (newest first, capped to 10
+  /// by [RecentlyViewedService.kMaxEntries]).  Empty for fresh users.
+  List<PropertyApi> _recentlyViewed = const [];
 
   Future<void> _loadOffers() async {
     try {
       final props = await PropertyService.getProperties();
-      final featured = props.where((p) => p.isFeatured).toList();
-      if (mounted) setState(() { _featuredOffers = featured; _offersLoading = false; });
+      // Wave 28: the Offers row now lists ONLY listings with a live
+      // limited-time offer (configured by the host through the owner
+      // form Step 8 toggle).  We sort by earliest expiry so the
+      // �about to end� cards bubble to the front � that's also what
+      // drives the urgency in the countdown timer.
+      final active = props.where((p) => p.isOfferActive).toList()
+        ..sort((a, b) =>
+            (a.offerEnd ?? DateTime(2100)).compareTo(b.offerEnd ?? DateTime(2100)));
+      _allProperties = props;
+      // Wave 30 � pre-compute the random chalets-and-hotels row.
+      // We shuffle a *copy* (Random with no seed → fresh order on
+      // each cold start) and cap at 8 cards.  Doing this once here,
+      // instead of inside the build method, keeps the order stable
+      // for the whole session so the user can scroll back to the
+      // same row without it reshuffling under them.
+      final picksPool = props
+          .where((p) => p.category == 'شاليه' || p.category == 'فندق')
+          .toList()
+        ..shuffle(Random());
+      final picks = picksPool.take(8).toList();
+      final recent = await _hydrateRecentlyViewed(props);
+      if (mounted) {
+        setState(() {
+          _featuredOffers = active;
+          _recentlyViewed = recent;
+          _randomPicks = picks;
+          _offersLoading = false;
+        });
+      }
     } catch (_) {
       if (mounted) setState(() => _offersLoading = false);
     }
   }
 
-  // ════════════════════════════════════════════════
-  //  RECENTLY VIEWED — airbnb-style horizontal carousel
-  // ════════════════════════════════════════════════
+  /// Resolves the on-device recently-viewed IDs into the matching
+  /// [PropertyApi] objects from [_allProperties].  IDs that are no
+  /// longer in the catalog (deleted listings, etc.) are silently
+  /// skipped so the row doesn't render "ghost" cards.
+  Future<List<PropertyApi>> _hydrateRecentlyViewed(
+      List<PropertyApi> all) async {
+    try {
+      final ids = await RecentlyViewedService.instance.getIds();
+      if (ids.isEmpty) return const [];
+      final byId = {for (final p in all) p.id: p};
+      return ids.map((id) => byId[id]).whereType<PropertyApi>().toList();
+    } catch (_) {
+      return const [];
+    }
+  }
 
+  /// Light-weight refresh used whenever the user comes back from the
+  /// details page: we only need to re-read SharedPreferences �
+  /// [_allProperties] is still good.
+  Future<void> _refreshRecentlyViewed() async {
+    if (_allProperties.isEmpty) return;
+    final recent = await _hydrateRecentlyViewed(_allProperties);
+    if (!mounted) return;
+    setState(() => _recentlyViewed = recent);
+  }
+
+  /// Wraps a [Navigator.push] to the details page so we can refresh
+  /// the "Recently viewed" row the moment the user comes back.  This
+  /// keeps the row synchronised without a polling timer or a
+  /// RouteObserver.
+  Future<void> _openProperty(PropertyApi p) async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => PropertyDetailsPage(propertyApi: p)),
+    );
+    if (!mounted) return;
+    _refreshRecentlyViewed();
+  }
+
+  // ══════════════════════════════════════════════════════════
+  //  RECENTLY VIEWED (Wave 28)
+  //  - Hidden entirely when the user has no recents (no empty
+  //    placeholder, since this is purely a personalisation row).
+  //  - Compact horizontal card with image + name + price; opens the
+  //    details page on tap and refreshes the row when the user
+  //    pops back so re-tapping a card doesn't visually duplicate it.
+  // ══════════════════════════════════════════════════════════
   Widget _buildRecentlyViewedSection() {
-    final list = _recentlyViewed;
-    // ``null``  → still loading (or guest who never logged in).  Hide
-    //             the section entirely instead of showing a shimmer
-    //             that may never resolve for guests.
-    // ``empty`` → user is logged in but has zero history.  Same treatment.
-    if (list == null || list.isEmpty) return const SizedBox.shrink();
-
+    if (_recentlyViewed.isEmpty) return const SizedBox.shrink();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(20, 26, 20, 14),
           child: _secTitle(
-            appSettings.arabic ? 'شفتها مؤخراً' : 'Recently viewed',
+            appSettings.arabic ? 'اللي شوفتهم مؤخراً' : 'Recently viewed',
             action: '',
           ),
         ),
         SizedBox(
-          height: 215,
+          height: 178,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
-            physics: const BouncingScrollPhysics(),
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            itemCount: list.length,
-            itemBuilder: (_, i) => _recentlyViewedCard(list[i]),
+            itemCount: _recentlyViewed.length,
+            itemBuilder: (_, i) => _recentCard(_recentlyViewed[i]),
           ),
         ),
       ],
     );
   }
 
-  // ════════════════════════════════════════════════
-  //  POPULAR BY AREA — generic carousel
-  // ════════════════════════════════════════════════
-
-  Widget _buildPopularSection({
-    required String areaKey,
-    required String titleAr,
-    required String titleEn,
-    required List<PropertyApi>? list,
-  }) {
-    if (list == null || list.isEmpty) return const SizedBox.shrink();
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(20, 26, 20, 14),
-          child: _secTitle(
-            appSettings.arabic ? titleAr : titleEn,
-            action: appSettings.arabic ? 'الكل' : 'See all',
-            // Tap "See all" → area-results page pre-filtered to the
-            // city the carousel represents.
-            onAction: () => _openAreaResults(areaKey),
-          ),
-        ),
-        SizedBox(
-          height: 215,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            physics: const BouncingScrollPhysics(),
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            itemCount: list.length,
-            itemBuilder: (_, i) => _popularCard(list[i]),
-          ),
-        ),
-      ],
-    );
-  }
-
-  /// Standalone variant of [_recentlyViewedCard] with a "Guest
-  /// favourite" badge for highly-rated listings (≥ 4.7) — mirrors
-  /// airbnb's "Guest favorite" sticker in the screenshot.  Shares
-  /// the same dimensions so the two carousels visually align.
-  Widget _popularCard(PropertyApi p) {
-    final isGuestFavorite = p.rating >= 4.7 && p.reviewCount >= 3;
+  Widget _recentCard(PropertyApi p) {
+    final priceLabel = 'EGP ${p.effectivePrice.toStringAsFixed(0)}';
     return GestureDetector(
-      onTap: () => Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => PropertyDetailsPage(propertyApi: p),
-        ),
-      ),
+      onTap: () => _openProperty(p),
       child: Container(
-        width: 170,
-        margin: const EdgeInsetsDirectional.only(end: 12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Stack(children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(14),
-                child: SizedBox(
-                  width: 170,
-                  height: 155,
-                  child: p.firstImage.isNotEmpty
-                      ? Image.network(
-                          p.firstImage,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => Container(
-                            color: const Color(0xFFE8E8E8),
-                            child: const Icon(
-                              Icons.image_not_supported_outlined,
-                              color: Color(0xFFAAAAAA),
-                              size: 32,
-                            ),
-                          ),
-                        )
-                      : Container(
-                          color: const Color(0xFFE8E8E8),
-                          child: const Icon(
-                            Icons.home_outlined,
-                            color: Color(0xFFAAAAAA),
-                            size: 32,
-                          ),
-                        ),
-                ),
-              ),
-              // "Guest favorite" badge — only for listings with
-              // proven traction (high rating + at least 3 reviews).
-              if (isGuestFavorite)
-                PositionedDirectional(
-                  top: 10,
-                  start: 10,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.15),
-                          blurRadius: 6,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: Text(
-                      appSettings.arabic ? 'ضيف مفضل' : 'Guest favorite',
-                      style: const TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w800,
-                        color: Color(0xFF222222),
-                      ),
-                    ),
-                  ),
-                ),
-              // Heart icon top-end (cosmetic — same as recently viewed).
-              PositionedDirectional(
-                top: 8,
-                end: 8,
-                child: Container(
-                  width: 28,
-                  height: 28,
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.25),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.favorite_border_rounded,
-                    color: Colors.white,
-                    size: 16,
-                  ),
-                ),
-              ),
-            ]),
-            const SizedBox(height: 8),
-            // Title (property name, not just area) — differentiates
-            // popular cards from recently-viewed ones, which use the
-            // area as the headline.
-            Text(
-              p.name,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 13.5,
-                fontWeight: FontWeight.w800,
-                color: context.kText,
-                height: 1.2,
-              ),
+        width: 165,
+        margin: const EdgeInsets.only(right: 12, bottom: 4),
+        decoration: BoxDecoration(
+          color: context.kCard,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: context.kBorder, width: 1),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
             ),
-            const SizedBox(height: 2),
-            Row(children: [
-              Text(
-                appSettings.arabic
-                    ? '${p.pricePerNight.toStringAsFixed(0)} ج.م / ليلة'
-                    : 'EGP ${p.pricePerNight.toStringAsFixed(0)} / night',
-                style: TextStyle(
-                  fontSize: 11.5,
-                  color: context.kSub,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const Spacer(),
-              if (p.rating > 0) ...[
-                const Icon(
-                  Icons.star_rounded,
-                  color: Color(0xFFFFC107),
-                  size: 12,
-                ),
-                const SizedBox(width: 2),
-                Text(
-                  p.rating.toStringAsFixed(2),
-                  style: TextStyle(
-                    fontSize: 11.5,
-                    color: context.kSub,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
-            ]),
           ],
         ),
-      ),
-    );
-  }
-
-  // ════════════════════════════════════════════════
-  //  APP RECOMMENDATIONS — editorial "go to X" prompts
-  // ════════════════════════════════════════════════
-
-  Widget _buildRecommendationsSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(20, 26, 20, 14),
-          child: _secTitle(
-            appSettings.arabic
-                ? 'ترشيحات ليك'
-                : 'Picked for you',
-            action: '',
-          ),
-        ),
-        SizedBox(
-          height: 200,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            physics: const BouncingScrollPhysics(),
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            itemCount: _kRecommendations.length,
-            itemBuilder: (_, i) =>
-                _recommendationCard(_kRecommendations[i]),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _recommendationCard(_Recommendation r) {
-    return GestureDetector(
-      onTap: () => _openAreaResults(r.area),
-      child: Container(
-        // 280×180 image — wider than the popular cards so the
-        // headline + subtitle line up comfortably without truncating.
-        width: 280,
-        margin: const EdgeInsetsDirectional.only(end: 12),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(18),
-          child: Stack(children: [
-            // ── Background image ──
-            Positioned.fill(
-              child: Image.asset(
-                r.imagePath,
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) =>
-                    Container(color: const Color(0xFF1A2540)),
-              ),
-            ),
-            // ── Gradient overlay so the white text stays readable ──
-            Positioned.fill(
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    stops: const [0.3, 1.0],
-                    colors: [
-                      Colors.transparent,
-                      Colors.black.withValues(alpha: 0.78),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            // ── Headline + subtitle ──
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: 0,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      appSettings.arabic ? r.headlineAr : r.headlineEn,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: -0.3,
-                        height: 1.1,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      appSettings.arabic ? r.subtitleAr : r.subtitleEn,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.85),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                        height: 1.3,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    // CTA pill — white pill with brand-orange chevron.
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            appSettings.arabic ? 'اكتشف' : 'Discover',
-                            style: const TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w800,
-                              color: Color(0xFFFF6B35),
-                            ),
-                          ),
-                          const SizedBox(width: 4),
-                          const Icon(
-                            Icons.arrow_forward_rounded,
-                            size: 12,
-                            color: Color(0xFFFF6B35),
-                          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Photo (or area-tinted fallback) � fixed height so all
+              // cards align horizontally regardless of aspect ratio.
+              SizedBox(
+                height: 100,
+                child: Stack(fit: StackFit.expand, children: [
+                  Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          p.areaColor,
+                          p.areaColor.withValues(alpha: 0.55),
                         ],
                       ),
                     ),
+                  ),
+                  if (p.firstImage.isNotEmpty)
+                    Image.network(
+                      p.firstImage,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => const SizedBox(),
+                    ),
+                  if (p.isOfferActive)
+                    PositionedDirectional(
+                      top: 8,
+                      end: 8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFF3B30),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          '-${p.offerDiscountPercent}%',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ),
+                    ),
+                ]),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      p.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w800,
+                        color: context.kText,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      p.area,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 10.5,
+                        color: context.kSub,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Row(children: [
+                      Text(
+                        priceLabel,
+                        style: const TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w900,
+                          color: Color(0xFFFF6B35),
+                        ),
+                      ),
+                      const Spacer(),
+                      if (p.rating > 0) ...[
+                        const Icon(Icons.star_rounded,
+                            size: 12, color: Color(0xFFFFC107)),
+                        const SizedBox(width: 2),
+                        Text(
+                          p.rating.toStringAsFixed(1),
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: context.kText,
+                          ),
+                        ),
+                      ],
+                    ]),
                   ],
                 ),
               ),
-            ),
-          ]),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _recentlyViewedCard(PropertyApi p) {
+  // ══════════════════════════════════════════════════════════
+  //  RANDOM CHALETS & HOTELS  (Wave 30)
+  //  - Replaces the old "Popular in Hurghada / Sharm" rows.
+  //  - The pool is filtered to category ∈ {شاليه, فندق} only so
+  //    villas, day-use trips, boats, etc. don't muddy the row.
+  //  - The shuffle is done once in `_loadOffers` (see _randomPicks)
+  //    so the same 8 cards stay in the same order while the user
+  //    is on the home screen � they only refresh on the next cold
+  //    start (or when the user pulls-to-refresh, which calls
+  //    `_loadOffers` again).
+  //  - Hides itself when the catalog has no chalets/hotels yet.
+  // ══════════════════════════════════════════════════════════
+  Widget _buildRandomChaletsAndHotels() {
+    if (_randomPicks.isEmpty) return const SizedBox.shrink();
+    final ar = appSettings.arabic;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 26, 20, 14),
+          child: _secTitle(
+            ar ? 'مختارات شاليهات وفنادق' : 'Selected chalets & hotels',
+            action: '',
+          ),
+        ),
+        SizedBox(
+          height: 178,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            itemCount: _randomPicks.length,
+            itemBuilder: (_, i) => _recentCard(_randomPicks[i]),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ══════════════════════════════════════════════════════════
+  //  RECOMMENDATION BANNERS (Wave 28)
+  //  Two large gradient cards inviting the guest to discover Dahab
+  //  and the North Coast.  Tapping one opens the area-filtered
+  //  results page (re-using AreaResultsPage so listing rules,
+  //  filters, etc. stay consistent).
+  // ══════════════════════════════════════════════════════════
+  Widget _buildRecommendationBanners() {
+    final ar = appSettings.arabic;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 26, 20, 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _secTitle(
+            ar ? 'وجهات مقترحة ليك' : 'Trips you might like',
+            action: '',
+          ),
+          const SizedBox(height: 14),
+          Row(children: [
+            Expanded(
+              child: _recommendationCard(
+                area: 'دهب',
+                titleAr: 'اقعد في دهب',
+                titleEn: 'Stay in Dahab',
+                subtitleAr: 'هدوء + شعاب مرجانية',
+                subtitleEn: 'Calm + coral reefs',
+                emoji: '🐠',
+                colors: const [Color(0xFF00897B), Color(0xFF004D40)],
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _recommendationCard(
+                area: 'الساحل الشمالي',
+                titleAr: 'اقعد في الساحل',
+                titleEn: 'Stay in Sahel',
+                subtitleAr: 'مية فيروزية + سهرات',
+                subtitleEn: 'Turquoise water + nights',
+                emoji: '🏖️',
+                colors: const [Color(0xFFE85A24), Color(0xFFFF6B35)],
+              ),
+            ),
+          ]),
+        ],
+      ),
+    );
+  }
+
+  Widget _recommendationCard({
+    required String area,
+    required String titleAr,
+    required String titleEn,
+    required String subtitleAr,
+    required String subtitleEn,
+    required String emoji,
+    required List<Color> colors,
+  }) {
+    final ar = appSettings.arabic;
     return GestureDetector(
       onTap: () => Navigator.push(
         context,
-        MaterialPageRoute(
-          builder: (_) => PropertyDetailsPage(propertyApi: p),
-        ),
+        MaterialPageRoute(builder: (_) => AreaResultsPage(area: area)),
       ),
       child: Container(
-        // 170×155 image + 12px gutter → two full cards visible on a
-        // 375pt-wide phone with a peek of the third — matches the
-        // airbnb "Recently viewed" carousel proportions exactly.
-        width: 170,
-        margin: const EdgeInsetsDirectional.only(end: 12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // ── Near-square image with rounded corners (airbnb) ──
-            Stack(children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(14),
-                child: SizedBox(
-                  width: 170,
-                  height: 155,
-                  child: p.firstImage.isNotEmpty
-                      ? Image.network(
-                          p.firstImage,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => Container(
-                            color: const Color(0xFFE8E8E8),
-                            child: const Icon(
-                              Icons.image_not_supported_outlined,
-                              color: Color(0xFFAAAAAA),
-                              size: 32,
-                            ),
-                          ),
-                        )
-                      : Container(
-                          color: const Color(0xFFE8E8E8),
-                          child: const Icon(
-                            Icons.home_outlined,
-                            color: Color(0xFFAAAAAA),
-                            size: 32,
-                          ),
-                        ),
-                ),
-              ),
-              // Heart icon top-end (cosmetic for now — proper toggle
-              // wiring belongs to FavoritesPage which already owns the
-              // mutation logic).
-              PositionedDirectional(
-                top: 8,
-                end: 8,
-                child: Container(
-                  width: 28,
-                  height: 28,
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.25),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.favorite_border_rounded,
-                    color: Colors.white,
-                    size: 16,
-                  ),
-                ),
-              ),
-            ]),
-            const SizedBox(height: 8),
-            // ── Title — area name (e.g. "عين السخنة") ──
-            Text(
-              p.area,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 13.5,
-                fontWeight: FontWeight.w800,
-                color: context.kText,
-                height: 1.2,
-              ),
+        height: 140,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: colors,
+          ),
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: colors.last.withValues(alpha: 0.35),
+              blurRadius: 14,
+              offset: const Offset(0, 6),
             ),
-            const SizedBox(height: 2),
-            // ── Subtitle — bedrooms + rating ──
-            Row(children: [
-              if (p.bedrooms > 0) ...[
-                Text(
-                  appSettings.arabic
-                      ? '${p.bedrooms} غرفة'
-                      : '${p.bedrooms} ${p.bedrooms == 1 ? 'bed' : 'beds'}',
-                  style: TextStyle(
-                    fontSize: 11.5,
-                    color: context.kSub,
-                    fontWeight: FontWeight.w600,
-                  ),
+          ],
+        ),
+        child: Stack(children: [
+          PositionedDirectional(
+            top: -6,
+            end: -6,
+            child: Text(emoji, style: const TextStyle(fontSize: 60)),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.22),
+                  borderRadius: BorderRadius.circular(20),
                 ),
-                const SizedBox(width: 6),
-              ],
-              if (p.rating > 0) ...[
-                const Icon(
-                  Icons.star_rounded,
-                  color: Color(0xFFFFC107),
-                  size: 12,
-                ),
-                const SizedBox(width: 2),
-                Text(
-                  p.rating.toStringAsFixed(2),
-                  style: TextStyle(
-                    fontSize: 11.5,
-                    color: context.kSub,
+                child: Text(
+                  area,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 10,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
-              ],
-            ]),
-          ],
-        ),
+              ),
+              const Spacer(),
+              Text(
+                ar ? titleAr : titleEn,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 17,
+                  fontWeight: FontWeight.w900,
+                  height: 1.15,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                ar ? subtitleAr : subtitleEn,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.85),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Row(children: [
+                Text(
+                  ar ? 'استكشف الآن' : 'Explore',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(width: 4),
+                const Icon(Icons.arrow_forward_rounded,
+                    color: Colors.white, size: 13),
+              ]),
+            ],
+          ),
+        ]),
       ),
     );
   }
@@ -2117,110 +1955,166 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   }
 
   Widget _offerCard(PropertyApi p) {
-    final areaColor     = p.areaColor;
-    final priceInt      = p.pricePerNight.toStringAsFixed(0);
+    final areaColor = p.areaColor;
+    final ar = appSettings.arabic;
+    final pct = p.offerDiscountPercent;
+    final originalPrice = p.pricePerNight.toStringAsFixed(0);
+    final discounted = p.effectivePrice.toStringAsFixed(0);
 
     return GestureDetector(
-      onTap: () => Navigator.push(context,
-          MaterialPageRoute(builder: (_) => PropertyDetailsPage(propertyApi: p))),
+      onTap: () => _openProperty(p),
       child: Container(
-        width: 195,
+        width: 215,
         margin: const EdgeInsets.only(right: 12, bottom: 4),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(22),
-          boxShadow: [BoxShadow(
+          boxShadow: [
+            BoxShadow(
               color: areaColor.withValues(alpha: 0.22),
-              blurRadius: 16, offset: const Offset(0, 6))],
+              blurRadius: 16,
+              offset: const Offset(0, 6),
+            ),
+          ],
         ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(22),
           child: Stack(children: [
-            // Gradient background
+            // Background gradient � falls back to brand-tinted when
+            // no image is on file (offer cards still look intentional
+            // even on freshly created listings).
             Container(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  begin: Alignment.topLeft, end: Alignment.bottomRight,
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
                   colors: [areaColor, areaColor.withValues(alpha: 0.65)],
                 ),
               ),
             ),
-            // Property image overlay
             if (p.firstImage.isNotEmpty)
               Positioned.fill(
-                child: Image.network(p.firstImage, fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => const SizedBox()),
+                child: Image.network(
+                  p.firstImage,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => const SizedBox(),
+                ),
               ),
-            // Dark gradient overlay
+            // Dark gradient over the photo so the white text + the
+            // bottom price row keep WCAG-AA contrast.
             Positioned.fill(
               child: Container(
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
-                    begin: Alignment.topCenter, end: Alignment.bottomCenter,
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
                     colors: [
                       Colors.black.withValues(alpha: 0.10),
-                      Colors.black.withValues(alpha: 0.74),
+                      Colors.black.withValues(alpha: 0.78),
                     ],
                   ),
                 ),
               ),
             ),
-            // Card content
+            // ---- Card content ----------------------------------
             Padding(
               padding: const EdgeInsets.all(14),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Area chip + discount badge
                   Row(children: [
+                    // Area chip
                     Container(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.2),
+                        color: Colors.white.withValues(alpha: 0.22),
                         borderRadius: BorderRadius.circular(20),
                       ),
-                      child: Text(p.area,
-                          style: const TextStyle(color: Colors.white,
-                              fontSize: 10, fontWeight: FontWeight.w700)),
+                      child: Text(
+                        p.area,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                     ),
                     const Spacer(),
-                    if (p.isFeatured)
+                    // Discount badge � the visual hook of the card.
+                    if (pct > 0)
                       Container(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFFF6D00),
+                          color: const Color(0xFFFF3B30),
                           borderRadius: BorderRadius.circular(20),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFFFF3B30)
+                                  .withValues(alpha: 0.45),
+                              blurRadius: 6,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
                         ),
-                        child: const Text('⭐ مميز',
-                            style: TextStyle(color: Colors.white,
-                                fontSize: 10, fontWeight: FontWeight.w900)),
+                        child: Text(
+                          '-$pct%',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
                       ),
                   ]),
                   const Spacer(),
-                  // Property name
-                  Text(p.name,
-                      style: const TextStyle(color: Colors.white, fontSize: 14,
-                          fontWeight: FontWeight.w900, height: 1.2),
-                      maxLines: 2, overflow: TextOverflow.ellipsis),
+                  Text(
+                    p.name,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w900,
+                      height: 1.2,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 6),
+                  // Strike-through original price + discounted price.
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.baseline,
+                    textBaseline: TextBaseline.alphabetic,
+                    children: [
+                      Text(
+                        'EGP $discounted',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 17,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        originalPrice,
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.7),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          decoration: TextDecoration.lineThrough,
+                          decorationColor: Colors.white.withValues(alpha: 0.7),
+                        ),
+                      ),
+                    ],
+                  ),
                   const SizedBox(height: 8),
-                  // Prices
-                  Row(children: [
-                    Text('EGP $priceInt',
-                        style: const TextStyle(color: Colors.white,
-                            fontSize: 16, fontWeight: FontWeight.w900)),
-                  ]),
-                  const SizedBox(height: 5),
-                  // Rating
-                  if (p.rating > 0)
-                    Row(children: [
-                      const Icon(Icons.star_rounded,
-                          color: Color(0xFFFFC107), size: 12),
-                      const SizedBox(width: 4),
-                      Text(p.rating.toStringAsFixed(1),
-                          style: const TextStyle(color: Colors.white70,
-                              fontSize: 11, fontWeight: FontWeight.w600)),
-                    ]),
+                  // Live countdown � ticks every second so the user
+                  // feels the urgency.  When the offer expires the
+                  // widget self-removes (returns SizedBox.shrink).
+                  if (p.offerEnd != null)
+                    _OfferCountdown(
+                      end: p.offerEnd!,
+                      arabic: ar,
+                    ),
                 ],
               ),
             ),
@@ -2230,10 +2124,9 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     );
   }
 
-  // ════════════════════════════════════════════════
+  // ════════════════════════════════════════════════════════════════
   //  BOTTOM NAV
-  // ════════════════════════════════════════════════
-
+  // ═══════════════════════════════════════════════════════════════
   Widget _buildNavBar() {
     final ar = appSettings.arabic;
     // ── Two distinct, ordered tab sets ────────────────────
@@ -2727,3 +2620,107 @@ class _HomeSearchPill extends StatelessWidget {
   }
 }
 
+// ══════════════════════════════════════════════════════════════
+//  OFFER COUNTDOWN (Wave 28)
+//  Live "ينتهي خلال …" badge for the home-page Offers row.
+//  Ticks once per second; when the offer expires the widget
+//  collapses to a SizedBox so the parent card silently drops the
+//  timer instead of showing a stale "0:00:00".
+// ══════════════════════════════════════════════════════════════
+class _OfferCountdown extends StatefulWidget {
+  final DateTime end;
+  final bool arabic;
+  const _OfferCountdown({required this.end, required this.arabic});
+
+  @override
+  State<_OfferCountdown> createState() => _OfferCountdownState();
+}
+
+class _OfferCountdownState extends State<_OfferCountdown> {
+  Timer? _ticker;
+  late Duration _remaining;
+
+  @override
+  void initState() {
+    super.initState();
+    _remaining = _compute();
+    // 1-second cadence is plenty � the card is small enough that
+    // sub-second precision would be wasted GPU.
+    _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted) return;
+      setState(() => _remaining = _compute());
+    });
+  }
+
+  Duration _compute() {
+    final now = DateTime.now().toUtc();
+    final end = widget.end.toUtc();
+    if (!now.isBefore(end)) return Duration.zero;
+    return end.difference(now);
+  }
+
+  @override
+  void dispose() {
+    _ticker?.cancel();
+    super.dispose();
+  }
+
+  String _two(int n) => n.toString().padLeft(2, '0');
+
+  String _format(Duration d) {
+    final days = d.inDays;
+    final hours = d.inHours.remainder(24);
+    final minutes = d.inMinutes.remainder(60);
+    final seconds = d.inSeconds.remainder(60);
+
+    final ar = widget.arabic;
+    if (days > 0) {
+      // Past 24h: "3ي 04:12:08" reads cleaner than the full string.
+      return ar
+          ? '$daysي ${_two(hours)}:${_two(minutes)}:${_two(seconds)}'
+          : '${days}d ${_two(hours)}:${_two(minutes)}:${_two(seconds)}';
+    }
+    return '${_two(hours)}:${_two(minutes)}:${_two(seconds)}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_remaining == Duration.zero) return const SizedBox.shrink();
+    final ar = widget.arabic;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.45),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.25),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.timer_outlined, color: Colors.white, size: 12),
+          const SizedBox(width: 4),
+          Text(
+            ar ? 'ينتهي خلال ' : 'Ends in ',
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          Text(
+            _format(_remaining),
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 11,
+              fontWeight: FontWeight.w900,
+              fontFeatures: [FontFeature.tabularFigures()],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}

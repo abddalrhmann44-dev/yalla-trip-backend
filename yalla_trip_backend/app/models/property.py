@@ -250,7 +250,7 @@ class Property(Base):
     # double-confirmation workflow (host marks "cash received" + guest
     # marks "arrived & paid") is handled by the booking router.
     cash_on_arrival_enabled: Mapped[bool] = mapped_column(
-        Boolean, default=False, server_default="false", nullable=False
+        Boolean, default=True, server_default="true", nullable=False
     )
 
     # ── Offers ──────────────────────────────────────────────

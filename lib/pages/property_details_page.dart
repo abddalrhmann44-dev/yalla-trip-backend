@@ -14,6 +14,7 @@ import '../widgets/favorite_button.dart';
 import '../models/property_model_api.dart';
 import '../models/review_model.dart';
 import '../services/property_service.dart';
+import '../services/recently_viewed_service.dart';
 import '../services/report_service.dart';
 import '../services/review_service.dart';
 import '../widgets/report_sheet.dart';
@@ -62,15 +63,21 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
     if (widget.propertyApi != null) {
       _prop = widget.propertyApi;
       _loading = false;
+      _markRecentlyViewed(widget.propertyApi!.id);
       _loadSimilar();
       _loadReviews();
-      // Wave 28: record the view so the home page's "Recently viewed"
-      // carousel surfaces this listing on the user's next visit.
-      // Fire-and-forget — guests / network errors are swallowed.
-      PropertyService.markPropertyViewed(_prop!.id);
     } else {
       _loadProperty();
     }
+  }
+
+  /// Wave 28 — push the property id to the local "recently viewed"
+  /// store so it shows up on the home page row.  Fire-and-forget;
+  /// any IO error is swallowed because failing to remember a recent
+  /// entry must never block the details page.
+  void _markRecentlyViewed(int id) {
+    // ignore: discarded_futures
+    RecentlyViewedService.instance.markViewed(id).catchError((_) {});
   }
 
   Future<void> _loadProperty() async {
@@ -78,10 +85,9 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
       final prop = await PropertyService.getProperty(widget.propertyId!);
       if (!mounted) return;
       setState(() { _prop = prop; _loading = false; });
+      _markRecentlyViewed(prop.id);
       _loadSimilar();
       _loadReviews();
-      // Wave 28: record the view (see initState comment).
-      PropertyService.markPropertyViewed(prop.id);
     } on ApiException catch (e) {
       if (mounted) setState(() { _error = ErrorHandler.getMessage(e); _loading = false; });
     } catch (_) {
@@ -220,8 +226,12 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
                 ),
               ),
             ],
-            flexibleSpace: FlexibleSpaceBar(
-              background: Stack(children: [
+            // Wave 28 fix — pass a plain Stack as flexibleSpace
+            // instead of wrapping it in FlexibleSpaceBar.  The latter
+            // adds opacity/parallax layers that intercept horizontal
+            // drag + tap gestures on the PageView, which made the
+            // gallery feel "frozen" (no swipe, no tap-to-zoom).
+            flexibleSpace: Stack(fit: StackFit.expand, children: [
                 // Images PageView
                 p.images.isEmpty
                     ? Container(color: const Color(0xFFFF6B35),
@@ -229,11 +239,22 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
                             color: Colors.white54, size: 80))
                     : PageView.builder(
                         controller: _imgCtrl,
+                        // ClampingScrollPhysics so the horizontal
+                        // drag wins the gesture arena against the
+                        // outer CustomScrollView (the iOS-default
+                        // BouncingScrollPhysics makes the outer
+                        // sliver "win" too eagerly on tall lists).
+                        physics: const ClampingScrollPhysics(),
                         onPageChanged: (i) => setState(() => _imgIndex = i),
                         itemCount: p.images.length,
                         itemBuilder: (_, i) => GestureDetector(
+                          behavior: HitTestBehavior.opaque,
                           onTap: () => _openPhotoViewer(p, i),
                           child: Hero(
+                            // Tag matches PhotoViewerPage's
+                            // destination Hero (``tag: widget.url``)
+                            // so the open-photo transition keeps its
+                            // smooth scale animation.
                             tag: p.images[i],
                             child: Image.network(
                               p.images[i],
@@ -299,7 +320,6 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
                   ),
                 )),
               ]),
-            ),
           ),
 
           // ── Content ────────────────────────────────

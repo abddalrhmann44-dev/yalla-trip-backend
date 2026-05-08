@@ -11,7 +11,10 @@ dependencies:
     sdk: flutter
 
   cupertino_icons: ^1.0.8
-  google_fonts: ^8.0.2
+  # google_fonts removed — Cairo is now bundled as a local asset
+  # (see `flutter.fonts` below).  This kills the runtime download
+  # round-trip and the first-paint font flash, and lets the app
+  # render correctly fully offline.
   http: ^1.2.1
   http_parser: ^4.0.0
   shared_preferences: ^2.2.3
@@ -69,9 +72,30 @@ flutter:
     - assets/images/onboarding/
     - assets/images/icon.png
     - assets/images/icon_blank.png
-    - assets/images/splash.png
     - assets/images/payment/
     - assets/animations/
+
+  # Cairo (Arabic + Latin) is bundled as a single variable TTF.  We
+  # register it six times so Flutter's text engine picks the correct
+  # `wght` axis instance for each FontWeight the UI requests — this
+  # matches the rendering you'd get from `google_fonts` but ships the
+  # glyphs offline and removes the runtime download / first-paint
+  # font flash the package introduces.
+  fonts:
+    - family: Cairo
+      fonts:
+        - asset: assets/fonts/Cairo/Cairo-Variable.ttf
+          weight: 400
+        - asset: assets/fonts/Cairo/Cairo-Variable.ttf
+          weight: 500
+        - asset: assets/fonts/Cairo/Cairo-Variable.ttf
+          weight: 600
+        - asset: assets/fonts/Cairo/Cairo-Variable.ttf
+          weight: 700
+        - asset: assets/fonts/Cairo/Cairo-Variable.ttf
+          weight: 800
+        - asset: assets/fonts/Cairo/Cairo-Variable.ttf
+          weight: 900
 
 flutter_launcher_icons:
   android: true

@@ -53,21 +53,16 @@ class _BookingFlowPageState extends State<BookingFlowPage>
   // ── Wave 25: hybrid deposit + cash-on-arrival ─────────────
   // Mirrors ``app/services/deposit.py`` server-side so the receipt
   // the guest sees here matches what the backend will charge at
-  // checkout.  The 10 % constant tracks
-  // ``settings.PLATFORM_FEE_PERCENT`` — keep them in sync.
-  static const double _kCommissionRate = 0.10;
+  // checkout.
 
-  /// Number of nights the deposit must cover so the platform
-  /// commission is fully covered by the online portion.  Mirrors the
-  /// ``max(1, ceil(commission / price_per_night))`` rule on the
-  /// backend.
+  /// Number of nights the online deposit covers.  Product rule
+  /// (May 2026): always exactly **one** night so the guest sees a
+  /// predictable "ادفع ليلة واحدة دلوقتى" amount and settles the rest
+  /// as cash on arrival.  Mirrors the same constant in
+  /// ``app/services/deposit.py``.
   int get _depositNights {
     if (!p.cashOnArrivalEnabled || _nights <= 0) return 0;
-    final commission = _grandTotal * _kCommissionRate;
-    final perNight = p.pricePerNight;
-    if (perNight <= 0) return 1;
-    final nightsNeeded = (commission / perNight).ceil();
-    return nightsNeeded.clamp(1, _nights);
+    return 1;
   }
 
   /// Online deposit — what the guest pays right now via the gateway.
@@ -352,7 +347,12 @@ class _BookingFlowPageState extends State<BookingFlowPage>
       initialDate: first,
       firstDate: first,
       lastDate: now.add(const Duration(days: 365)),
-      locale: const Locale('ar'),
+      // Follow the app-wide locale (ar / en) instead of pinning to
+      // Arabic — the user's language preference must be respected
+      // here too.  `Localizations.localeOf` reads the locale we set
+      // on `MaterialApp` from `AppSettings`, so the calendar stays
+      // in sync with the rest of the UI when the user switches.
+      locale: Localizations.localeOf(context),
       builder: (ctx, child) => Theme(
         data: Theme.of(ctx).copyWith(
           colorScheme: const ColorScheme.light(

@@ -120,6 +120,28 @@ class PropertyApi {
   final bool cashOnArrivalEnabled;
   final double? latitude;
   final double? longitude;
+
+  // ── KYC documents (admin-only visibility) ─────────────────
+  // National-ID front/back the host uploaded in Step 10 of the
+  // owner add-property form.  Surfaced ONLY in the admin review
+  // page so the moderator can verify the listing belongs to a
+  // real person before approving it.  Always null in guest-side
+  // payloads even when the column is populated server-side.
+  final String? idDocumentFrontUrl;
+  final String? idDocumentBackUrl;
+
+  // ── Limited-time offer (Wave 28) ────────────────────────────
+  // The owner can flag a property with a discounted [offerPrice]
+  // active between [offerStart] and [offerEnd] (UTC).  All three
+  // fields are NULL when no offer is configured.  Use the
+  // [isOfferActive], [effectivePrice], [offerDiscountPercent] and
+  // [offerTimeRemaining] helpers below — UI code should never read
+  // these raw fields directly so the active-window check stays
+  // consistent across the app.
+  final double? offerPrice;
+  final DateTime? offerStart;
+  final DateTime? offerEnd;
+
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -166,6 +188,11 @@ class PropertyApi {
     this.cashOnArrivalEnabled = false,
     this.latitude,
     this.longitude,
+    this.idDocumentFrontUrl,
+    this.idDocumentBackUrl,
+    this.offerPrice,
+    this.offerStart,
+    this.offerEnd,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -224,6 +251,17 @@ class PropertyApi {
       cashOnArrivalEnabled: j['cash_on_arrival_enabled'] ?? false,
       latitude: j['latitude']?.toDouble(),
       longitude: j['longitude']?.toDouble(),
+      idDocumentFrontUrl: j['id_document_front_url'] as String?,
+      idDocumentBackUrl: j['id_document_back_url'] as String?,
+      offerPrice: j['offer_price'] != null
+          ? (j['offer_price'] as num).toDouble()
+          : null,
+      offerStart: j['offer_start'] != null
+          ? DateTime.parse(j['offer_start'] as String)
+          : null,
+      offerEnd: j['offer_end'] != null
+          ? DateTime.parse(j['offer_end'] as String)
+          : null,
       createdAt: DateTime.parse(j['created_at']),
       updatedAt: DateTime.parse(j['updated_at']),
     );
@@ -280,9 +318,62 @@ class PropertyApi {
       cashOnArrivalEnabled: cashOnArrivalEnabled ?? this.cashOnArrivalEnabled,
       latitude: latitude,
       longitude: longitude,
+      idDocumentFrontUrl: idDocumentFrontUrl,
+      idDocumentBackUrl: idDocumentBackUrl,
+      offerPrice: offerPrice,
+      offerStart: offerStart,
+      offerEnd: offerEnd,
       createdAt: createdAt,
       updatedAt: updatedAt,
     );
+  }
+
+  // ── Offer helpers (Wave 28) ────────────────────────────────
+  /// True when an offer is currently configured AND we are inside
+  /// its [offerStart, offerEnd] window.  All time comparisons run
+  /// against UTC so the device timezone never drifts the result.
+  bool get isOfferActive {
+    if (offerPrice == null || offerStart == null || offerEnd == null) {
+      return false;
+    }
+    if (offerPrice! >= pricePerNight) return false;
+    final now = DateTime.now().toUtc();
+    final start = offerStart!.toUtc();
+    final end = offerEnd!.toUtc();
+    return !now.isBefore(start) && now.isBefore(end);
+  }
+
+  /// Same shape as [isOfferActive] but accepts a future window — i.e.
+  /// returns true when the offer hasn't started yet.  Useful for
+  /// teaser cards ("starts in 2h").
+  bool get isOfferUpcoming {
+    if (offerPrice == null || offerStart == null || offerEnd == null) {
+      return false;
+    }
+    return DateTime.now().toUtc().isBefore(offerStart!.toUtc());
+  }
+
+  /// Resolved price the guest should be charged right now.  Falls
+  /// back to [pricePerNight] when no offer is active.
+  double get effectivePrice =>
+      isOfferActive ? offerPrice! : pricePerNight;
+
+  /// Whole-percent discount of the offer vs. the regular nightly
+  /// rate, e.g. 15 means "15% off".  Returns 0 when no offer is
+  /// active or the regular rate is 0.
+  int get offerDiscountPercent {
+    if (!isOfferActive || pricePerNight <= 0) return 0;
+    return (((pricePerNight - offerPrice!) / pricePerNight) * 100).round();
+  }
+
+  /// Time left until the offer expires.  Returns [Duration.zero]
+  /// when the offer has already ended or none is configured.
+  Duration get offerTimeRemaining {
+    if (offerEnd == null) return Duration.zero;
+    final now = DateTime.now().toUtc();
+    final end = offerEnd!.toUtc();
+    if (!now.isBefore(end)) return Duration.zero;
+    return end.difference(now);
   }
 
   // ── Helpers ────────────────────────────────────────────────

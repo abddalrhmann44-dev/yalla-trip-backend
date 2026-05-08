@@ -159,7 +159,6 @@ class PaymentPage extends StatefulWidget {
 }
 
 class _PaymentPageState extends State<PaymentPage> {
-  static const double _kCommissionRate = 0.10;
   String? _sel;
   bool _loading = false;
 
@@ -325,9 +324,10 @@ class _PaymentPageState extends State<PaymentPage> {
     if (!widget.isCashOnArrival || total <= 0) return total;
     final perNight = widget.property.pricePerNight;
     if (perNight <= 0) return total;
-    final nightsNeeded = ((total * _kCommissionRate) / perNight).ceil();
-    final depositNights = nightsNeeded < 1 ? 1 : nightsNeeded;
-    final deposit = perNight * depositNights;
+    // Product rule (May 2026): the online deposit is always exactly
+    // **one night's rate**.  Mirrors the same constant in
+    // ``app/services/deposit.py`` and ``booking_flow_page.dart``.
+    final deposit = perNight;
     return deposit > total ? total : deposit;
   }
 
@@ -616,25 +616,29 @@ class _PaymentPageState extends State<PaymentPage> {
       );
 
   /// Card that highlights the "you pay X online now, Y in cash on
-  /// arrival" split for hybrid bookings.  Mirrors the breakdown the
-  /// guest already saw on the previous booking flow page.
+  /// arrival" split for hybrid bookings.  Designed to be the most
+  /// visible thing on the screen so guests aren't surprised at
+  /// check-in by an extra cash demand: hero "remaining" line in
+  /// large bold text, plus a green call-out reminding them they're
+  /// only pre-paying one night.
   Widget _depositSplitBox() {
+    final remaining = _estimatedRemainingCash;
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           colors: [Color(0xFFE8F5E9), Color(0xFFF1F8E9)],
         ),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFF66BB6A), width: 1.2),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFF2E7D32), width: 1.4),
       ),
-      child: Column(children: [
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: const [
-          Text('💵', style: TextStyle(fontSize: 16)),
+          Text('💵', style: TextStyle(fontSize: 18)),
           SizedBox(width: 8),
           Expanded(
             child: Text(
-              'دفع جزئى — الباقى كاش للمضيف عند الوصول',
+              'دفع جزئى — تدفع ليلة واحدة دلوقتى والباقى كاش للمضيف عند الوصول',
               style: TextStyle(
                   fontSize: 12.5,
                   fontWeight: FontWeight.w900,
@@ -642,10 +646,43 @@ class _PaymentPageState extends State<PaymentPage> {
             ),
           ),
         ]),
-        const SizedBox(height: 8),
-        _row('تدفع الآن (عربون)', '$_finalAmount جنيه', bold: true),
-        _row('تدفع كاش عند الوصول',
-            '${_estimatedRemainingCash.toStringAsFixed(0)} جنيه'),
+        const SizedBox(height: 10),
+        _row('تدفع الآن (عربون ليلة واحدة)', '$_finalAmount جنيه',
+            bold: true, color: const Color(0xFF1B5E20)),
+        const SizedBox(height: 6),
+        // Hero "remaining" callout — boxed and bigger so the guest
+        // can't miss the cash they'll owe at check-in.
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            color: const Color(0xFFFFF3E0),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: const Color(0xFFFF6D00), width: 1.2),
+          ),
+          child: Row(children: [
+            const Icon(Icons.account_balance_wallet_rounded,
+                color: Color(0xFFE65100), size: 18),
+            const SizedBox(width: 8),
+            const Expanded(
+              child: Text(
+                'المتبقى للمضيف عند الوصول',
+                style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFFE65100)),
+              ),
+            ),
+            Text(
+              '${remaining.toStringAsFixed(0)} جنيه',
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w900,
+                color: Color(0xFFE65100),
+              ),
+            ),
+          ]),
+        ),
       ]),
     );
   }
