@@ -1,8 +1,9 @@
 'use strict';
 
 /**
- * REST API controller for manually sending messages.
- * Useful for outbound notifications, testing, or admin dashboards.
+ * REST API controller for outbound messages.
+ * Validation is handled upstream by requestValidator middleware —
+ * by the time these functions run, inputs are guaranteed valid.
  */
 
 const waapiService = require('../services/waapiService');
@@ -16,12 +17,15 @@ const logger = require('../config/logger');
 async function sendText(req, res, next) {
   try {
     const { phone, message } = req.body;
+    const chatId = formatChatId(phone.trim());
 
-    if (!phone || !message) {
-      return res.status(400).json({ error: '"phone" and "message" are required.' });
-    }
+    logger.info('api_send_text', {
+      chatId,
+      rawPhone: phone,
+      messageLength: message.length,
+      preview: message.slice(0, 60),
+    });
 
-    const chatId = formatChatId(phone);
     const result = await waapiService.sendTextMessage(chatId, message);
 
     res.json({ success: true, chatId, result });
@@ -32,18 +36,29 @@ async function sendText(req, res, next) {
 
 /**
  * POST /api/messages/send-media
- * Body: { phone, mediaUrl, mediaType, caption, fileName }
+ * Body: { phone, mediaUrl, mediaType?, caption?, fileName? }
  */
 async function sendMedia(req, res, next) {
   try {
-    const { phone, mediaUrl, mediaType = 'image', caption = '', fileName = '' } = req.body;
+    const {
+      phone,
+      mediaUrl,
+      mediaType = 'image',
+      caption = '',
+      fileName = '',
+    } = req.body;
 
-    if (!phone || !mediaUrl) {
-      return res.status(400).json({ error: '"phone" and "mediaUrl" are required.' });
-    }
+    const chatId = formatChatId(phone.trim());
 
-    const chatId = formatChatId(phone);
-    const result = await waapiService.sendMediaMessage(chatId, mediaUrl, mediaType, caption, fileName);
+    logger.info('api_send_media', { chatId, rawPhone: phone, mediaType, mediaUrl });
+
+    const result = await waapiService.sendMediaMessage(
+      chatId,
+      mediaUrl,
+      mediaType,
+      caption,
+      fileName
+    );
 
     res.json({ success: true, chatId, result });
   } catch (err) {
@@ -54,14 +69,17 @@ async function sendMedia(req, res, next) {
 /**
  * GET /api/messages/:phone
  * Returns recent messages from a chat.
+ * Query param: ?limit=20
  */
 async function getChatMessages(req, res, next) {
   try {
-    const chatId = formatChatId(req.params.phone);
-    const limit = parseInt(req.query.limit || '20', 10);
+    const chatId = formatChatId(req.params.phone.trim());
+    const limit = Math.min(parseInt(req.query.limit || '20', 10), 100);
+
+    logger.info('api_get_messages', { chatId, limit });
 
     const messages = await waapiService.getChatMessages(chatId, limit);
-    res.json({ chatId, messages });
+    res.json({ chatId, count: Array.isArray(messages) ? messages.length : undefined, messages });
   } catch (err) {
     next(err);
   }

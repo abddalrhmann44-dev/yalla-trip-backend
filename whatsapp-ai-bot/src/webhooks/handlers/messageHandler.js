@@ -2,7 +2,7 @@
 
 /**
  * Handles incoming WhatsApp messages received via the WAAPI webhook.
- * Flow: receive → queue → Claude → typing delay → send reply
+ * Flow: receive → filter → queue → mark-read → Claude → typing delay → send reply
  */
 
 const { config } = require('../../config');
@@ -13,12 +13,17 @@ const messageQueue = require('../../services/messageQueue');
 const { randomDelay } = require('../../utils/delay');
 const { formatChatId } = require('../../utils/phoneUtils');
 
-// Commands that reset the conversation
-const RESET_COMMANDS = ['/reset', '/clear', '/start', 'reset', 'مسح'];
+// All strings that trigger a conversation reset (case-insensitive)
+const RESET_COMMANDS = new Set([
+  '/reset', '/clear', '/start',
+  '!reset', '!clear',
+  'reset', 'clear',
+  'مسح', 'ابدأ',
+]);
 
 /**
  * Main entry point — called by webhookController for each "message" event.
- * @param {object} data  - WAAPI message payload
+ * @param {object} data  WAAPI message payload
  */
 async function handle(data) {
   const {
@@ -28,10 +33,21 @@ async function handle(data) {
     type,
     isGroup,
     isStatus,
-    author,
+    fromMe,
   } = data;
 
-  // ── Filtering ────────────────────────────────────────────────
+  // ── Sanity checks ────────────────────────────────────────────
+  if (!from) {
+    logger.warn('msg_missing_from', { data });
+    return;
+  }
+
+  // Never reply to our own messages
+  if (fromMe) {
+    logger.debug('msg_ignored_self', { from });
+    return;
+  }
+
   if (config.bot.ignoreStatus && isStatus) {
     logger.debug('msg_ignored_status', { from });
     return;
@@ -50,26 +66,33 @@ async function handle(data) {
 
   if (!body || !body.trim()) return;
 
+  // `from` arrives from WAAPI already in chatId format ("number@c.us").
+  // formatChatId passes it through unchanged when it contains "@".
   const chatId = formatChatId(from);
   const text = body.trim();
 
-  logger.info('msg_received', { chatId, preview: text.slice(0, 60) });
+  logger.info('msg_received', {
+    chatId,
+    messageId,
+    preview: text.slice(0, 80),
+  });
 
-  // ── Queue per user ───────────────────────────────────────────
+  // Enqueue per-user so rapid messages are processed in order
   messageQueue.enqueue(chatId, () => processMessage(chatId, messageId, text));
 }
 
 async function processMessage(chatId, messageId, text) {
   try {
-    // Mark as read so the sender sees blue ticks
+    // Mark as read — sender sees blue ticks
     await waapiService.markMessageRead(messageId, chatId);
 
-    // Reset command
-    if (RESET_COMMANDS.includes(text.toLowerCase())) {
+    // Reset command — clear history and confirm
+    if (RESET_COMMANDS.has(text.toLowerCase())) {
       claudeService.resetConversation(chatId);
+      logger.info('msg_conversation_reset', { chatId });
       await waapiService.sendTextMessage(
         chatId,
-        '✅ تم مسح المحادثة. / Conversation cleared. How can I help you?'
+        '✅ Conversation cleared. / تم مسح المحادثة. كيف يمكنني مساعدتك؟'
       );
       return;
     }
@@ -77,7 +100,7 @@ async function processMessage(chatId, messageId, text) {
     // Show typing indicator
     await waapiService.sendTyping(chatId);
 
-    // Get Claude's reply
+    // Get Claude's reply (also persists history internally)
     const reply = await claudeService.processMessage(chatId, text);
 
     // Simulate realistic typing delay proportional to reply length
@@ -87,22 +110,31 @@ async function processMessage(chatId, messageId, text) {
     );
     await new Promise((r) => setTimeout(r, delay));
 
-    // Stop typing indicator and send reply
     await waapiService.stopTyping(chatId);
     await waapiService.sendTextMessage(chatId, reply);
 
-    logger.info('msg_replied', { chatId, replyPreview: reply.slice(0, 60) });
+    logger.info('msg_replied', {
+      chatId,
+      replyLength: reply.length,
+      replyPreview: reply.slice(0, 80),
+    });
   } catch (err) {
-    logger.error('msg_process_error', { chatId, error: err.message });
-    // Notify the user something went wrong
+    logger.error('msg_process_error', {
+      chatId,
+      messageId,
+      error: err.message,
+      stack: err.stack,
+    });
+
+    // Best-effort error notification to the user
     try {
       await waapiService.stopTyping(chatId);
       await waapiService.sendTextMessage(
         chatId,
-        '⚠️ عذراً، حدث خطأ. حاول مجدداً. / Sorry, something went wrong. Please try again.'
+        '⚠️ Sorry, something went wrong. Please try again. / عذراً، حدث خطأ. حاول مجدداً.'
       );
     } catch {
-      // Swallow send error to avoid crashing the queue
+      // Swallow — avoid crashing the queue processor
     }
   }
 }
