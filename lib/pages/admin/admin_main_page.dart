@@ -19,6 +19,20 @@ import 'admin_reports_page.dart';
 import 'admin_promo_codes_page.dart';
 import 'admin_payouts_page.dart';
 import 'admin_audit_log_page.dart';
+import 'admin_reviews_moderation_page.dart';
+import 'admin_refunds_page.dart';
+import 'admin_disputes_page.dart';
+import 'admin_notifications_page.dart';
+import 'admin_host_verification_page.dart';
+import 'admin_featured_listings_page.dart';
+import 'admin_pricing_rules_page.dart';
+import 'admin_kyc_page.dart';
+import 'admin_analytics_dashboard.dart';
+import 'admin_fraud_detection_page.dart';
+import 'admin_ab_testing_page.dart';
+import 'admin_api_keys_page.dart';
+import 'admin_chat_monitor_page.dart';
+import 'admin_promo_banner_page.dart';
 
 const _kOcean  = Color(0xFFFF6B35);
 const _kGreen  = Color(0xFF4CAF50);
@@ -375,6 +389,200 @@ class _AdminMainPageState extends State<AdminMainPage> {
                       context,
                       MaterialPageRoute(
                           builder: (_) => const AdminStatsPage())),
+                ),
+                const SizedBox(height: 10),
+                _navTile(
+                  icon: Icons.insights_rounded,
+                  title: 'التحليلات المتقدمة',
+                  subtitle: 'رسوم بيانية، أعلى المناطق، و KPIs',
+                  color: _kOcean,
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) =>
+                              const AdminAnalyticsDashboardPage())),
+                ),
+                const SizedBox(height: 18),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8, right: 4),
+                  child: Text('الإدارة التشغيلية',
+                      style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w900,
+                          color: context.kSub)),
+                ),
+                _navTile(
+                  icon: Icons.rate_review_rounded,
+                  title: 'إدارة التقييمات',
+                  subtitle: 'حذف التعليقات المسيئة',
+                  color: _kRed,
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) =>
+                              const AdminReviewsModerationPage())),
+                ),
+                const SizedBox(height: 10),
+                _navTile(
+                  icon: Icons.account_balance_wallet_rounded,
+                  title: 'الاستردادات و التعويضات',
+                  subtitle: 'رد الأموال للضيوف',
+                  color: _kGreen,
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const AdminRefundsPage())),
+                ),
+                const SizedBox(height: 10),
+                _navTile(
+                  icon: Icons.gavel_rounded,
+                  title: 'النزاعات',
+                  subtitle: 'حل البلاغات المتعلقة بحجوزات',
+                  color: _kOrange,
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const AdminDisputesPage())),
+                ),
+                const SizedBox(height: 10),
+                _navTile(
+                  icon: Icons.campaign_rounded,
+                  title: 'الإشعارات الجماعية',
+                  subtitle: 'بث push notifications',
+                  color: _kPurple,
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const AdminNotificationsPage())),
+                ),
+                const SizedBox(height: 18),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8, right: 4),
+                  child: Text('التوثيق و التحقق',
+                      style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w900,
+                          color: context.kSub)),
+                ),
+                _navTile(
+                  icon: Icons.verified_user_rounded,
+                  title: 'توثيق المضيفين',
+                  subtitle: 'اعتماد وثائق ملكية العقارات',
+                  color: _kOcean,
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) =>
+                              const AdminHostVerificationPage())),
+                ),
+                const SizedBox(height: 10),
+                _navTile(
+                  icon: Icons.badge_rounded,
+                  title: 'توثيق هوية المستخدمين (KYC)',
+                  subtitle: 'مراجعة بطاقات و سيلفي',
+                  color: _kPurple,
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const AdminKycPage())),
+                ),
+                const SizedBox(height: 10),
+                _navTile(
+                  icon: Icons.shield_rounded,
+                  title: 'كشف الاحتيال',
+                  subtitle: 'حسابات مشبوهة و تعطيل',
+                  color: _kRed,
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) =>
+                              const AdminFraudDetectionPage())),
+                ),
+                const SizedBox(height: 18),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8, right: 4),
+                  child: Text('التسويق و السياسات',
+                      style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w900,
+                          color: context.kSub)),
+                ),
+                _navTile(
+                  icon: Icons.star_rounded,
+                  title: 'العقارات المميزة',
+                  subtitle: 'تحديد عقارات الواجهة الرئيسية',
+                  color: _kOrange,
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) =>
+                              const AdminFeaturedListingsPage())),
+                ),
+                const SizedBox(height: 10),
+                _navTile(
+                  icon: Icons.tune_rounded,
+                  title: 'قواعد التسعير و العمولة',
+                  subtitle: 'عمولة المنصة، العربون، الإحالات',
+                  color: _kGreen,
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) =>
+                              const AdminPricingRulesPage())),
+                ),
+                const SizedBox(height: 10),
+                _navTile(
+                  icon: Icons.image_rounded,
+                  title: 'بانرات الواجهة الرئيسية',
+                  subtitle: 'بانرات تسويقية مجدولة',
+                  color: _kOcean,
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) =>
+                              const AdminPromoBannerPage())),
+                ),
+                const SizedBox(height: 18),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8, right: 4),
+                  child: Text('المراقبة و التكامل',
+                      style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w900,
+                          color: context.kSub)),
+                ),
+                _navTile(
+                  icon: Icons.shield_moon_rounded,
+                  title: 'مراقبة المحادثات',
+                  subtitle: 'رسائل مفلترة و إخفاء الإساءات',
+                  color: _kRed,
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) =>
+                              const AdminChatMonitorPage())),
+                ),
+                const SizedBox(height: 10),
+                _navTile(
+                  icon: Icons.flag_rounded,
+                  title: 'Feature Flags / A-B Testing',
+                  subtitle: 'إدارة التجارب و الـ rollouts',
+                  color: _kPurple,
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const AdminAbTestingPage())),
+                ),
+                const SizedBox(height: 10),
+                _navTile(
+                  icon: Icons.vpn_key_rounded,
+                  title: 'مفاتيح API للشركاء',
+                  subtitle: 'إنشاء، تدوير، و إلغاء',
+                  color: _kOrange,
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const AdminApiKeysPage())),
                 ),
               ]),
             ),

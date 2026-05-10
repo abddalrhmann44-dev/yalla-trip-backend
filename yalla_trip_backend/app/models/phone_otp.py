@@ -44,9 +44,14 @@ class PhoneOtp(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
 
-    user_id: Mapped[int] = mapped_column(
+    # Nullable so the same table can also back the *pre-auth* WhatsApp
+    # login/register OTP, where there is no User row yet (the row is
+    # only created once verification succeeds).  Post-login flows
+    # (e.g. host phone verification on an already-signed-in account)
+    # still set this to the owning user's id.
+    user_id: Mapped[int | None] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
-        nullable=False,
+        nullable=True,
         index=True,
     )
     phone: Mapped[str] = mapped_column(String(20), nullable=False, index=True)

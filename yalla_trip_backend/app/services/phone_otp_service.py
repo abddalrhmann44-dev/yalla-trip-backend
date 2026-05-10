@@ -121,6 +121,11 @@ async def _send_otp(phone: str, code: str) -> None:
 
 # ── orchestration ────────────────────────────────────────────
 
+
+class OtpError(Exception):
+    """Raised when an OTP cannot be verified (expired, wrong, …)."""
+
+
 async def start_challenge(
     db: AsyncSession, user: User, phone: str,
 ) -> PhoneOtp:
@@ -161,8 +166,98 @@ async def start_challenge(
     return row
 
 
-class OtpError(Exception):
-    """Raised when an OTP cannot be verified (expired, wrong, …)."""
+# ── Pre-auth (login / register) variant ─────────────────────────
+# These mirror ``start_challenge`` / ``verify_challenge`` but create
+# rows with ``user_id IS NULL``: the caller hasn't logged in yet, so
+# there is no User to attach to.  The user row is created by the
+# ``/auth/whatsapp/verify-otp`` endpoint *after* the code is matched.
+
+async def start_pre_auth_challenge(
+    db: AsyncSession, phone: str,
+) -> PhoneOtp:
+    """Create (or replace) a pre-auth OTP challenge for ``phone``.
+
+    Mirrors :func:`start_challenge` but skips the ``user_id`` link so
+    we can issue codes during login / register where no user row
+    exists yet.
+    """
+    normalized = normalize_phone(phone)
+
+    # Invalidate older pending pre-auth rows for the same phone so
+    # only the latest code is ever valid.
+    await db.execute(
+        update(PhoneOtp)
+        .where(
+            PhoneOtp.user_id.is_(None),
+            PhoneOtp.phone == normalized,
+            PhoneOtp.used.is_(False),
+        )
+        .values(used=True)
+    )
+
+    code = _generate_code()
+    row = PhoneOtp(
+        user_id=None,
+        phone=normalized,
+        code_hash=_hash_code(code),
+        expires_at=datetime.now(timezone.utc)
+        + timedelta(seconds=OTP_TTL_SECONDS),
+    )
+    db.add(row)
+    await db.flush()
+    await db.refresh(row)
+
+    await _send_otp(normalized, code)
+    logger.info(
+        "phone_otp_pre_auth_started", phone=normalized, otp_id=row.id,
+    )
+    return row
+
+
+async def verify_pre_auth_challenge(
+    db: AsyncSession, phone: str, code: str,
+) -> None:
+    """Validate ``code`` against the active pre-auth challenge.
+
+    Raises :class:`OtpError` on any failure.  Does NOT create or
+    mutate any User row — caller is responsible for the lookup-or-
+    create after this returns successfully.
+    """
+    normalized = normalize_phone(phone)
+    row = (
+        await db.execute(
+            select(PhoneOtp)
+            .where(
+                PhoneOtp.user_id.is_(None),
+                PhoneOtp.phone == normalized,
+                PhoneOtp.used.is_(False),
+            )
+            .order_by(PhoneOtp.created_at.desc())
+        )
+    ).scalar_one_or_none()
+
+    if row is None:
+        raise OtpError("no_active_challenge")
+    if row.expires_at < datetime.now(timezone.utc):
+        raise OtpError("expired")
+    if row.attempts >= MAX_VERIFY_ATTEMPTS:
+        raise OtpError("exhausted")
+
+    test_code = _settings.OTP_TEST_CODE
+    is_test_match = bool(test_code and code == test_code)
+
+    if not is_test_match and row.code_hash != _hash_code(code):
+        row.attempts += 1
+        if row.attempts >= MAX_VERIFY_ATTEMPTS:
+            row.used = True  # burn it
+        await db.flush()
+        raise OtpError("wrong_code")
+
+    row.used = True
+    await db.flush()
+    logger.info(
+        "phone_otp_pre_auth_verified", phone=normalized, otp_id=row.id,
+    )
 
 
 async def verify_challenge(

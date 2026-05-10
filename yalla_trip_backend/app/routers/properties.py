@@ -145,19 +145,24 @@ def _distance_expr(lat: float, lng: float):
 
 # ── Date-availability sub-query ──────────────────────────
 # Returns a boolean column "has conflict" for the given date range so we
-# can EXCLUDE any property that already has an overlapping non-cancelled
+# can EXCLUDE any property that already has an overlapping *paid*
 # booking.  Two bookings A,B conflict when
 #   A.check_in < B.check_out  AND  B.check_in < A.check_out
 # (standard half-open interval intersection).
+#
+# Product rule (Wave 30): we only treat *paid* bookings as blockers in
+# the public search.  Unpaid pending bookings are still in the funnel
+# and must not freeze the calendar for everyone else if the guest
+# abandons the checkout.  Once the payment webhook flips the row to
+# ``paid`` the dates show as taken to subsequent searchers.
 def _conflicting_booking_subq(
     check_in: date, check_out: date,
 ):
     return (
         select(Booking.property_id)
         .where(
-            Booking.status.in_(
-                [BookingStatus.pending, BookingStatus.confirmed]
-            ),
+            Booking.payment_status == PaymentStatus.paid,
+            Booking.status != BookingStatus.cancelled,
             Booking.check_in < check_out,
             Booking.check_out > check_in,
         )
@@ -656,10 +661,19 @@ async def booked_dates(
     if prop is None:
         raise HTTPException(status_code=404, detail="العقار غير موجود / Property not found")
 
-    # fetch active bookings that overlap with the requested range
+    # Fetch *paid* bookings that overlap with the requested range.
+    #
+    # Product rule (Wave 30): only paid bookings block the calendar for
+    # subsequent guests.  An unpaid ``pending`` booking is still in the
+    # checkout funnel — if its guest abandons the flow the dates stay
+    # available to everyone else, and the row is reaped later.  Once
+    # the payment webhook flips the row to ``paid`` (which also flips
+    # ``status`` to ``confirmed`` — see ``routers/payments.py``) the
+    # dates start showing as taken in this response.
     stmt = select(Booking.check_in, Booking.check_out).where(
         Booking.property_id == property_id,
-        Booking.status.in_([BookingStatus.pending, BookingStatus.confirmed]),
+        Booking.payment_status == PaymentStatus.paid,
+        Booking.status != BookingStatus.cancelled,
         Booking.check_in < to_date,
         Booking.check_out > from_date,
     )

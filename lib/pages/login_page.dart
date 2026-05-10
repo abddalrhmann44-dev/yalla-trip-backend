@@ -16,6 +16,13 @@ import 'home_page.dart';
 import 'otp_page.dart';
 import 'register_page.dart';
 
+// ── Phone-auth provider toggle ───────────────────────────────
+// We've swapped the public sign-in flow over to the in-house
+// WhatsApp OTP service (WaAPI).  Set this to ``true`` only if you
+// need to fall back to the legacy Firebase Phone Auth path while
+// debugging — production should always be on WhatsApp.
+const bool _kUseFirebasePhoneAuth = false;
+
 // ── Design tokens ────────────────────────────────────────────
 class _T {
   static const primary = Color(0xFFFF6B35); // sunset orange
@@ -88,6 +95,41 @@ class _LoginPageState extends State<LoginPage> {
     final local = raw.startsWith('0') ? raw.substring(1) : raw;
     final full = '$_countryCode$local';
 
+    if (_kUseFirebasePhoneAuth) {
+      await _continueFirebasePhone(full);
+    } else {
+      await _continueWhatsappOtp(full);
+    }
+  }
+
+  /// New default — request a WhatsApp OTP from our backend (WaAPI)
+  /// and hand off to [OtpPage] which now drives the verify call.
+  Future<void> _continueWhatsappOtp(String phone) async {
+    debugPrint('[WA-OTP] start-otp → $phone');
+    final err = await AuthService.startWhatsappOtp(phone);
+    if (!mounted) return;
+    setState(() => _loading = false);
+    if (err != null) {
+      _showError(err);
+      return;
+    }
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => OtpPage(
+          phoneNumber: phone,
+          // WhatsApp flow doesn't use a Firebase verification id;
+          // pass an empty placeholder so the existing constructor
+          // stays source-compatible.
+          verificationId: '',
+        ),
+      ),
+    );
+  }
+
+  /// Legacy Firebase Phone Auth path — kept behind the
+  /// [_kUseFirebasePhoneAuth] flag for emergency fallback only.
+  Future<void> _continueFirebasePhone(String full) async {
     debugPrint('[OTP] verifyPhoneNumber → $full');
     try {
       await _auth.verifyPhoneNumber(

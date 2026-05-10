@@ -1,13 +1,16 @@
 // ═══════════════════════════════════════════════════════════════
 //  TALAA — Splash Page
 //
-//  Plays the Lottie splash (assets/animations/splash screen.json)
-//  on a brand-orange background, then hands off to the AuthGate.
+//  A typographic splash: a single hero "talaa" word centred on the
+//  brand-orange gradient, faded + scaled in, then handed off to the
+//  AuthGate.  Replaces the earlier Lottie-based splash because the
+//  bundled animation wasn't reliably rendering the wordmark on
+//  every device.
 //
 //  Design ethos:
 //    • Single-purpose: brand reveal → root.  No fetches, no spinners.
-//    • Total wall-time capped at ~2.4s so we never block a user from
-//      reaching the home screen if the Lottie controller stalls.
+//    • Pure Flutter text + animation — no asset dependency, so we
+//      can't be ambushed by a broken Lottie / missing font fallback.
 //    • Status bar styled to match the orange gradient so the system
 //      chrome doesn't fight the splash visually.
 // ═══════════════════════════════════════════════════════════════
@@ -16,7 +19,6 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:lottie/lottie.dart';
 
 import '../widgets/constants.dart';
 
@@ -42,6 +44,8 @@ class SplashPage extends StatefulWidget {
 class _SplashPageState extends State<SplashPage>
     with SingleTickerProviderStateMixin {
   late final AnimationController _ctrl;
+  late final Animation<double> _fade;
+  late final Animation<double> _scale;
   Timer? _maxTimer;
   bool _navigated = false;
   DateTime? _startedAt;
@@ -50,9 +54,17 @@ class _SplashPageState extends State<SplashPage>
   void initState() {
     super.initState();
     _startedAt = DateTime.now();
-    _ctrl = AnimationController(vsync: this);
-    // Hard cap — even if Lottie's status callback never fires we
-    // still hand off to the root after this many ms.
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1100),
+    );
+    _fade = CurvedAnimation(parent: _ctrl, curve: Curves.easeOut);
+    _scale = Tween<double>(begin: 0.92, end: 1.0).animate(
+      CurvedAnimation(parent: _ctrl, curve: Curves.easeOutCubic),
+    );
+    _ctrl.forward();
+    // Hard cap — guarantees we leave the splash even if something
+    // upstream (e.g. Navigator) blocks the scheduled hand-off.
     _maxTimer = Timer(_kMaxDisplay, _goNext);
   }
 
@@ -89,8 +101,8 @@ class _SplashPageState extends State<SplashPage>
           width: double.infinity,
           height: double.infinity,
           decoration: const BoxDecoration(
-            // Brand-orange diagonal gradient — the white "Talaa" in
-            // the Lottie pops against this without competing with it.
+            // Brand-orange diagonal gradient — the white wordmark
+            // pops against this without competing with it.
             gradient: LinearGradient(
               begin: Alignment.topRight,
               end: Alignment.bottomLeft,
@@ -103,55 +115,32 @@ class _SplashPageState extends State<SplashPage>
             ),
           ),
           child: SafeArea(
-            child: Stack(children: [
-              // ── Lottie ──────────────────────────────────────
-              Center(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
-                  child: Lottie.asset(
-                    'assets/animations/splash screen.json',
-                    controller: _ctrl,
-                    fit: BoxFit.contain,
-                    repeat: false,
-                    onLoaded: (composition) {
-                      _ctrl
-                        ..duration = composition.duration
-                        ..forward().whenComplete(_goNext);
-                    },
+            child: Center(
+              // Animated wordmark — fades + scales in once on entry.
+              child: FadeTransition(
+                opacity: _fade,
+                child: ScaleTransition(
+                  scale: _scale,
+                  child: const Text(
+                    'talaa',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 72,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: -2.5,
+                      height: 1,
+                      shadows: [
+                        Shadow(
+                          color: Color(0x33000000),
+                          blurRadius: 18,
+                          offset: Offset(0, 6),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
-              // ── Tagline ─────────────────────────────────────
-              // Sits below the logo so the moment the Lottie
-              // completes its fade-in the user reads the value
-              // proposition for free.
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: 48,
-                child: Column(children: [
-                  Text(
-                    'يلا نسافر',
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.95),
-                      fontSize: 16,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 0.4,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'Your beach escape, simplified.',
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.75),
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 1.2,
-                    ),
-                  ),
-                ]),
-              ),
-            ]),
+            ),
           ),
         ),
       ),

@@ -138,10 +138,21 @@ async def _count_overlapping(
     check_out: date,
     exclude_id: int | None = None,
 ) -> int:
-    """Count how many active bookings overlap with the given date range."""
+    """Count how many *paid* bookings overlap with the given date range.
+
+    Product rule (Wave 30): a property's calendar is only blocked once
+    the guest has actually paid the deposit (``payment_status == paid``).
+    Pending bookings — created but not yet paid for — must NOT prevent
+    other guests from holding the same dates, otherwise an abandoned
+    checkout silently freezes the property's calendar until the row
+    expires.  When the eventual payment webhook fires it converts the
+    winning row to ``paid``, and any duplicate pending rows for the
+    same window will fail their own pre-paid availability check.
+    """
     stmt = select(func.count()).select_from(Booking).where(
         Booking.property_id == property_id,
-        Booking.status.in_([BookingStatus.pending, BookingStatus.confirmed]),
+        Booking.payment_status == PaymentStatus.paid,
+        Booking.status != BookingStatus.cancelled,
         Booking.check_in < check_out,
         Booking.check_out > check_in,
     )

@@ -18,6 +18,7 @@ import enum
 from datetime import date, datetime
 
 from sqlalchemy import (
+    Boolean,
     Date,
     DateTime,
     Enum as SAEnum,
@@ -197,6 +198,24 @@ class Message(Base):
         server_default=func.now(),
         nullable=False,
         index=True,
+    )
+
+    # ── Moderation (Wave 30) ─────────────────────────────────
+    # Auto-flagged by the keyword filter (suspicious phone, off-
+    # platform payment language, abusive words…) or manually flagged
+    # by a participant with the report dialog.
+    is_flagged: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default="false",
+        nullable=False, index=True,
+    )
+    # Hidden by an admin — the body is replaced with a placeholder
+    # in the public API but kept in DB for audit/legal reasons.
+    is_hidden: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default="false",
+        nullable=False, index=True,
+    )
+    flag_reason: Mapped[str | None] = mapped_column(
+        String(200), nullable=True,
     )
 
     conversation = relationship("Conversation", back_populates="messages")

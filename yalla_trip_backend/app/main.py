@@ -36,6 +36,7 @@ from app.routers import (
     payments,
     payouts,
     pricing,
+    promo_banners,
     promo_codes,
     wallet,
     properties,
@@ -205,6 +206,7 @@ app.include_router(bookings.router)
 app.include_router(reviews.router)
 app.include_router(reports.router)
 app.include_router(promo_codes.router)
+app.include_router(promo_banners.router)
 app.include_router(wallet.router)
 app.include_router(payouts.router)
 app.include_router(payments.router)

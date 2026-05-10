@@ -9,6 +9,13 @@ Eligibility rule (what makes a booking "payable")::
 
 The hold period gives the guest a window to dispute before money
 leaves the platform.  Configurable via ``settings.PAYOUT_HOLD_DAYS``.
+
+Policy (mirrored in the user-facing Terms of Use section 8):
+
+    Hosts receive their payouts within 1 day of check-out and at
+    most 14 days, depending on payment method and intermediary
+    bank.  Anything older than 14 days surfaces in the
+    :func:`overdue_payouts_query` helper so admins can investigate.
 """
 
 from __future__ import annotations
@@ -79,6 +86,31 @@ async def eligible_bookings_query(
         host_id=host_id, cycle_start=cycle_start, cycle_end=cycle_end,
     )
     return select(Booking).where(and_(*conds)).order_by(Booking.owner_id, Booking.id)
+
+
+# Maximum payout-delay SLA (mirrored in Terms section 8).  Anything
+# above this threshold should be considered a serious operations
+# issue and surface to the admin dashboard.
+PAYOUT_SLA_DAYS_MAX = 14
+
+
+def overdue_payouts_query(host_id: int | None = None):
+    """Bookings that have been waiting > 14 days for their payout.
+
+    Used by the admin SLA monitoring panel — the platform's promise
+    in the Terms of Use is "within 1-14 days", so anything older is
+    treated as a potential SLA breach worth manual triage.
+    """
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=PAYOUT_SLA_DAYS_MAX)).date()
+    conds = [
+        Booking.status == BookingStatus.completed,
+        Booking.payment_status == PaymentStatus.paid,
+        Booking.payout_status == BookingPayoutStatus.unpaid.value,
+        Booking.check_out <= cutoff,
+    ]
+    if host_id is not None:
+        conds.append(Booking.owner_id == host_id)
+    return select(Booking).where(and_(*conds)).order_by(Booking.check_out.asc())
 
 
 async def eligible_bookings_summary(

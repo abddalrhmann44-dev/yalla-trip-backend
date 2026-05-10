@@ -7,6 +7,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
+import '../services/auth_service.dart';
 import '../utils/app_strings.dart';
 import '../main.dart' show userProvider, appSettings;
 import 'home_page.dart';
@@ -46,7 +47,10 @@ class _RegisterPageState extends State<RegisterPage> {
   @override
   void initState() {
     super.initState();
-    // Prefill from Firebase if Google sign-in already provided data.
+    // Prefill from Firebase if a Google sign-in has already populated
+    // the cached user.  When the WhatsApp-OTP path is in play there
+    // is no Firebase session, so [currentUser] is null and we simply
+    // start with empty fields — the user types their name in.
     final u = FirebaseAuth.instance.currentUser;
     if (u != null) {
       if ((u.displayName ?? '').isNotEmpty) _nameCtrl.text = u.displayName!;
@@ -111,7 +115,15 @@ class _RegisterPageState extends State<RegisterPage> {
   }
 
   /// Abandon profile completion — sign out and return to HomePage as guest.
+  ///
+  /// Clears both auth providers: the backend JWT (covers users who
+  /// arrived through the WhatsApp-OTP flow) AND the Firebase session
+  /// (covers Google sign-in).  Failures are best-effort so the user
+  /// is never trapped on this screen.
   Future<void> _cancel() async {
+    try {
+      await AuthService.logout();
+    } catch (_) {/* best-effort */}
     try {
       await FirebaseAuth.instance.signOut();
     } catch (_) {/* best-effort */}

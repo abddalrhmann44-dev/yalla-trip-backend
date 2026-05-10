@@ -50,6 +50,80 @@ class AuthService {
     }
   }
 
+  /// Ask the backend to send a WhatsApp OTP to ``phone`` for the
+  /// public login / register flow.  Returns ``null`` on success or
+  /// a human-readable error message on failure.
+  ///
+  /// Hits ``POST /auth/whatsapp/start-otp``.  No auth required —
+  /// this is the very first call in the sign-in funnel.
+  static Future<String?> startWhatsappOtp(String phone) async {
+    try {
+      final response = await http.post(
+        Uri.parse('${ApiConfig.baseUrl}/auth/whatsapp/start-otp'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'phone': phone}),
+      );
+      if (response.statusCode == 200) return null;
+      return _tryParseDetail(response.body);
+    } catch (e) {
+      return 'Network error: $e';
+    }
+  }
+
+  /// Verify the WhatsApp OTP and exchange the result for a backend
+  /// JWT pair.  On success the access + refresh tokens are stored
+  /// (just like [exchangeFirebaseToken]) and the method returns
+  /// ``(isNewUser: bool, errorMessage: null)``; on failure it returns
+  /// ``(isNewUser: false, errorMessage: '<reason>')`` without
+  /// touching the stored tokens.
+  ///
+  /// Hits ``POST /auth/whatsapp/verify-otp``.
+  static Future<({bool isNewUser, String? error})> verifyWhatsappOtp({
+    required String phone,
+    required String code,
+    String name = '',
+    String? referralCode,
+  }) async {
+    try {
+      final pendingReferralCode =
+          referralCode ?? await ReferralLinkService.getPendingReferralCode();
+      final body = <String, dynamic>{
+        'phone': phone,
+        'code': code,
+        'name': name,
+        if (pendingReferralCode != null && pendingReferralCode.isNotEmpty)
+          'referral_code': pendingReferralCode,
+      };
+      final response = await http.post(
+        Uri.parse('${ApiConfig.baseUrl}/auth/whatsapp/verify-otp'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(body),
+      );
+      if (response.statusCode != 200) {
+        return (isNewUser: false, error: _tryParseDetail(response.body));
+      }
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final accessToken = data['access_token'] as String;
+      final refreshToken = data['refresh_token'] as String?;
+      await _api.setToken(accessToken, refreshToken: refreshToken);
+      if (pendingReferralCode != null && pendingReferralCode.isNotEmpty) {
+        await ReferralLinkService.clearPendingReferralCode();
+      }
+      // Heuristic: a brand-new user has the placeholder name "User"
+      // (the backend assigns it when no name is supplied) AND no
+      // email yet.  The dedicated [RegisterPage] then collects the
+      // real profile data.
+      final user = data['user'] as Map<String, dynamic>?;
+      final displayName = (user?['name'] as String?)?.trim() ?? '';
+      final emailValue = (user?['email'] as String?)?.trim() ?? '';
+      final isNew = (displayName.isEmpty || displayName == 'User') &&
+          emailValue.isEmpty;
+      return (isNewUser: isNew, error: null);
+    } catch (e) {
+      return (isNewUser: false, error: 'Network error: $e');
+    }
+  }
+
   /// Rotate the stored refresh token against the backend.
   ///
   /// Returns ``true`` on success (new access + refresh are now stored)

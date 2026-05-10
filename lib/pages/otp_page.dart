@@ -14,6 +14,13 @@ import '../widgets/constants.dart';
 import 'home_page.dart';
 import 'register_page.dart';
 
+// ── Phone-auth provider toggle ───────────────────────────────
+// Mirrors the flag in [LoginPage].  When ``false`` (the default
+// today) this page verifies the OTP through our own backend
+// (WhatsApp / WaAPI); flip to ``true`` to fall back to Firebase
+// Phone Auth using the [verificationId] passed in by the caller.
+const bool _kUseFirebasePhoneAuth = false;
+
 class OtpPage extends StatefulWidget {
   final String phoneNumber;
   final String verificationId;
@@ -102,6 +109,40 @@ class _OtpPageState extends State<OtpPage>
       return;
     }
     setState(() => _isLoading = true);
+    if (_kUseFirebasePhoneAuth) {
+      await _verifyFirebase();
+    } else {
+      await _verifyWhatsapp();
+    }
+  }
+
+  /// New default — hand the typed code to our backend, which checks
+  /// it against the WhatsApp OTP it issued and returns a JWT pair on
+  /// success.
+  Future<void> _verifyWhatsapp() async {
+    try {
+      final res = await AuthService.verifyWhatsappOtp(
+        phone: widget.phoneNumber,
+        code: _otpCode,
+        name: widget.userName,
+      );
+      if (!mounted) return;
+      if (res.error != null) {
+        _showError(res.error!);
+        for (final c in _ctrls) { c.clear(); }
+        _foci[0].requestFocus();
+        return;
+      }
+      HapticFeedback.heavyImpact();
+      _routeAfterBackendAuth(isNew: res.isNewUser);
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  /// Legacy Firebase Phone Auth verification, kept behind the
+  /// [_kUseFirebasePhoneAuth] flag for emergency fallback only.
+  Future<void> _verifyFirebase() async {
     try {
       final credential = PhoneAuthProvider.credential(
         verificationId: _verificationId,
@@ -144,6 +185,29 @@ class _OtpPageState extends State<OtpPage>
     if (!_canResend) return;
     setState(() => _isLoading = true);
 
+    if (_kUseFirebasePhoneAuth) {
+      await _resendFirebase();
+    } else {
+      await _resendWhatsapp();
+    }
+  }
+
+  /// New default — ask the backend to send a fresh WhatsApp OTP.
+  Future<void> _resendWhatsapp() async {
+    final err = await AuthService.startWhatsappOtp(widget.phoneNumber);
+    if (!mounted) return;
+    setState(() => _isLoading = false);
+    if (err != null) {
+      _showError(err);
+      return;
+    }
+    _startTimer();
+    for (final c in _ctrls) { c.clear(); }
+    _foci[0].requestFocus();
+    _showSuccess(S.otpResent);
+  }
+
+  Future<void> _resendFirebase() async {
     await FirebaseAuth.instance.verifyPhoneNumber(
       phoneNumber: widget.phoneNumber,
       forceResendingToken: widget.resendToken,
@@ -187,6 +251,19 @@ class _OtpPageState extends State<OtpPage>
   /// * Returning   → [HomePage]       (straight into the app).
   void _routeAfterAuth(UserCredential result) {
     final isNew = result.additionalUserInfo?.isNewUser ?? false;
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(
+        builder: (_) => isNew ? const RegisterPage() : const HomePage(),
+      ),
+      (_) => false,
+    );
+  }
+
+  /// Backend-driven counterpart of [_routeAfterAuth] — used when we
+  /// authenticate through the WhatsApp OTP flow and therefore have
+  /// no [UserCredential] to inspect.  ``isNew`` comes from the
+  /// backend's verify-otp response (placeholder name + no email).
+  void _routeAfterBackendAuth({required bool isNew}) {
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(
         builder: (_) => isNew ? const RegisterPage() : const HomePage(),

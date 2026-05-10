@@ -46,12 +46,37 @@ class _AdminPropertyReviewPageState extends State<AdminPropertyReviewPage> {
   final PageController _galleryCtrl = PageController();
   int _galleryIndex = 0;
   bool _busy = false;
+  // Wave 30 — fire the "you can swipe these photos" auto-advance
+  // hint exactly once when the page opens.
+  bool _didHintGallery = false;
 
   @override
   void initState() {
     super.initState();
     _p = widget.property;
     appSettings.addListener(_onLangChange);
+    _scheduleGalleryHint();
+  }
+
+  /// Animate the inline gallery to image #2 shortly after the page
+  /// settles.  Pure affordance hint — no buttons, no extra UI: it
+  /// just tells the admin "these photos can be swiped" so the
+  /// gallery never feels frozen on the first frame.  Skipped for
+  /// single-image listings so it doesn't make the panel twitch.
+  void _scheduleGalleryHint() {
+    if (_didHintGallery) return;
+    _didHintGallery = true;
+    Future.delayed(const Duration(milliseconds: 750), () {
+      if (!mounted) return;
+      if (_p.images.length < 2) return;
+      if (!_galleryCtrl.hasClients) return;
+      if (_galleryIndex != 0) return;
+      _galleryCtrl.animateToPage(
+        1,
+        duration: const Duration(milliseconds: 650),
+        curve: Curves.easeOutCubic,
+      );
+    });
   }
 
   void _onLangChange() {
@@ -178,12 +203,33 @@ class _AdminPropertyReviewPageState extends State<AdminPropertyReviewPage> {
                 color: Colors.white, size: 18),
             onPressed: () => Navigator.pop(context),
           ),
-          title: Text(
-            ar ? 'مراجعة العقار' : 'Review property',
-            style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w900,
-                fontSize: 16),
+          // Wave 30 — show the title only after the AppBar collapses.
+          // While expanded the title sits *over* the gallery and was
+          // intercepting horizontal-drag/tap gestures, leaving the
+          // images "frozen".  When collapsed there's no flexibleSpace
+          // to compete with so the title is safe to show.
+          title: LayoutBuilder(
+            builder: (context, constraints) {
+              final settings = context
+                  .dependOnInheritedWidgetOfExactType<FlexibleSpaceBarSettings>();
+              final deltaExtent =
+                  (settings?.maxExtent ?? 0) - (settings?.minExtent ?? 0);
+              final t = deltaExtent <= 0
+                  ? 0.0
+                  : (1 - ((settings?.currentExtent ?? 0) - (settings?.minExtent ?? 0)) /
+                          deltaExtent)
+                      .clamp(0.0, 1.0);
+              return Opacity(
+                opacity: t,
+                child: Text(
+                  ar ? 'مراجعة العقار' : 'Review property',
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w900,
+                      fontSize: 16),
+                ),
+              );
+            },
           ),
           centerTitle: true,
           flexibleSpace: _buildGallery(),

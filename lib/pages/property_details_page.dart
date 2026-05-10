@@ -45,6 +45,10 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
   String? _error;
   PropertyApi? _prop;
   final PageController _imgCtrl = PageController();
+  // Wave 30 — fire the "you can swipe" auto-advance hint exactly
+  // once per page open.  We don't want to keep nudging the gallery
+  // every time the user scrolls back to the top.
+  bool _didHintGallery = false;
 
   // Similar properties (recommendations)
   List<PropertyApi> _similar = [];
@@ -66,9 +70,35 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
       _markRecentlyViewed(widget.propertyApi!.id);
       _loadSimilar();
       _loadReviews();
+      _scheduleGalleryHint();
     } else {
       _loadProperty();
     }
+  }
+
+  /// Wave 30 — once the page is open and the gallery has had time to
+  /// attach its [PageController], slide forward to image #2 with a
+  /// gentle animation.  This is purely an *affordance hint*: it tells
+  /// the user "these photos can be swiped" without adding a single
+  /// button on top of the gallery.  Runs exactly once per visit and
+  /// only when there is more than one image, so it never makes a
+  /// single-photo listing twitch.
+  void _scheduleGalleryHint() {
+    if (_didHintGallery) return;
+    _didHintGallery = true;
+    Future.delayed(const Duration(milliseconds: 750), () {
+      if (!mounted) return;
+      final prop = _prop;
+      if (prop == null || prop.images.length < 2) return;
+      if (!_imgCtrl.hasClients) return;
+      // Only nudge if the user hasn't already started swiping.
+      if (_imgIndex != 0) return;
+      _imgCtrl.animateToPage(
+        1,
+        duration: const Duration(milliseconds: 650),
+        curve: Curves.easeOutCubic,
+      );
+    });
   }
 
   /// Wave 28 — push the property id to the local "recently viewed"
@@ -88,6 +118,7 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
       _markRecentlyViewed(prop.id);
       _loadSimilar();
       _loadReviews();
+      _scheduleGalleryHint();
     } on ApiException catch (e) {
       if (mounted) setState(() { _error = ErrorHandler.getMessage(e); _loading = false; });
     } catch (_) {
@@ -267,7 +298,12 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
                           ),
                         ),
                       ),
-                // Image counter
+                // Image counter — kept minimal so the gallery feels
+                // photo-first.  The user navigates the carousel by
+                // swiping; we also fire a one-time auto-advance from
+                // ``initState`` so the very first frame visibly
+                // animates to image #2 — that's the affordance hint
+                // that tells the user "you can swipe these".
                 if (p.images.length > 1)
                   Positioned(
                     bottom: 16, right: 16,

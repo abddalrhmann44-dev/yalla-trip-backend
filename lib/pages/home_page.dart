@@ -11,7 +11,10 @@ import '../main.dart' show appSettings, userProvider;
 import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:lottie/lottie.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../widgets/constants.dart';
+import '../widgets/promo_banner_carousel.dart';
+import '../services/promo_banner_service.dart' show PromoBannerItem;
 import 'explore_page.dart';
 import 'area_results_page.dart';
 import '../utils/app_strings.dart';
@@ -505,6 +508,13 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         slivers: [
           SliverToBoxAdapter(child: _buildHeader()),
           SliverToBoxAdapter(child: _buildHeroSlider()),
+          // Wave 30 — admin-curated promo banners above the
+          // destinations rail.  The widget self-hides when no active
+          // banners are scheduled, so the homepage layout stays
+          // unchanged if marketing hasn't pushed anything.
+          SliverToBoxAdapter(
+            child: PromoBannerCarousel(onTap: _handlePromoBannerTap),
+          ),
           SliverToBoxAdapter(child: _buildDestinations()),
           SliverToBoxAdapter(child: _buildOffersSection()),
           SliverToBoxAdapter(child: _buildRecentlyViewedSection()),
@@ -1172,6 +1182,41 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         },
       ),
     );
+  }
+
+  /// Dispatcher for promo-banner taps.  Routes by ``ctaKind``:
+  ///   - deeplink / url → external browser via [launchUrl]
+  ///   - area           → area results page
+  ///   - property       → property details page (fetches by id)
+  ///   - none           → no-op
+  Future<void> _handlePromoBannerTap(PromoBannerItem b) async {
+    final target = b.ctaTarget?.trim() ?? '';
+    switch (b.ctaKind) {
+      case 'url':
+      case 'deeplink':
+        if (target.isEmpty) return;
+        final uri = Uri.tryParse(target);
+        if (uri == null) return;
+        try {
+          await launchUrl(uri, mode: LaunchMode.externalApplication);
+        } catch (_) {/* silently ignore broken URLs */}
+        return;
+      case 'area':
+        if (target.isEmpty) return;
+        _openAreaResults(target);
+        return;
+      case 'property':
+        final pid = int.tryParse(target);
+        if (pid == null) return;
+        try {
+          final p = await PropertyService.getProperty(pid);
+          if (!mounted) return;
+          await _openProperty(p);
+        } catch (_) {/* property may have been deleted */}
+        return;
+      default:
+        return;
+    }
   }
 
   void _openAreaResults(String area) {

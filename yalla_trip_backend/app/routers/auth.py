@@ -26,6 +26,9 @@ from app.schemas.user import (
     TokenPayload,
     UserOut,
 )
+from pydantic import BaseModel, Field
+
+from app.services import brute_force_guard, phone_otp_service
 from app.services.firebase_service import get_firebase_user, verify_firebase_token
 from app.services.wallet_service import attach_referral_on_signup
 
@@ -282,6 +285,156 @@ async def refresh_token(
 async def auth_me(user: User = Depends(get_current_user)):
     """Return the currently authenticated user."""
     return UserOut.model_validate(user)
+
+
+# ══════════════════════════════════════════════════════════════
+#  WhatsApp OTP login / register
+#  --------------------------------------------------------------
+#  Replaces Firebase Phone Auth for the public sign-in flow.  The
+#  user types their Egyptian mobile number, we deliver a 6-digit
+#  code over WhatsApp via WaAPI, and on verify-otp we either look
+#  up the existing User row by phone or create a new one (with a
+#  synthetic ``firebase_uid`` of the form ``wa:+20…`` so the column
+#  uniqueness constraint is preserved).
+# ══════════════════════════════════════════════════════════════
+_WHATSAPP_AUTH_SCOPE = "wa_auth"
+
+
+class WhatsappStartOtpBody(BaseModel):
+    phone: str = Field(..., min_length=6, max_length=30)
+
+
+class WhatsappVerifyOtpBody(BaseModel):
+    phone: str = Field(..., min_length=6, max_length=30)
+    code: str = Field(..., min_length=4, max_length=8, pattern=r"^\d+$")
+    name: str = Field("", max_length=120)
+    referral_code: str | None = Field(None, max_length=32)
+
+
+class WhatsappOtpStartedOut(BaseModel):
+    phone: str
+    expires_in: int
+
+
+@router.post("/whatsapp/start-otp", response_model=WhatsappOtpStartedOut)
+async def whatsapp_start_otp(
+    body: WhatsappStartOtpBody,
+    db: AsyncSession = Depends(get_db),
+):
+    """Send a 6-digit WhatsApp OTP to ``phone`` for login / register.
+
+    No authentication required — this is the very first call in the
+    sign-in funnel.  Brute-force protection is keyed on the phone so
+    spamming a victim's number locks the *attempts*, not the victim.
+    """
+    await brute_force_guard.assert_not_locked(_WHATSAPP_AUTH_SCOPE, body.phone)
+
+    try:
+        row = await phone_otp_service.start_pre_auth_challenge(db, body.phone)
+    except ValueError:
+        raise HTTPException(
+            status_code=422,
+            detail="رقم الموبايل غير صالح / Invalid phone number",
+        )
+
+    return WhatsappOtpStartedOut(
+        phone=row.phone,
+        expires_in=phone_otp_service.OTP_TTL_SECONDS,
+    )
+
+
+@router.post("/whatsapp/verify-otp", response_model=TokenPayload)
+async def whatsapp_verify_otp(
+    body: WhatsappVerifyOtpBody,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    """Verify the WhatsApp OTP and issue a backend JWT.
+
+    On the first successful verify for a phone we create a brand-new
+    [`User`] row (role=guest, phone_verified=True, ``firebase_uid``
+    set to ``wa:<phone>`` so the column's NOT NULL + unique constraint
+    is satisfied).  Repeat sign-ins reuse the existing row.
+    """
+    await brute_force_guard.assert_not_locked(_WHATSAPP_AUTH_SCOPE, body.phone)
+
+    try:
+        await phone_otp_service.verify_pre_auth_challenge(
+            db, body.phone, body.code,
+        )
+    except ValueError:
+        raise HTTPException(
+            status_code=422,
+            detail="رقم الموبايل غير صالح / Invalid phone number",
+        )
+    except phone_otp_service.OtpError as exc:
+        code = str(exc)
+        if code in {"wrong_code", "exhausted", "expired"}:
+            await brute_force_guard.record_failure(
+                _WHATSAPP_AUTH_SCOPE, body.phone,
+            )
+        messages = {
+            "no_active_challenge": "لا يوجد طلب تحقق نشط / No active OTP challenge",
+            "expired": "انتهى وقت الكود / OTP has expired",
+            "exhausted": "تم تجاوز عدد المحاولات / Too many wrong attempts",
+            "wrong_code": "الكود غير صحيح / Wrong code",
+        }
+        raise HTTPException(status_code=400, detail=messages.get(code, code))
+
+    await brute_force_guard.clear_failures(_WHATSAPP_AUTH_SCOPE, body.phone)
+
+    # ── Lookup-or-create the user keyed by phone ──────────────
+    normalized_phone = phone_otp_service.normalize_phone(body.phone)
+    result = await db.execute(
+        select(User).where(User.phone == normalized_phone)
+    )
+    user = result.scalar_one_or_none()
+
+    if user is None:
+        synthetic_uid = f"wa:{normalized_phone}"
+        display_name = (body.name.strip() or "User")[:120]
+        user = User(
+            firebase_uid=synthetic_uid,
+            name=display_name,
+            phone=normalized_phone,
+            phone_verified=True,
+            phone_verified_at=datetime.now(timezone.utc),
+            role=UserRole.guest,
+        )
+        db.add(user)
+        await db.flush()
+        await db.refresh(user)
+        logger.info(
+            "user_created_from_whatsapp_otp",
+            user_id=user.id,
+            phone=normalized_phone,
+        )
+
+        # Wave 11 referral link, mirrors the Firebase verify-token path.
+        if body.referral_code:
+            try:
+                await attach_referral_on_signup(db, user, body.referral_code)
+            except Exception as exc:  # pragma: no cover
+                logger.error("attach_referral_failed", err=str(exc))
+    else:
+        # Existing user — keep the verified phone state up to date so
+        # the host-onboarding screens don't re-prompt.  Also update
+        # the display name when the caller supplies one and the
+        # current value is the placeholder default.
+        assert user is not None
+        if not user.phone_verified:
+            user.phone_verified = True
+            user.phone_verified_at = datetime.now(timezone.utc)
+        if body.name.strip() and user.name in {"", "User"}:
+            user.name = body.name.strip()[:120]
+        await db.flush()
+        logger.info(
+            "user_login_via_whatsapp_otp",
+            user_id=user.id,
+            phone=normalized_phone,
+        )
+
+    return await _issue_pair(db, user, request, family_id=None)
 
 
 # ══════════════════════════════════════════════════════════════

@@ -267,11 +267,21 @@ async def send_message(
     # Redact phone numbers / emails before persisting so raw contact
     # info never reaches the other side before a confirmed booking.
     clean_body = sanitize_chat_text(body.body.strip())
+
+    # Auto-moderation pass.  We scan the *original* (pre-redacted)
+    # body so we can flag the intent — somebody who tried to share a
+    # phone number is interesting even after sanitisation strips the
+    # digits.
+    from app.services.chat_moderation import scan as scan_chat
+    is_flagged, flag_reason = scan_chat(body.body)
+
     msg = Message(
         conversation_id=conv.id,
         sender_id=user.id,
         kind=MessageKind.text,
         body=clean_body,
+        is_flagged=is_flagged,
+        flag_reason=flag_reason,
     )
     db.add(msg)
 

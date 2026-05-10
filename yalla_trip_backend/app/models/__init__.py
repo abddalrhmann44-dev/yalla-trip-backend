@@ -36,6 +36,12 @@ from app.models.user_verification import (
     UserIdDocType, UserVerification, UserVerificationStatus,
 )
 from app.models.trip_post import TripPost, TripVerdict
+from app.models.platform_setting import PlatformSetting
+from app.models.feature_flag import (
+    FeatureFlag, FeatureFlagAssignment, FlagKind,
+)
+from app.models.api_key import ApiKey
+from app.models.promo_banner import BannerCtaKind, PromoBanner
 
 __all__ = [
     "User",
@@ -88,4 +94,11 @@ __all__ = [
     "UserVerificationStatus",
     "TripPost",
     "TripVerdict",
+    "PlatformSetting",
+    "FeatureFlag",
+    "FeatureFlagAssignment",
+    "FlagKind",
+    "ApiKey",
+    "PromoBanner",
+    "BannerCtaKind",
 ]
