@@ -17,6 +17,7 @@ import structlog
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import get_settings
 from app.models.phone_otp import (
     MAX_VERIFY_ATTEMPTS,
     OTP_TTL_SECONDS,
@@ -26,6 +27,7 @@ from app.models.user import User
 from app.services import waapi_service
 
 logger = structlog.get_logger(__name__)
+_settings = get_settings()
 
 
 # ── public helpers ───────────────────────────────────────────
