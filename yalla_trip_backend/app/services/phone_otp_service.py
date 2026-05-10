@@ -13,21 +13,19 @@ import secrets
 import re
 from datetime import datetime, timedelta, timezone
 
-import httpx
 import structlog
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import get_settings
 from app.models.phone_otp import (
     MAX_VERIFY_ATTEMPTS,
     OTP_TTL_SECONDS,
     PhoneOtp,
 )
 from app.models.user import User
+from app.services import waapi_service
 
 logger = structlog.get_logger(__name__)
-_settings = get_settings()
 
 
 # ── public helpers ───────────────────────────────────────────
@@ -66,56 +64,12 @@ def _generate_code() -> str:
     return f"{secrets.randbelow(1_000_000):06d}"
 
 
-# ── OTP delivery via WaAPI (wapilot) ─────────────────────────
-
-async def _send_whatsapp_otp(phone: str, code: str) -> bool:
-    """Send OTP via WaAPI (wapilot) gateway.  Returns True on success."""
-    token = _settings.WAPILOT_API_TOKEN
-    instance = _settings.WAPILOT_INSTANCE_ID
-
-    if not token or not instance:
-        return False
-
-    # WaAPI chatId format: {country_code}{number}@c.us  (no leading +)
-    chat_id = phone.lstrip("+") + "@c.us"
-    url = f"https://waapi.app/api/v1/instances/{instance}/client/action/send-message"
-
-    payload = {
-        "chatId": chat_id,
-        "message": f"كود التحقق الخاص بك في طلعة: *{code}*\n\nلا تشارك هذا الكود مع أي شخص.",
-    }
-
-    try:
-        async with httpx.AsyncClient(timeout=15) as client:
-            resp = await client.post(
-                url,
-                json=payload,
-                headers={
-                    "Authorization": f"Bearer {token}",
-                    "Accept": "application/json",
-                    "Content-Type": "application/json",
-                },
-            )
-        if resp.status_code < 300:
-            logger.info("whatsapp_otp_sent", phone=phone, instance=instance)
-            return True
-        logger.error(
-            "whatsapp_otp_failed",
-            phone=phone,
-            status=resp.status_code,
-            body=resp.text[:500],
-        )
-        return False
-    except Exception as exc:
-        logger.error("whatsapp_otp_error", phone=phone, error=str(exc))
-        return False
-
+# ── OTP delivery ─────────────────────────────────────────────
 
 async def _send_otp(phone: str, code: str) -> None:
-    """Deliver OTP via WhatsApp (WaAPI), with log fallback for dev."""
-    sent = await _send_whatsapp_otp(phone, code)
+    """Deliver OTP via WhatsApp (WAapi), with log fallback for dev."""
+    sent = await waapi_service.send_otp(phone, code)
     if not sent:
-        # Fallback: log to console (dev convenience)
         logger.info("phone_otp_sent_log_fallback", phone=phone, code=code)
 
 

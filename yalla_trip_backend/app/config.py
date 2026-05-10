@@ -92,9 +92,14 @@ class Settings(BaseSettings):
     # old trust-the-client behaviour.
     ALLOW_UNVERIFIED_WALLET_TOPUP: bool = False
 
-    # ── WaAPI / wapilot (WhatsApp OTP delivery) ─────────────
-    # WaAPI gateway credentials.  Leave blank to fall back to
-    # logging the OTP code (dev / CI convenience).
+    # ── WAapi (waapi.app) – WhatsApp OTP delivery ────────────
+    # Preferred names — copy these from the waapi.app dashboard.
+    # Leave blank to fall back to console logging (dev / CI).
+    WAAPI_TOKEN: str = ""
+    WAAPI_INSTANCE_ID: str = ""
+    # Legacy names kept for backward-compatibility with existing .env files.
+    # If WAAPI_TOKEN / WAAPI_INSTANCE_ID are empty they are auto-populated
+    # from these by _migrate_wapilot_vars below.
     WAPILOT_API_TOKEN: str = ""
     WAPILOT_INSTANCE_ID: str = ""
     # Fixed test code accepted alongside the real code.  Handy
@@ -195,6 +200,15 @@ class Settings(BaseSettings):
             for e in self.ADMIN_EMAILS.split(",")
             if e.strip()
         }
+
+    # ── WAapi backward-compat migration ─────────────────────
+    @model_validator(mode="after")
+    def _migrate_wapilot_vars(self) -> "Settings":
+        if not self.WAAPI_TOKEN and self.WAPILOT_API_TOKEN:
+            self.WAAPI_TOKEN = self.WAPILOT_API_TOKEN
+        if not self.WAAPI_INSTANCE_ID and self.WAPILOT_INSTANCE_ID:
+            self.WAAPI_INSTANCE_ID = self.WAPILOT_INSTANCE_ID
+        return self
 
     # ── Local-dev fallbacks ──────────────────────────────────
     # When DATABASE_URL / REDIS_URL are empty (no env var, no .env
