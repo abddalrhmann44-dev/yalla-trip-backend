@@ -270,12 +270,24 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
                             color: Colors.white54, size: 80))
                     : PageView.builder(
                         controller: _imgCtrl,
-                        // ClampingScrollPhysics so the horizontal
-                        // drag wins the gesture arena against the
-                        // outer CustomScrollView (the iOS-default
-                        // BouncingScrollPhysics makes the outer
-                        // sliver "win" too eagerly on tall lists).
-                        physics: const ClampingScrollPhysics(),
+                        // Wave 30 fix — was ``ClampingScrollPhysics``,
+                        // which cancels the PageView's natural
+                        // page-snapping.  After the one-time
+                        // gallery hint auto-advanced to image #2,
+                        // subsequent swipes felt "stuck" because the
+                        // physics had no snap-to-page behavior and
+                        // the outer CustomScrollView kept winning
+                        // the gesture arena.
+                        //
+                        // ``PageScrollPhysics`` is the correct base
+                        // for carousels; ``parent: Clamping…`` keeps
+                        // the anti-BouncingScroll fix that let the
+                        // horizontal drag beat the vertical sliver.
+                        physics: const PageScrollPhysics(
+                          parent: ClampingScrollPhysics(),
+                        ),
+                        pageSnapping: true,
+                        allowImplicitScrolling: true,
                         onPageChanged: (i) => setState(() => _imgIndex = i),
                         itemCount: p.images.length,
                         itemBuilder: (_, i) => GestureDetector(
