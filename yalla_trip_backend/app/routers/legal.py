@@ -37,7 +37,7 @@ from fastapi.responses import HTMLResponse
 router = APIRouter(prefix="/legal", tags=["legal"])
 
 # ── Brand contact (mirrors lib/utils/brand_contact.dart) ──────
-SUPPORT_EMAIL = "support@talaa-trip.com"
+SUPPORT_EMAIL = "talaa.support@gmail.com"
 SUPPORT_PHONE = "+201070771908"
 WHATSAPP_URL = "https://wa.me/201070771908"
 LAST_UPDATED_AR = "آخر تحديث: مايو 2026"

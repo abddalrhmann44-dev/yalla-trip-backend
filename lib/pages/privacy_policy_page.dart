@@ -163,7 +163,7 @@ const _sections = <PolicySection>[
       'الاعتراض: رفض المعالجة لأغراض التسويق أو التحليلات.',
       'سحب الموافقة: في أي وقت ودون أن يؤثر ذلك على شرعية المعالجة السابقة.',
       'تقديم شكوى: للمركز الوطني المصري لحماية البيانات الشخصية.',
-      'لتنفيذ أي حق من هذه الحقوق، أرسل طلباً إلى support@talaa-trip.com — نرد خلال 30 يوماً كحد أقصى.',
+      'لتنفيذ أي حق من هذه الحقوق، أرسل طلباً إلى talaa.support@gmail.com — نرد خلال 30 يوماً كحد أقصى.',
     ],
     itemsEn: [
       'Access: receive a copy of the data we hold about you.',
@@ -173,7 +173,7 @@ const _sections = <PolicySection>[
       'Objection: refuse processing for marketing or analytics purposes.',
       'Withdraw consent: at any time, without affecting the legality of prior processing.',
       'File a complaint: with the Egyptian Personal Data Protection Centre.',
-      'To exercise any of these rights, send a request to support@talaa-trip.com — we respond within 30 days maximum.',
+      'To exercise any of these rights, send a request to talaa.support@gmail.com — we respond within 30 days maximum.',
     ],
   ),
 

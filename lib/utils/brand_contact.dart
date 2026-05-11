@@ -11,7 +11,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 class BrandContact {
   // Plain values (use in code).
-  static const String email = 'support@talaa-trip.com';
+  static const String email = 'talaa.support@gmail.com';
   static const String phone = '+201070771908';
 
   // Display form — `\u200e` (LEFT-TO-RIGHT MARK) forces phone digits
