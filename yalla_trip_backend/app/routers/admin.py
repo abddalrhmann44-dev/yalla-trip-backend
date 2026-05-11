@@ -2155,10 +2155,151 @@ class _ChatMessageRow(BaseModel):
     created_at: datetime
 
 
+class _ChatConversationRow(BaseModel):
+    """One row in the admin chat-monitor conversation list.
+
+    Aggregates per-conversation metadata so the moderator can pick a
+    specific thread to read instead of scrolling a flat firehose.
+    """
+
+    id: int
+    guest_id: int
+    guest_name: str | None = None
+    owner_id: int
+    owner_name: str | None = None
+    property_id: int | None = None
+    property_name: str | None = None
+    status: str
+    last_message_at: datetime | None = None
+    last_message_preview: str | None = None
+    message_count: int
+    flagged_count: int
+    hidden_count: int
+
+
+@router.get(
+    "/chat/conversations",
+    response_model=list[_ChatConversationRow],
+)
+async def list_chat_conversations(
+    flagged_only: bool = Query(
+        False,
+        description="Only conversations that contain at least one flagged message.",
+    ),
+    hidden_only: bool = Query(
+        False,
+        description="Only conversations that contain at least one hidden message.",
+    ),
+    limit: int = Query(100, ge=1, le=500),
+    _: User = Depends(_admin_only),
+    db: AsyncSession = Depends(get_db),
+):
+    """List conversations with moderation aggregates so the admin can
+    pick a single thread to inspect.  Sorted by ``last_message_at``
+    descending (most recently active first)."""
+
+    # Aggregate per-conversation message counts.
+    agg_q = (
+        select(
+            Message.conversation_id.label("cid"),
+            func.count(Message.id).label("total"),
+            func.sum(
+                func.cast(Message.is_flagged, Integer)
+            ).label("flagged"),
+            func.sum(
+                func.cast(Message.is_hidden, Integer)
+            ).label("hidden"),
+        )
+        .group_by(Message.conversation_id)
+    )
+    agg_rows = (await db.execute(agg_q)).all()
+    agg_map: dict[int, tuple[int, int, int]] = {
+        int(r.cid): (
+            int(r.total or 0),
+            int(r.flagged or 0),
+            int(r.hidden or 0),
+        )
+        for r in agg_rows
+    }
+
+    # Pick the conversation IDs that pass the filter.
+    if flagged_only:
+        candidate_ids = {
+            cid for cid, (_, f, _h) in agg_map.items() if f > 0
+        }
+    elif hidden_only:
+        candidate_ids = {
+            cid for cid, (_, _f, h) in agg_map.items() if h > 0
+        }
+    else:
+        candidate_ids = None  # no filter
+
+    q = select(Conversation).order_by(
+        Conversation.last_message_at.desc().nullslast(),
+        Conversation.id.desc(),
+    )
+    if candidate_ids is not None:
+        if not candidate_ids:
+            return []
+        q = q.where(Conversation.id.in_(candidate_ids))
+    q = q.limit(limit)
+    convs = (await db.execute(q)).scalars().all()
+
+    # Resolve guest/owner names with one extra query.
+    user_ids: set[int] = set()
+    for c in convs:
+        user_ids.add(c.guest_id)
+        user_ids.add(c.owner_id)
+    name_map: dict[int, str] = {}
+    if user_ids:
+        urows = (await db.execute(
+            select(User.id, User.name).where(User.id.in_(user_ids))
+        )).all()
+        name_map = {int(uid): (n or "") for uid, n in urows}
+
+    # Resolve property names.
+    prop_ids = {c.property_id for c in convs if c.property_id is not None}
+    prop_map: dict[int, str] = {}
+    if prop_ids:
+        prows = (await db.execute(
+            select(Property.id, Property.name).where(
+                Property.id.in_(prop_ids)
+            )
+        )).all()
+        prop_map = {int(pid): (n or "") for pid, n in prows}
+
+    out: list[_ChatConversationRow] = []
+    for c in convs:
+        total, flagged, hidden = agg_map.get(c.id, (0, 0, 0))
+        out.append(_ChatConversationRow(
+            id=c.id,
+            guest_id=c.guest_id,
+            guest_name=name_map.get(c.guest_id),
+            owner_id=c.owner_id,
+            owner_name=name_map.get(c.owner_id),
+            property_id=c.property_id,
+            property_name=(
+                prop_map.get(c.property_id)
+                if c.property_id is not None else None
+            ),
+            status=(
+                c.status.value
+                if hasattr(c.status, "value") else str(c.status)
+            ),
+            last_message_at=c.last_message_at,
+            last_message_preview=c.last_message_preview,
+            message_count=total,
+            flagged_count=flagged,
+            hidden_count=hidden,
+        ))
+    return out
+
+
 @router.get("/chat/messages", response_model=list[_ChatMessageRow])
 async def list_chat_messages(
     flagged_only: bool = Query(False),
     hidden_only: bool = Query(False),
+    conversation_id: int | None = Query(None),
     limit: int = Query(100, ge=1, le=500),
     _: User = Depends(_admin_only),
     db: AsyncSession = Depends(get_db),
@@ -2167,9 +2308,20 @@ async def list_chat_messages(
 
     Defaults to "newest first" with no filter so the admin can scroll
     a unified feed.  Toggle ``flagged_only=true`` to drain the auto-
-    flagged queue.
+    flagged queue.  Pass ``conversation_id`` to drill into a single
+    chat thread (returned in chronological order so the admin can read
+    the conversation top-to-bottom).
     """
-    q = select(Message).order_by(Message.created_at.desc()).limit(limit)
+    if conversation_id is not None:
+        # Chronological for single-thread inspection.
+        q = (
+            select(Message)
+            .where(Message.conversation_id == conversation_id)
+            .order_by(Message.created_at.asc())
+            .limit(limit)
+        )
+    else:
+        q = select(Message).order_by(Message.created_at.desc()).limit(limit)
     if flagged_only:
         q = q.where(Message.is_flagged.is_(True))
     if hidden_only:

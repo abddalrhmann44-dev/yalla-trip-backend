@@ -131,18 +131,40 @@ class Settings(BaseSettings):
     # the guest a window to dispute before money leaves the platform.
     PAYOUT_HOLD_DAYS: int = 1
 
-    # ── Disbursement (Wave 26) ────────────────────────────────
-    # ``mock`` runs an in-process simulator so dev / CI exercise the
-    # full state machine without burning real money.  Flip to
-    # ``kashier`` once the contract is signed and the credentials
-    # below are populated.
+    # ── Disbursement (Wave 26 / 31) ──────────────────────────
+    # Picks which gateway moves money OUT to hosts.  Valid values:
+    #   * ``mock``    — in-process simulator (dev / CI default)
+    #   * ``paymob``  — Paymob Payouts API (production)
+    #   * ``kashier`` — legacy alternative, kept for fallback
+    # ``mock`` exercises the full state machine without burning real
+    # money.  Flip to ``paymob`` once the Disbursement contract is
+    # signed and the credentials below are populated.
     DISBURSE_PROVIDER: str = "mock"
+
     # Kashier credentials — only used when DISBURSE_PROVIDER == "kashier".
     # Keep these out of the repo: load from Railway / docker secrets.
     KASHIER_DISBURSE_BASE_URL: str = "https://api.kashier.io"
     KASHIER_DISBURSE_MERCHANT_ID: str = ""
     KASHIER_DISBURSE_API_KEY: str = ""
     KASHIER_DISBURSE_SECRET: str = ""
+
+    # Paymob Payouts — only used when DISBURSE_PROVIDER == "paymob".
+    # The Disbursement product is a separate Paymob contract from
+    # Accept (collection); credentials are issued independently so
+    # we keep them on dedicated env vars.  Fall back to the shared
+    # PAYMOB_API_KEY / PAYMOB_HMAC_SECRET when the dedicated values
+    # are blank — useful for early sandbox testing when Paymob lets
+    # both products share one merchant key.
+    PAYMOB_DISBURSE_BASE_URL: str = "https://accept.paymob.com/api"
+    PAYMOB_DISBURSE_API_KEY: str = ""        # falls back to PAYMOB_API_KEY
+    PAYMOB_DISBURSE_HMAC_SECRET: str = ""    # falls back to PAYMOB_HMAC_SECRET
+    # Paymob Disbursement has separate integration ids per channel
+    # (IBAN / wallet / InstaPay).  At least one must be set; channels
+    # without an id will be refused by ``initiate`` with a friendly
+    # admin-facing error.
+    PAYMOB_DISBURSE_INTEGRATION_IBAN: str = ""
+    PAYMOB_DISBURSE_INTEGRATION_WALLET: str = ""
+    PAYMOB_DISBURSE_INTEGRATION_INSTAPAY: str = ""
     # 48 h is the SLA Kashier publishes for IBAN transfers.  After
     # this many hours in ``processing`` the reconciliation cron will
     # poll the gateway and (eventually) flag the payout for admin

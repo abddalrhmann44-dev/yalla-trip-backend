@@ -31,6 +31,7 @@ from app.routers import (
     devices,
     favorites,
     health,
+    legal,
     notifications,
     offers,
     payments,
@@ -227,4 +228,5 @@ app.include_router(chat.router)
 app.include_router(phone_otp.router)
 app.include_router(health.router)
 app.include_router(seo.router)
+app.include_router(legal.router)
 app.include_router(trip_posts.router)

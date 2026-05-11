@@ -5,7 +5,6 @@
 // ═══════════════════════════════════════════════════════════════
 
 import 'dart:io';
-import '../main.dart' show userProvider;
 import '../models/property_model_api.dart';
 import '../services/user_role_service.dart';
 import '../services/property_service.dart';
@@ -17,7 +16,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../widgets/constants.dart';
 import 'home_page.dart';
-import 'phone_verification_page.dart';
 
 const _kOcean  = Color(0xFFFF6B35);
 const _kOrange = Color(0xFFFF6D00);
@@ -591,24 +589,10 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
 
   // ── Publish ─────────────────────────────────────────────────
   Future<void> _publish() async {
-    // Wave 23: owner must have a verified phone before their listing
-    // can receive chat / bookings.  Intercept the publish flow and
-    // route them through the OTP page if needed.
-    if (!userProvider.phoneVerified) {
-      final ok = await Navigator.of(context).push<bool>(
-        MaterialPageRoute(
-          builder: (_) => PhoneVerificationPage(
-            initialPhone: userProvider.phone.isNotEmpty
-                ? userProvider.phone
-                : null,
-            reasonAr:
-                'لازم توثّق رقم موبايلك قبل نشر عقارك عشان الضيوف يقدروا يتواصلوا معاك بعد تأكيد الحجز.',
-          ),
-        ),
-      );
-      if (ok != true) return; // user backed out — don't publish
-      await userProvider.loadProfile(force: true);
-    }
+    // Wave 31: phone verification is no longer a precondition for
+    // publishing.  Owners can list right after Google sign-in; phone
+    // can still be added later from the profile page if they want
+    // bookings/chat to surface their number to confirmed guests.
 
     setState(() => _isPublishing = true);
     try {

@@ -148,16 +148,11 @@ async def create_conversation(
                 "Chat-based pricing is only available for chalets and boats"
             ),
         )
-    # ── Owner must have confirmed their phone so the guest can ──
-    # ── reach them once the booking is confirmed. ──────────────
-    if not prop.owner.phone_verified:
-        raise HTTPException(
-            status_code=409,
-            detail=(
-                "يجب على المالك توثيق رقم الموبايل قبل استقبال رسائل / "
-                "Owner phone not verified yet"
-            ),
-        )
+    # Wave 31: removed the owner-phone-verified precondition.  All
+    # negotiation happens inside the in-app chat now, so the guest
+    # never needs the owner's phone number to start a conversation.
+    # Owners can still optionally verify a phone from the profile —
+    # but it is no longer a prerequisite for receiving messages.
 
     # ── look up existing conversation for the same trip window ──
     existing = (

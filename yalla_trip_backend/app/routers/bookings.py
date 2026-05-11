@@ -571,9 +571,14 @@ async def booking_contact(
     other = await db.get(User, other_id)
     if other is None:
         raise HTTPException(status_code=404, detail="User not found")
+    # Wave 31: stopped gating phone disclosure on ``phone_verified``.
+    # Phone is no longer a required identity field anywhere in the
+    # app, so we share whatever the user has saved on their profile
+    # (or ``None`` if they never added one — in that case the guest
+    # reaches them via the in-app chat).
     return _BookingContactOut(
         name=other.name,
-        phone=other.phone if other.phone_verified else None,
+        phone=other.phone or None,
         role=role,
     )
 

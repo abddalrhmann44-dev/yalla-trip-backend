@@ -1,9 +1,9 @@
 """Disburse gateway selection.
 
-A single env var, ``DISBURSE_PROVIDER``, picks between mock and
-Kashier.  The function memo-caches one instance per provider so we
-don't re-validate Kashier credentials on every payout — those live
-for the lifetime of the worker process.
+A single env var, ``DISBURSE_PROVIDER``, picks between mock, Paymob
+and Kashier.  The function memo-caches one instance per provider so
+we don't re-validate credentials on every payout — those live for
+the lifetime of the worker process.
 
 We keep the helper async-friendly (``await get_disburse_gateway()``)
 even though the lookup itself is sync, so any future provider that
@@ -19,6 +19,7 @@ from app.config import get_settings
 from app.services.disburse.base import DisburseGateway
 from app.services.disburse.kashier import KashierDisburseGateway
 from app.services.disburse.mock import MockDisburseGateway
+from app.services.disburse.paymob import PaymobDisburseGateway
 
 logger = structlog.get_logger(__name__)
 settings = get_settings()
@@ -34,7 +35,9 @@ def get_disburse_gateway() -> DisburseGateway:
         return _cache[provider]
 
     gateway: DisburseGateway
-    if provider == "kashier":
+    if provider == "paymob":
+        gateway = PaymobDisburseGateway()
+    elif provider == "kashier":
         gateway = KashierDisburseGateway()
     elif provider == "mock":
         gateway = MockDisburseGateway()

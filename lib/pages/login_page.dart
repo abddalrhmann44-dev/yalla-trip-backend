@@ -1,7 +1,16 @@
 // ═══════════════════════════════════════════════════════════════
 //  TALAA — Login Page  (Airbnb-minimal redesign)
-//  Phone-first authentication. Opened on-demand from HomePage.
-//  White background, no hero image, no logo — pure typographic UI.
+//  Wave 31 — Google-only authentication. Opened on-demand from
+//  HomePage.  White background, no hero image, no logo — pure
+//  typographic UI.
+//
+//  History: prior to Wave 31 this page also hosted phone-number
+//  entry + WhatsApp / Firebase OTP fallbacks.  We removed that path
+//  because (a) Egyptian SMS deliverability was unreliable through
+//  Firebase Phone Auth and (b) Paymob KYC already verifies phone at
+//  the host onboarding step, so the login-side OTP was redundant.
+//  The OtpPage and PhoneVerificationPage widgets remain in the repo
+//  for owner-side phone verification (still optional from profile).
 // ═══════════════════════════════════════════════════════════════
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -13,30 +22,15 @@ import '../services/auth_service.dart';
 import '../utils/app_strings.dart';
 import '../main.dart' show appSettings;
 import 'home_page.dart';
-import 'otp_page.dart';
 import 'register_page.dart';
-
-// ── Phone-auth provider toggle ───────────────────────────────
-// We've swapped the public sign-in flow over to the in-house
-// WhatsApp OTP service (WaAPI).  Set this to ``true`` only if you
-// need to fall back to the legacy Firebase Phone Auth path while
-// debugging — production should always be on WhatsApp.
-const bool _kUseFirebasePhoneAuth = false;
 
 // ── Design tokens ────────────────────────────────────────────
 class _T {
   static const primary = Color(0xFFFF6B35); // sunset orange
   static const navy = Color(0xFF0A1F44);
   static const muted = Color(0xFF64748B);
-  static const soft = Color(0xFF94A3B8);
   static const border = Color(0xFFE2E8F0);
   static const error = Color(0xFFDC2626);
-
-  static const ctaGradient = LinearGradient(
-    begin: Alignment.centerLeft,
-    end: Alignment.centerRight,
-    colors: [Color(0xFFFF6B35), Color(0xFFFF8A3D)],
-  );
 }
 
 class LoginPage extends StatefulWidget {
@@ -46,26 +40,9 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
-  final _phoneCtrl = TextEditingController();
   bool _loading = false;
 
-  String _countryCode = '+20';
-  String _countryFlag = '🇪🇬';
-  String _countryName = 'Egypt';
-
   final _auth = FirebaseAuth.instance;
-
-  static const _countries = [
-    {'flag': '🇪🇬', 'name': 'Egypt', 'code': '+20'},
-    {'flag': '🇸🇦', 'name': 'Saudi Arabia', 'code': '+966'},
-    {'flag': '🇦🇪', 'name': 'UAE', 'code': '+971'},
-    {'flag': '🇰🇼', 'name': 'Kuwait', 'code': '+965'},
-    {'flag': '🇶🇦', 'name': 'Qatar', 'code': '+974'},
-    {'flag': '🇯🇴', 'name': 'Jordan', 'code': '+962'},
-    {'flag': '🇱🇧', 'name': 'Lebanon', 'code': '+961'},
-    {'flag': '🇬🇧', 'name': 'UK', 'code': '+44'},
-    {'flag': '🇺🇸', 'name': 'USA', 'code': '+1'},
-  ];
 
   @override
   void initState() {
@@ -76,156 +53,9 @@ class _LoginPageState extends State<LoginPage> {
     ));
   }
 
-  @override
-  void dispose() {
-    _phoneCtrl.dispose();
-    super.dispose();
-  }
-
   // ══════════════════════════════════════════════════════════════
   //  ACTIONS
   // ══════════════════════════════════════════════════════════════
-  Future<void> _continue() async {
-    final raw = _phoneCtrl.text.trim();
-    if (raw.length < 6) {
-      _showError('أدخل رقم هاتف صحيح');
-      return;
-    }
-    setState(() => _loading = true);
-    final local = raw.startsWith('0') ? raw.substring(1) : raw;
-    final full = '$_countryCode$local';
-
-    if (_kUseFirebasePhoneAuth) {
-      await _continueFirebasePhone(full);
-    } else {
-      await _continueWhatsappOtp(full);
-    }
-  }
-
-  /// New default — request a WhatsApp OTP from our backend (WaAPI)
-  /// and hand off to [OtpPage] which now drives the verify call.
-  Future<void> _continueWhatsappOtp(String phone) async {
-    debugPrint('[WA-OTP] start-otp → $phone');
-    final err = await AuthService.startWhatsappOtp(phone);
-    if (!mounted) return;
-    setState(() => _loading = false);
-    if (err != null) {
-      _showError(err);
-      return;
-    }
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => OtpPage(
-          phoneNumber: phone,
-          // WhatsApp flow doesn't use a Firebase verification id;
-          // pass an empty placeholder so the existing constructor
-          // stays source-compatible.
-          verificationId: '',
-        ),
-      ),
-    );
-  }
-
-  /// Legacy Firebase Phone Auth path — kept behind the
-  /// [_kUseFirebasePhoneAuth] flag for emergency fallback only.
-  Future<void> _continueFirebasePhone(String full) async {
-    debugPrint('[OTP] verifyPhoneNumber → $full');
-    try {
-      await _auth.verifyPhoneNumber(
-        phoneNumber: full,
-        timeout: const Duration(seconds: 60),
-        codeSent: (verId, token) {
-          debugPrint('[OTP] codeSent — verificationId=$verId');
-          if (!mounted) return;
-          setState(() => _loading = false);
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => OtpPage(
-                phoneNumber: full,
-                verificationId: verId,
-                resendToken: token,
-              ),
-            ),
-          );
-        },
-        verificationCompleted: (cred) async {
-          debugPrint('[OTP] verificationCompleted (auto-verified)');
-          final result = await _auth.signInWithCredential(cred);
-          await _afterAuth(result);
-        },
-        verificationFailed: (e) {
-          debugPrint('[OTP] verificationFailed: '
-              'code=${e.code}  message=${e.message}');
-          if (!mounted) return;
-          setState(() => _loading = false);
-          _showError(_phoneAuthErrorMsg(e));
-        },
-        codeAutoRetrievalTimeout: (_) {},
-      );
-    } catch (e, st) {
-      debugPrint('[OTP] verifyPhoneNumber threw: $e\n$st');
-      if (!mounted) return;
-      setState(() => _loading = false);
-      _showError(kDebugMode ? 'خطأ: $e' : 'حدث خطأ، حاول مرة أخرى');
-    }
-  }
-
-  /// Human-friendly Arabic message for every Firebase phone-auth error
-  /// code we expect to see. In debug we append the raw code so you can
-  /// copy it from the SnackBar straight into search / bug reports.
-  String _phoneAuthErrorMsg(FirebaseAuthException e) {
-    // Firebase sometimes returns `unknown` / `internal-error` with the real
-    // reason buried in the message. Surface known Android-specific cases.
-    final rawMsg = e.message ?? '';
-    if (rawMsg.contains('BILLING_NOT_ENABLED')) {
-      return 'Firebase يطلب تفعيل Blaze plan لإرسال OTP.\n'
-          'للتجربة: Firebase Console → Authentication → '
-          'Phone → Phone numbers for testing';
-    }
-    if (rawMsg.contains('PLAY_INTEGRITY')) {
-      return 'فشل التحقق من Play Integrity — جرّب على جهاز حقيقي أو '
-          'أضف SHA-256 في Firebase';
-    }
-
-    String base;
-    switch (e.code) {
-      case 'invalid-phone-number':
-        base = 'رقم الهاتف غير صحيح';
-        break;
-      case 'too-many-requests':
-      case 'quota-exceeded':
-        base = 'تم تجاوز عدد الرسائل المسموح بها اليوم، جرّب بكرة';
-        break;
-      case 'billing-not-enabled':
-        base = 'Firebase يطلب تفعيل Blaze plan لإرسال OTP. '
-            'للتجربة استخدم رقم اختبار من Firebase Console';
-        break;
-      case 'app-not-authorized':
-      case 'missing-client-identifier':
-        base = 'التطبيق غير مصرح له — تأكد من SHA-1/SHA-256 في Firebase';
-        break;
-      case 'captcha-check-failed':
-      case 'web-context-cancelled':
-      case 'web-context-already-presented':
-        base = 'فشل التحقق من reCAPTCHA، حاول مرة أخرى';
-        break;
-      case 'network-request-failed':
-        base = 'لا يوجد اتصال بالإنترنت';
-        break;
-      case 'operation-not-allowed':
-        base = 'تسجيل الدخول بالهاتف غير مفعّل في Firebase Console';
-        break;
-      default:
-        base = 'حدث خطأ، حاول مرة أخرى';
-    }
-    if (kDebugMode) {
-      return '$base\n[${e.code}] ${e.message ?? ''}';
-    }
-    return base;
-  }
-
   Future<void> _googleSignIn() async {
     setState(() => _loading = true);
     try {
@@ -314,66 +144,6 @@ class _LoginPageState extends State<LoginPage> {
       ));
   }
 
-  void _showCountryPicker() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (_) => Container(
-        height: MediaQuery.of(context).size.height * 0.55,
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        child: Column(children: [
-          Container(
-            margin: const EdgeInsets.only(top: 12),
-            width: 40,
-            height: 4,
-            decoration: BoxDecoration(
-                color: Colors.grey.shade200,
-                borderRadius: BorderRadius.circular(2)),
-          ),
-          const Padding(
-            padding: EdgeInsets.all(20),
-            child: Text('اختر الدولة',
-                style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
-                    color: _T.navy)),
-          ),
-          Expanded(
-              child: ListView.builder(
-            itemCount: _countries.length,
-            itemBuilder: (ctx, i) {
-              final c = _countries[i];
-              final sel = c['code'] == _countryCode;
-              return ListTile(
-                leading: Text(c['flag']!, style: const TextStyle(fontSize: 24)),
-                title: Text('${c['name']} (${c['code']})',
-                    style: TextStyle(
-                        fontWeight: sel ? FontWeight.w800 : FontWeight.w500,
-                        color: sel ? _T.primary : _T.navy)),
-                trailing: sel
-                    ? const Icon(Icons.check_circle_rounded,
-                        color: _T.primary)
-                    : null,
-                onTap: () {
-                  setState(() {
-                    _countryCode = c['code']!;
-                    _countryFlag = c['flag']!;
-                    _countryName = c['name']!;
-                  });
-                  Navigator.pop(context);
-                },
-              );
-            },
-          )),
-        ]),
-      ),
-    );
-  }
-
   // ══════════════════════════════════════════════════════════════
   //  BUILD
   // ══════════════════════════════════════════════════════════════
@@ -412,7 +182,7 @@ class _LoginPageState extends State<LoginPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 48),
                   // Title block (centered, Airbnb-like)
                   Text(
                     S.loginTitle,
@@ -435,53 +205,27 @@ class _LoginPageState extends State<LoginPage> {
                       height: 1.4,
                     ),
                   ),
-                  const SizedBox(height: 28),
+                  const SizedBox(height: 48),
 
-                  // Phone input with country selector
-                  _PhoneInput(
-                    flag: _countryFlag,
-                    code: _countryCode,
-                    name: _countryName,
-                    ctrl: _phoneCtrl,
-                    onPickCountry: _showCountryPicker,
+                  // Primary CTA — Continue with Google.
+                  // Branded white card per Google's identity
+                  // guidelines (multi-coloured G + neutral chrome).
+                  _GooglePrimaryBtn(
+                    label: S.continueWithGoogle,
+                    loading: _loading,
+                    onTap: _googleSignIn,
                   ),
 
                   const SizedBox(height: 16),
 
-                  // Primary Continue button (orange gradient)
-                  _PrimaryBtn(
-                    label: S.continueBtn,
-                    loading: _loading,
-                    onTap: _continue,
-                  ),
-
-                  const SizedBox(height: 12),
-
                   Text(
-                    S.smsHint,
+                    S.loginTermsHint,
                     textAlign: TextAlign.center,
                     style: const TextStyle(
                       fontSize: 12,
                       color: _T.muted,
                       height: 1.5,
                     ),
-                  ),
-
-                  const SizedBox(height: 28),
-
-                  _OrDivider(label: S.orWith),
-
-                  const SizedBox(height: 20),
-
-                  // Social row — small square buttons (like Airbnb)
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      _SocialSquare(
-                        onTap: _loading ? null : _googleSignIn,
-                        child: const _GoogleG(size: 22),
-                      ),
-                    ],
                   ),
 
                   const SizedBox(height: 24),
@@ -551,116 +295,18 @@ class _IconBtn extends StatelessWidget {
       );
 }
 
-/// Phone number input with attached country picker (Airbnb-style rounded
-/// rectangle split into two cells).
-class _PhoneInput extends StatefulWidget {
-  final String flag;
-  final String code;
-  final String name;
-  final TextEditingController ctrl;
-  final VoidCallback onPickCountry;
-  const _PhoneInput({
-    required this.flag,
-    required this.code,
-    required this.name,
-    required this.ctrl,
-    required this.onPickCountry,
-  });
-
-  @override
-  State<_PhoneInput> createState() => _PhoneInputState();
-}
-
-class _PhoneInputState extends State<_PhoneInput> {
-  final _focus = FocusNode();
-  bool _isFocused = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _focus.addListener(() => setState(() => _isFocused = _focus.hasFocus));
-  }
-
-  @override
-  void dispose() {
-    _focus.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) => AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: _isFocused ? _T.navy : _T.border,
-            width: _isFocused ? 1.6 : 1,
-          ),
-        ),
-        child: Row(children: [
-          // Country cell
-          InkWell(
-            onTap: widget.onPickCountry,
-            borderRadius: const BorderRadius.horizontal(
-                left: Radius.circular(12)),
-            child: Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 14, vertical: 18),
-              child: Row(mainAxisSize: MainAxisSize.min, children: [
-                Text(widget.flag, style: const TextStyle(fontSize: 18)),
-                const SizedBox(width: 6),
-                Text(widget.code,
-                    style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                        color: _T.navy)),
-                const SizedBox(width: 2),
-                const Icon(Icons.keyboard_arrow_down_rounded,
-                    size: 18, color: _T.muted),
-              ]),
-            ),
-          ),
-          // Vertical separator
-          Container(width: 1, height: 30, color: _T.border),
-          // Number cell
-          Expanded(
-            child: TextField(
-              controller: widget.ctrl,
-              focusNode: _focus,
-              keyboardType: TextInputType.phone,
-              inputFormatters: [
-                FilteringTextInputFormatter.digitsOnly,
-                LengthLimitingTextInputFormatter(11),
-              ],
-              cursorColor: _T.primary,
-              style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: _T.navy),
-              decoration: const InputDecoration(
-                hintText: 'رقم الهاتف',
-                hintStyle: TextStyle(
-                    color: _T.soft,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500),
-                border: InputBorder.none,
-                contentPadding:
-                    EdgeInsets.symmetric(horizontal: 14, vertical: 18),
-              ),
-            ),
-          ),
-        ]),
-      );
-}
-
-/// Primary full-width button with orange gradient & soft shadow.
-class _PrimaryBtn extends StatelessWidget {
+/// Primary CTA — full-width white button with the Google G icon
+/// and "Continue with Google" label.  Follows Google's brand
+/// guidelines (white surface, neutral border, multi-coloured G).
+class _GooglePrimaryBtn extends StatelessWidget {
   final String label;
   final bool loading;
   final VoidCallback onTap;
-  const _PrimaryBtn(
-      {required this.label, required this.loading, required this.onTap});
+  const _GooglePrimaryBtn({
+    required this.label,
+    required this.loading,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) => GestureDetector(
@@ -669,18 +315,16 @@ class _PrimaryBtn extends StatelessWidget {
           duration: const Duration(milliseconds: 180),
           height: 56,
           decoration: BoxDecoration(
-            gradient: loading ? null : _T.ctaGradient,
-            color: loading ? _T.primary.withValues(alpha: 0.6) : null,
+            color: Colors.white,
             borderRadius: BorderRadius.circular(14),
-            boxShadow: loading
-                ? []
-                : [
-                    BoxShadow(
-                      color: _T.primary.withValues(alpha: 0.32),
-                      blurRadius: 14,
-                      offset: const Offset(0, 6),
-                    ),
-                  ],
+            border: Border.all(color: _T.border, width: 1.4),
+            boxShadow: [
+              BoxShadow(
+                color: _T.navy.withValues(alpha: 0.06),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
           child: Center(
             child: loading
@@ -688,70 +332,24 @@ class _PrimaryBtn extends StatelessWidget {
                     width: 22,
                     height: 22,
                     child: CircularProgressIndicator(
-                        color: Colors.white, strokeWidth: 2.5),
+                        color: _T.primary, strokeWidth: 2.5),
                   )
-                : Text(
-                    label,
-                    style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w900,
-                        color: Colors.white,
-                        letterSpacing: -0.3),
+                : Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const _GoogleG(size: 22),
+                      const SizedBox(width: 12),
+                      Text(
+                        label,
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w800,
+                          color: _T.navy,
+                          letterSpacing: -0.2,
+                        ),
+                      ),
+                    ],
                   ),
-          ),
-        ),
-      );
-}
-
-/// Horizontal line divider with a centred "OR" label.
-class _OrDivider extends StatelessWidget {
-  final String label;
-  const _OrDivider({required this.label});
-  @override
-  Widget build(BuildContext context) => Row(children: [
-        const Expanded(child: Divider(color: _T.border, thickness: 1)),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14),
-          child: Text(label,
-              style: const TextStyle(
-                  fontSize: 12,
-                  color: _T.soft,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 1.5)),
-        ),
-        const Expanded(child: Divider(color: _T.border, thickness: 1)),
-      ]);
-}
-
-/// Small square social button (Google, Apple style).
-class _SocialSquare extends StatelessWidget {
-  final VoidCallback? onTap;
-  final Widget child;
-  const _SocialSquare({required this.onTap, required this.child});
-
-  @override
-  Widget build(BuildContext context) => GestureDetector(
-        onTap: onTap,
-        child: AnimatedOpacity(
-          duration: const Duration(milliseconds: 150),
-          opacity: onTap == null ? 0.5 : 1,
-          child: Container(
-            width: 64,
-            height: 64,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: _T.border, width: 1),
-              boxShadow: [
-                BoxShadow(
-                  color: _T.navy.withValues(alpha: 0.04),
-                  blurRadius: 4,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            alignment: Alignment.center,
-            child: child,
           ),
         ),
       );

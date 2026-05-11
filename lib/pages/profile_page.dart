@@ -26,8 +26,12 @@ import '../main.dart' show appSettings, userProvider, favoritesProvider;
 import '../utils/app_strings.dart';
 import '../utils/auth_guard.dart';
 import '../widgets/verified_badge.dart';
-import 'terms_page.dart';
+import 'about_us_page.dart';
+import 'contact_us_page.dart';
 import 'phone_verification_page.dart';
+import 'privacy_policy_page.dart';
+import 'refund_policy_page.dart';
+import 'terms_page.dart';
 
 // Accent colors (same in light & dark) — unified brand orange.
 const _kOrange = Color(0xFFFF6B35);
@@ -1068,12 +1072,39 @@ class _ProfilePageState extends State<ProfilePage> {
         const SizedBox(height: 20),
         _sectionTitle(S.support),
         const SizedBox(height: 10),
-        _navTile(Icons.help_outline_rounded, S.helpCenter, _kOrange,
-            onTap: () {}),
-        _navTile(Icons.verified_user_rounded, 'سياسة الاستخدام والخصوصية',
+        // Help / contact ------------------------------------------------
+        _navTile(Icons.support_agent_rounded,
+            appSettings.arabic ? 'تواصل معنا' : 'Contact Us',
+            _kOrange,
+            onTap: () => Navigator.push(context,
+                MaterialPageRoute(builder: (_) => const ContactUsPage()))),
+        _navTile(Icons.info_outline_rounded,
+            appSettings.arabic ? 'من نحن' : 'About Us',
+            const Color(0xFF26A69A),
+            onTap: () => Navigator.push(context,
+                MaterialPageRoute(builder: (_) => const AboutUsPage()))),
+        // Legal -------------------------------------------------------
+        _navTile(Icons.description_rounded,
+            appSettings.arabic
+                ? 'الشروط والأحكام'
+                : 'Terms & Conditions',
             const Color(0xFF7E57C2),
             onTap: () => Navigator.push(context,
                 MaterialPageRoute(builder: (_) => const TermsPage()))),
+        _navTile(Icons.shield_rounded,
+            appSettings.arabic ? 'سياسة الخصوصية' : 'Privacy Policy',
+            const Color(0xFF42A5F5),
+            onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (_) => const PrivacyPolicyPage()))),
+        _navTile(Icons.account_balance_wallet_rounded,
+            appSettings.arabic
+                ? 'سياسة الإلغاء والاسترداد'
+                : 'Refund Policy',
+            const Color(0xFFEF5350),
+            onTap: () => Navigator.push(context,
+                MaterialPageRoute(builder: (_) => const RefundPolicyPage()))),
         _navTile(Icons.star_rate_rounded, S.rateApp, _kOrange, onTap: () {}),
 
         const SizedBox(height: 20),

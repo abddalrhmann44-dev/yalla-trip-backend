@@ -164,9 +164,17 @@ class S {
   static String get loginSubtitle =>
       _ar ? 'أهلاً بك في Talaa' : 'Welcome to Talaa';
   static String get continueBtn => _ar ? 'متابعة' : 'Continue';
+  // Wave 31 — login is now Google-only. The previous SMS / WhatsApp
+  // OTP path was removed; this string is kept for legacy callers but
+  // is no longer surfaced on LoginPage.
   static String get smsHint => _ar
       ? 'هنبعتلك كود تحقق على رقمك عبر رسالة قصيرة.'
       : 'We\'ll send a confirmation code to your phone by SMS.';
+  static String get continueWithGoogle =>
+      _ar ? 'تابع باستخدام جوجل' : 'Continue with Google';
+  static String get loginTermsHint => _ar
+      ? 'بمتابعتك أنت توافق على شروط الاستخدام وسياسة الخصوصية.'
+      : 'By continuing you agree to our Terms and Privacy Policy.';
   static String get privacyLink => _ar ? 'سياسة الخصوصية' : 'Privacy Policy';
   static String get phoneTab => _ar ? 'الهاتف' : 'Phone';
   static String get emailTab => _ar ? 'البريد' : 'Email';

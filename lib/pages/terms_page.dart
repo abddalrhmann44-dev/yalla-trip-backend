@@ -16,29 +16,19 @@
 // ═══════════════════════════════════════════════════════════════
 
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../main.dart' show appSettings;
+import '../utils/brand_contact.dart';
 import '../widgets/constants.dart';
 
-// ── Brand contact constants (Wave 28) ──────────────────
-// Centralised so we never drift between the footer card, the
-// privacy section bullet and the closing "Contact" bullet — if the
-// number / email change in the future, this is the single edit.
-const _kSupportEmail = 'support@talaa-trip.com';
-const _kSupportPhone = '+201070771908';
-// Display form (‎ force LTR so RTL paragraphs don't flip the digits).
-const _kSupportPhoneDisplay = '\u200e$_kSupportPhone';
-// wa.me requires the number without the leading + sign.
-const _kSupportWhatsAppUrl = 'https://wa.me/201070771908';
-const _kSupportMailtoUrl = 'mailto:$_kSupportEmail';
-
-Future<void> _openExternal(String url) async {
-  final uri = Uri.parse(url);
-  // ``LaunchMode.externalApplication`` opens WhatsApp / the email
-  // client directly instead of the in-app web view, which is what
-  // users expect when tapping a phone or email contact.
-  await launchUrl(uri, mode: LaunchMode.externalApplication);
-}
+// Brand contact info now lives in `lib/utils/brand_contact.dart`
+// (single source of truth shared by Terms, Privacy, Refund, About
+// and Contact Us).  Local aliases below keep this file's existing
+// references working without touching every callsite.
+const _kSupportEmail = BrandContact.email;
+const _kSupportPhoneDisplay = BrandContact.phoneDisplay;
+const _kSupportWhatsAppUrl = BrandContact.whatsappUrl;
+const _kSupportMailtoUrl = BrandContact.mailtoUrl;
+Future<void> _openExternal(String url) => BrandContact.openExternal(url);
 
 // Unified brand accent (same orange used across profile + wallet).
 const _kBrand = Color(0xFFFF6B35);
