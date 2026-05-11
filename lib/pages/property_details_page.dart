@@ -257,12 +257,42 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
                 ),
               ),
             ],
-            // Wave 28 fix — pass a plain Stack as flexibleSpace
-            // instead of wrapping it in FlexibleSpaceBar.  The latter
-            // adds opacity/parallax layers that intercept horizontal
-            // drag + tap gestures on the PageView, which made the
-            // gallery feel "frozen" (no swipe, no tap-to-zoom).
-            flexibleSpace: Stack(fit: StackFit.expand, children: [
+            // The GestureDetector wrapper is the key fix: inside a
+            // SliverAppBar/CustomScrollView the PageView's own
+            // HorizontalDragRecognizer keeps losing the gesture arena
+            // to the outer scroll view.  We take over horizontal drags
+            // here and drive the PageController directly; the PageView
+            // uses NeverScrollableScrollPhysics so there is no
+            // double-handling.  Vertical drags still bubble up to the
+            // CustomScrollView normally.
+            flexibleSpace: GestureDetector(
+              onHorizontalDragUpdate: (d) {
+                if (!_imgCtrl.hasClients || p.images.length < 2) return;
+                _imgCtrl.position.jumpTo(
+                  (_imgCtrl.position.pixels - d.delta.dx)
+                      .clamp(0.0, _imgCtrl.position.maxScrollExtent),
+                );
+              },
+              onHorizontalDragEnd: (d) {
+                if (!_imgCtrl.hasClients || p.images.length < 2) return;
+                final vx = d.velocity.pixelsPerSecond.dx;
+                final int target;
+                if (vx < -300 && _imgIndex < p.images.length - 1) {
+                  target = _imgIndex + 1;
+                } else if (vx > 300 && _imgIndex > 0) {
+                  target = _imgIndex - 1;
+                } else {
+                  target = (_imgCtrl.page ?? _imgIndex.toDouble())
+                      .round()
+                      .clamp(0, p.images.length - 1);
+                }
+                _imgCtrl.animateToPage(
+                  target,
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeOut,
+                );
+              },
+              child: Stack(fit: StackFit.expand, children: [
                 // Images PageView
                 p.images.isEmpty
                     ? Container(color: const Color(0xFFFF6B35),
@@ -270,34 +300,13 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
                             color: Colors.white54, size: 80))
                     : PageView.builder(
                         controller: _imgCtrl,
-                        // Wave 30 fix — was ``ClampingScrollPhysics``,
-                        // which cancels the PageView's natural
-                        // page-snapping.  After the one-time
-                        // gallery hint auto-advanced to image #2,
-                        // subsequent swipes felt "stuck" because the
-                        // physics had no snap-to-page behavior and
-                        // the outer CustomScrollView kept winning
-                        // the gesture arena.
-                        //
-                        // ``PageScrollPhysics`` is the correct base
-                        // for carousels; ``parent: Clamping…`` keeps
-                        // the anti-BouncingScroll fix that let the
-                        // horizontal drag beat the vertical sliver.
-                        physics: const PageScrollPhysics(
-                          parent: ClampingScrollPhysics(),
-                        ),
-                        pageSnapping: true,
-                        allowImplicitScrolling: true,
+                        physics: const NeverScrollableScrollPhysics(),
                         onPageChanged: (i) => setState(() => _imgIndex = i),
                         itemCount: p.images.length,
                         itemBuilder: (_, i) => GestureDetector(
                           behavior: HitTestBehavior.opaque,
                           onTap: () => _openPhotoViewer(p, i),
                           child: Hero(
-                            // Tag matches PhotoViewerPage's
-                            // destination Hero (``tag: widget.url``)
-                            // so the open-photo transition keeps its
-                            // smooth scale animation.
                             tag: p.images[i],
                             child: Image.network(
                               p.images[i],
@@ -368,6 +377,7 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
                   ),
                 )),
               ]),
+            ),
           ),
 
           // ── Content ────────────────────────────────
