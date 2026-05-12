@@ -20,6 +20,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 
 import '../services/auth_service.dart';
 import '../utils/app_strings.dart';
+import '../widgets/constants.dart';
 import '../main.dart' show appSettings;
 import 'home_page.dart';
 import 'register_page.dart';
@@ -151,7 +152,7 @@ class _LoginPageState extends State<LoginPage> {
   Widget build(BuildContext context) {
     final isAr = appSettings.arabic;
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: context.kSand,
       body: SafeArea(
         child: Column(children: [
           // ── Top bar: language chip + close ──────────────

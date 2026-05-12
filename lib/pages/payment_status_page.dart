@@ -121,7 +121,7 @@ class _PaymentStatusPageState extends State<PaymentStatusPage> {
     return Scaffold(
       backgroundColor: context.kSand,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: context.kCard,
         elevation: 0,
         leading: IconButton(
           icon: Icon(Icons.arrow_back_ios_new_rounded,

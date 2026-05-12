@@ -73,7 +73,7 @@ class _PendingReviewsPageState extends State<PendingReviewsPage> {
     return Scaffold(
       backgroundColor: context.kSand,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: context.kCard,
         elevation: 0,
         title: const Text(
           'قيّم إقاماتك',

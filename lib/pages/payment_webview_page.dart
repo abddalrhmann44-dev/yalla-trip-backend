@@ -168,9 +168,9 @@ class _PaymentWebViewPageState extends State<PaymentWebViewPage> {
         }
       },
       child: Scaffold(
-        backgroundColor: Colors.white,
+        backgroundColor: context.kSand,
         appBar: AppBar(
-          backgroundColor: Colors.white,
+          backgroundColor: context.kCard,
           elevation: 0,
           leading: IconButton(
             icon: Icon(Icons.close_rounded, color: context.kText),

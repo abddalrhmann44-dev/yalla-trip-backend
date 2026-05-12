@@ -153,7 +153,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
     return Scaffold(
       backgroundColor: context.kSand,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: context.kCard,
         elevation: 0,
         leading: IconButton(
           icon: Icon(Icons.arrow_back_ios_new_rounded,

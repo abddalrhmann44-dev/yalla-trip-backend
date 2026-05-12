@@ -84,7 +84,7 @@ class _WriteReviewPageState extends State<WriteReviewPage> {
     return Scaffold(
       backgroundColor: context.kSand,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: context.kCard,
         elevation: 0,
         title: const Text(
           'اكتب تقييمك',

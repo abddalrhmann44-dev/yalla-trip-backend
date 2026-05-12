@@ -9,6 +9,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 import '../services/auth_service.dart';
 import '../utils/app_strings.dart';
+import '../widgets/constants.dart';
 import '../main.dart' show userProvider, appSettings;
 import 'home_page.dart';
 import 'terms_page.dart';
@@ -140,7 +141,7 @@ class _RegisterPageState extends State<RegisterPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: context.kSand,
       body: SafeArea(
         child: Column(children: [
           // ── Top bar: close (×) ────────────────────────────

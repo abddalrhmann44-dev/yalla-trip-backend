@@ -190,7 +190,7 @@ class _HostReservationsPageState extends State<HostReservationsPage> {
       appBar: AppBar(
         title: const Text('حجوزاتي',
             style: TextStyle(fontWeight: FontWeight.w900)),
-        backgroundColor: Colors.white,
+        backgroundColor: context.kCard,
         elevation: 0,
         foregroundColor: context.kText,
       ),
