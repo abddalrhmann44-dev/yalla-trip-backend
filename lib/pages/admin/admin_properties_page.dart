@@ -25,6 +25,7 @@ class _AdminPropertiesPageState extends State<AdminPropertiesPage> {
   List<PropertyApi> _all = [];
   List<PropertyApi> _filtered = [];
   bool _loading = true;
+  String? _error;
   final _searchCtrl = TextEditingController();
 
   @override
@@ -40,12 +41,13 @@ class _AdminPropertiesPageState extends State<AdminPropertiesPage> {
   }
 
   Future<void> _load() async {
-    setState(() => _loading = true);
+    setState(() { _loading = true; _error = null; });
     try {
-      _all = await AdminService.getProperties(limit: 200);
+      _all = await AdminService.getProperties(limit: 100);
       _applyFilter();
     } catch (e) {
       debugPrint('Admin properties error: $e');
+      if (mounted) setState(() => _error = 'تعذّر تحميل العقارات، حاول مرة أخرى');
     }
     if (mounted) setState(() => _loading = false);
   }
@@ -197,7 +199,34 @@ class _AdminPropertiesPageState extends State<AdminPropertiesPage> {
           child: _loading
               ? const Center(
                   child: CircularProgressIndicator(color: _kOcean))
-              : _filtered.isEmpty
+              : _error != null
+                  ? Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.error_outline_rounded,
+                                size: 48,
+                                color: _kRed.withValues(alpha: 0.6)),
+                            const SizedBox(height: 12),
+                            Text(_error!,
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                    fontSize: 14, color: context.kText)),
+                            const SizedBox(height: 16),
+                            ElevatedButton.icon(
+                              onPressed: _load,
+                              icon: const Icon(Icons.refresh_rounded),
+                              label: const Text('إعادة المحاولة'),
+                              style: ElevatedButton.styleFrom(
+                                  backgroundColor: _kOcean),
+                            ),
+                          ],
+                        ),
+                      ),
+                    )
+                  : _filtered.isEmpty
                   ? Center(
                       child: Text('لا توجد عقارات',
                           style: TextStyle(
@@ -220,8 +249,13 @@ class _AdminPropertiesPageState extends State<AdminPropertiesPage> {
 
   Widget _propCard(PropertyApi p) {
     final img = p.images.isNotEmpty ? p.images.first : null;
-    final statusColor = p.isAvailable ? _kGreen : _kOrange;
-    final statusText = p.isAvailable ? 'متاح' : 'معلق';
+    final (statusColor, statusText) = switch (p.status) {
+      'approved'   => (_kGreen, 'معتمد'),
+      'rejected'   => (_kRed, 'مرفوض'),
+      'needs_edit' => (_kOrange, 'يحتاج تعديل'),
+      _            => (const Color(0xFFF59E0B), 'في الانتظار'),
+    };
+    final needsAction = p.status == 'pending' || p.status == 'needs_edit';
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -313,7 +347,7 @@ class _AdminPropertiesPageState extends State<AdminPropertiesPage> {
         Container(
           padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
           child: Row(children: [
-            if (!p.isAvailable) ...[
+            if (needsAction) ...[
               _actionBtn('موافقة', _kGreen, () => _approve(p)),
               const SizedBox(width: 8),
               _actionBtn('رفض', _kOrange, () => _reject(p)),

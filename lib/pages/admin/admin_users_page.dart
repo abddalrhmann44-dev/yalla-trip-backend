@@ -62,7 +62,7 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
       final users = await AdminService.getUsers(
         search: _searchCtrl.text.trim(),
         role: _roleFilter,
-        limit: 200,
+        limit: 100,
       );
       if (mounted) setState(() => _users = users);
     } on ApiException catch (e) {

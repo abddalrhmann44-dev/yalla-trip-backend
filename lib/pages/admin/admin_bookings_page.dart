@@ -23,6 +23,7 @@ class AdminBookingsPage extends StatefulWidget {
 class _AdminBookingsPageState extends State<AdminBookingsPage> {
   List<BookingModel> _bookings = [];
   bool _loading = true;
+  String? _error;
   String _filter = 'الكل';
 
   static const _filters = ['الكل', 'في الانتظار', 'مؤكد', 'ملغي', 'مكتمل'];
@@ -41,14 +42,15 @@ class _AdminBookingsPageState extends State<AdminBookingsPage> {
   }
 
   Future<void> _load() async {
-    setState(() => _loading = true);
+    setState(() { _loading = true; _error = null; });
     try {
       _bookings = await AdminService.getAllBookings(
         status: _filterMap[_filter],
-        limit: 200,
+        limit: 100,
       );
     } catch (e) {
       debugPrint('Admin bookings error: $e');
+      if (mounted) setState(() => _error = 'تعذّر تحميل الحجوزات، حاول مرة أخرى');
     }
     if (mounted) setState(() => _loading = false);
   }
@@ -187,7 +189,34 @@ class _AdminBookingsPageState extends State<AdminBookingsPage> {
           child: _loading
               ? const Center(
                   child: CircularProgressIndicator(color: _kOcean))
-              : _bookings.isEmpty
+              : _error != null
+                  ? Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.error_outline_rounded,
+                                size: 48,
+                                color: _kRed.withValues(alpha: 0.6)),
+                            const SizedBox(height: 12),
+                            Text(_error!,
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                    fontSize: 14, color: context.kText)),
+                            const SizedBox(height: 16),
+                            ElevatedButton.icon(
+                              onPressed: _load,
+                              icon: const Icon(Icons.refresh_rounded),
+                              label: const Text('إعادة المحاولة'),
+                              style: ElevatedButton.styleFrom(
+                                  backgroundColor: _kOcean),
+                            ),
+                          ],
+                        ),
+                      ),
+                    )
+                  : _bookings.isEmpty
                   ? Center(
                       child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
