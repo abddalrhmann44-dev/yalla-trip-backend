@@ -206,7 +206,7 @@ class PropertyCreate(BaseModel):
         if cat in _DAY_USE_CATEGORIES:
             if self.price_per_person is None or self.price_per_person <= 0:
                 raise ValueError(
-                    "رحلة اليوم الواحد لازم يكون لها سعر للفرد / Day-use needs price_per_person"
+                    "لازم تحدد سعر التذكرة للفرد / per-person price is required"
                 )
             # Mirror the per-person price into price_per_night so the
             # ``min_price`` / ``max_price`` filters and the home-screen

@@ -46,6 +46,13 @@ class _PropType {
   const _PropType(this.key, this.label, this.emoji, this.desc, this.color);
 }
 
+// Wave 32: split day-use into two visually distinct options so the
+// owner can clearly route their listing to the right home-page bucket
+// ("رحلة يوم واحد" beach card vs the dedicated "أكوا بارك" filter).
+// The keys MUST stay aligned with backend ``Category`` enum values
+// (``رحلة يوم واحد`` and ``أكوا بارك``); only the user-facing label /
+// emoji / description differ.  Both share identical billing & form
+// behavior — see ``_isDayLikePass`` getter below.
 const _kPropTypes = [
   _PropType(
       'شاليه', 'شاليه', '🏖️', 'شاليه بحر أو حمام سباحة', Color(0xFFFF6B35)),
@@ -53,7 +60,11 @@ const _kPropTypes = [
   _PropType('منتجع', 'منتجع', '🏝️', 'منتجع متكامل', Color(0xFF00695C)),
   _PropType('فيلا', 'فيلا', '🏡', 'فيلا فاخرة خاصة', Color(0xFFE65100)),
   _PropType(
-      'رحلة يوم واحد', 'رحلة يوم واحد', '☀️', 'دخول وخروج في نفس اليوم بدون مبيت', Color(0xFF0097A7)),
+      'رحلة يوم واحد', 'رحلة يوم - شاطئ', '🏖️',
+      'دخول وخروج في نفس اليوم — للشاطئ والبحر فقط', Color(0xFF0097A7)),
+  _PropType(
+      'أكوا بارك', 'رحلة يوم - أكوا بارك', '🎢',
+      'دخول وخروج في نفس اليوم — للأكوا بارك فقط', Color(0xFF0288D1)),
   _PropType(
       'مركب', 'مركب / يخت', '⛵', 'رحلات بحرية بالساعة', Color(0xFFE65100)),
 ];
@@ -300,7 +311,7 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
   /// The "regular" price the offer is discounting.  For day-use
   /// listings that's price-per-person; for everything else it's the
   /// nightly / hourly rate from [_priceCtrl].
-  int? get _basePriceForOffer => _isDayUse
+  int? get _basePriceForOffer => _isDayLikePass
       ? int.tryParse(_pricePerPersonCtrl.text.trim())
       : int.tryParse(_priceCtrl.text.trim());
 
@@ -339,10 +350,12 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
   /// [_hasOffer] toggle below the regular price form).
   String? _validatePricingStep() {
     // ── 1) Per-category mandatory pricing fields.
-    if (_isDayUse) {
+    if (_isDayLikePass) {
       final pp = int.tryParse(_pricePerPersonCtrl.text.trim());
       if (pp == null || pp <= 0) {
-        return 'اكتب سعر الفرد الواحد';
+        return _isAquaPark
+            ? 'اكتب سعر تذكرة الفرد للأكوا بارك'
+            : 'اكتب سعر الفرد الواحد';
       }
     } else {
       final price = int.tryParse(_priceCtrl.text.trim());
@@ -413,14 +426,17 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
 
       case 2: // المعلومات الأساسية
         if (_nameCtrl.text.trim().isEmpty) {
-          return _isDayUse ? 'اكتب اسم الشاطئ' : 'اكتب اسم العقار';
+          if (_isAquaPark) return 'اكتب اسم الأكوا بارك';
+          if (_isDayUse) return 'اكتب اسم الشاطئ';
+          return 'اكتب اسم العقار';
         }
         if (_selLocation == null) {
           return 'اختار المنطقة';
         }
-        // Village name only matters for chalet/villa/hotel/resort.  Day-use
-        // and boat skip it because the listing is the location itself.
-        if (!_isDayUse && !_isBoat && _villageCtrl.text.trim().isEmpty) {
+        // Village name only matters for chalet/villa/hotel/resort.
+        // Day-use (beach + aqua park) and boats skip it because the
+        // listing IS the location itself.
+        if (!_isDayLikePass && !_isBoat && _villageCtrl.text.trim().isEmpty) {
           return 'اكتب اسم القرية أو المجمع';
         }
         // Wave 28: maps link is required (replaces detailed address).
@@ -597,7 +613,7 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
     setState(() => _isPublishing = true);
     try {
       final isBoat = _isBoat;
-      final isDayUse = _isDayUse;
+      final isDayLikePass = _isDayLikePass; // day_use OR aqua_park
       final isChaletOrVilla = _isChalet || _isVilla;
 
       // Build request payload matching PropertyCreate schema.  Three
@@ -608,7 +624,7 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
       //              in the validator) but we still send a positive value
       //              so the schema's ``ge=0`` doesn't trip.
       //   • stay:    price_per_night + weekend_price + optional fees.
-      final pricePerPerson = isDayUse
+      final pricePerPerson = isDayLikePass
           ? (int.tryParse(_pricePerPersonCtrl.text.trim()) ?? 0)
           : null;
       final payload = <String, dynamic>{
@@ -619,11 +635,11 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
         'area': _selLocation ?? '',
         'category': _selType?.key ?? '',
         'audience_type': _audienceType,
-        'price_per_night': isDayUse
+        'price_per_night': isDayLikePass
             ? (pricePerPerson ?? 0)
             : (int.tryParse(_priceCtrl.text) ?? 0),
-        if (isDayUse) 'price_per_person': pricePerPerson,
-        if (!isDayUse) 'weekend_price': int.tryParse(_weekendCtrl.text),
+        if (isDayLikePass) 'price_per_person': pricePerPerson,
+        if (!isDayLikePass) 'weekend_price': int.tryParse(_weekendCtrl.text),
         // Cleaning fee only travels with chalet / villa / day-use; the
         // backend zeroes it out for everyone else but suppressing it on
         // the wire keeps the payload tidy.
@@ -639,8 +655,8 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
           'parking_fee':
               _parkingIsFree ? 0 : (int.tryParse(_parkingFeeCtrl.text) ?? 0),
         },
-        'bedrooms': (isBoat || isDayUse) ? 0 : _bedrooms,
-        'bathrooms': (isBoat || isDayUse) ? 0 : _bathrooms,
+        'bedrooms': (isBoat || isDayLikePass) ? 0 : _bedrooms,
+        'bathrooms': (isBoat || isDayLikePass) ? 0 : _bathrooms,
         'max_guests': isBoat ? _boatPeople : _guests,
         'total_rooms': isBoat
             ? 0
@@ -648,7 +664,7 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
         if (isBoat) 'trip_duration_hours': _boatHours,
         // Wave 28: village name + Google Maps URL travel as their own
         // top-level keys (the backend split them out of description).
-        if (!isDayUse && !isBoat && _villageCtrl.text.trim().isNotEmpty)
+        if (!isDayLikePass && !isBoat && _villageCtrl.text.trim().isNotEmpty)
           'village_name': _villageCtrl.text.trim(),
         if (_mapsLinkCtrl.text.trim().isNotEmpty)
           'location_link': _mapsLinkCtrl.text.trim(),
@@ -819,6 +835,14 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
 
   bool get _isBoat => _selType?.key == 'مركب';
   bool get _isDayUse => _selType?.key == 'رحلة يوم واحد';
+  bool get _isAquaPark => _selType?.key == 'أكوا بارك';
+  /// Both day-use variants (beach + aqua park) share identical form
+  /// behavior: per-person pricing, no bedrooms/bathrooms/village name,
+  /// no nightly weekend split, no min/max nights.  The ONLY difference
+  /// between them is the backend ``category`` value, which routes the
+  /// listing to its dedicated home-page bucket ("رحلة يوم واحد" card
+  /// vs the "أكوا بارك" filter chip).
+  bool get _isDayLikePass => _isDayUse || _isAquaPark;
   bool get _isHotelOrResort =>
       _selType?.key == 'فندق' || _selType?.key == 'منتجع';
   bool get _isChalet => _selType?.key == 'شاليه';
@@ -1243,10 +1267,14 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
   // ══════════════════════════════════════════════════════════
   Widget _buildStep3() {
     final descError = _checkDescriptionContent(_descCtrl.text);
-    final nameLabel = _isDayUse ? 'اسم الشاطئ *' : 'اسم العقار *';
-    final nameHint = _isDayUse
-        ? 'مثال: شاطئ كليوباترا'
-        : 'مثال: شاليه فاخر بإطلالة بحر';
+    final nameLabel = _isAquaPark
+        ? 'اسم الأكوا بارك *'
+        : (_isDayUse ? 'اسم الشاطئ *' : 'اسم العقار *');
+    final nameHint = _isAquaPark
+        ? 'مثال: مكادي ووتر وورلد'
+        : (_isDayUse
+            ? 'مثال: شاطئ كليوباترا'
+            : 'مثال: شاليه فاخر بإطلالة بحر');
     return ListView(padding: const EdgeInsets.all(20), children: [
       Text('المعلومات الأساسية',
           style: TextStyle(
@@ -1266,8 +1294,9 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
       ),
       const SizedBox(height: 14),
       // Village / compound name — only meaningful for stays.  Day-use
-      // beach passes and boat trips skip this row.
-      if (!_isDayUse && !_isBoat) ...[
+      // beach passes, aqua-park tickets and boat trips skip this row
+      // because the listing IS the destination itself.
+      if (!_isDayLikePass && !_isBoat) ...[
         _field(_villageCtrl, 'اسم القرية / المجمع *', 'مثال: بورتو السخنة'),
         const SizedBox(height: 14),
       ],
@@ -1329,7 +1358,7 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
                   _descCtrl.text.trim().length >= 20 ? _kGreen : context.kSub),
         ),
       // Check-in / check-out times only matter for overnight stays.
-      if (!_isDayUse && !_isBoat) ...[
+      if (!_isDayLikePass && !_isBoat) ...[
         const SizedBox(height: 20),
         Text('أوقات الدخول والخروج',
             style: TextStyle(
@@ -1395,15 +1424,19 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
       ]);
     }
 
-    // ── Day-use layout: just the audience selector (no rooms / beds /
-    // max-guests counter; price-per-person handles capacity organically).
-    if (_isDayUse) {
+    // ── Day-use / Aqua-park layout: just the audience selector
+    // (no rooms / beds / max-guests counter; price-per-person handles
+    // capacity organically).  Both share this layout — only the title
+    // changes so the host knows which type they picked in Step 1.
+    if (_isDayLikePass) {
       return ListView(padding: const EdgeInsets.all(20), children: [
-        Text('تفاصيل الشاطئ',
-            style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.w900,
-                color: context.kText)),
+        Text(
+          _isAquaPark ? 'تفاصيل الأكوا بارك' : 'تفاصيل الشاطئ',
+          style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.w900,
+              color: context.kText),
+        ),
         const SizedBox(height: 6),
         _optionalLabel('اختار الفئة المستهدفة'),
         const SizedBox(height: 16),
@@ -1742,19 +1775,32 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
       ]);
     }
 
-    // ── Day-use: price-per-person, no weekend split, no fees ──
-    if (_isDayUse) {
+    // ── Day-use / Aqua-park: price-per-person, no weekend split,
+    // no fees.  Both variants share the same pricing UI but the
+    // copy is reworded so aqua-park hosts feel they're filling the
+    // right form ("تذكرة الدخول" reads more naturally than
+    // "الفرد الواحد" when the listing is a water park).
+    if (_isDayLikePass) {
       return ListView(padding: const EdgeInsets.all(20), children: [
-        Text('تسعير رحلة اليوم الواحد',
-            style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.w900,
-                color: context.kText)),
+        Text(
+          _isAquaPark
+              ? 'تسعير تذكرة الأكوا بارك'
+              : 'تسعير رحلة اليوم الواحد',
+          style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.w900,
+              color: context.kText),
+        ),
         const SizedBox(height: 6),
-        _requiredLabel('سعر الفرد الواحد'),
+        _requiredLabel(
+            _isAquaPark ? 'سعر تذكرة الفرد' : 'سعر الفرد الواحد'),
         const SizedBox(height: 16),
-        _priceField(_pricePerPersonCtrl, 'سعر الفرد *', 'لكل ضيف',
-            required: true),
+        _priceField(
+          _pricePerPersonCtrl,
+          _isAquaPark ? 'سعر تذكرة الفرد *' : 'سعر الفرد *',
+          _isAquaPark ? 'لكل تذكرة دخول' : 'لكل ضيف',
+          required: true,
+        ),
         const SizedBox(height: 10),
         Container(
           padding: const EdgeInsets.all(12),
@@ -1768,7 +1814,9 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
             const SizedBox(width: 8),
             Expanded(
               child: Text(
-                'الإجمالي يحسب تلقائياً = سعر الفرد × عدد الضيوف.',
+                _isAquaPark
+                    ? 'الإجمالي يحسب تلقائياً = سعر التذكرة × عدد الزوار.'
+                    : 'الإجمالي يحسب تلقائياً = سعر الفرد × عدد الضيوف.',
                 style: TextStyle(fontSize: 12, color: context.kText),
               ),
             ),
@@ -1962,11 +2010,13 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
             const SizedBox(height: 14),
             _priceField(
               _offerPriceCtrl,
-              _isDayUse
-                  ? 'السعر المخفّض للفرد *'
-                  : (_isBoat
-                      ? 'السعر المخفّض في الساعة *'
-                      : 'السعر المخفّض في الليلة *'),
+              _isAquaPark
+                  ? 'السعر المخفّض للتذكرة *'
+                  : (_isDayUse
+                      ? 'السعر المخفّض للفرد *'
+                      : (_isBoat
+                          ? 'السعر المخفّض في الساعة *'
+                          : 'السعر المخفّض في الليلة *')),
               'لازم يقل عن السعر العادي',
               required: true,
             ),

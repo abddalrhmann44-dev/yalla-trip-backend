@@ -17,7 +17,6 @@ import '../services/promo_code_service.dart';
 import '../services/wallet_service.dart';
 import '../utils/api_client.dart';
 import '../utils/app_strings.dart';
-import '../utils/device_integrity.dart';
 import '../utils/error_handler.dart';
 import '../widgets/constants.dart';
 import 'payment_status_page.dart';
@@ -178,11 +177,6 @@ class _PaymentPageState extends State<PaymentPage> {
   bool _useWalletCredit = false;
   bool _loadingWallet = true;
 
-  // Device integrity — assume trusted until proven otherwise so the
-  // page renders instantly; the native probe runs in the background
-  // and rebuilds with a warning if the device is rooted / jailbroken.
-  bool _deviceTrusted = true;
-
   void _onLangChange() {
     if (mounted) setState(() {});
   }
@@ -191,7 +185,6 @@ class _PaymentPageState extends State<PaymentPage> {
   void initState() {
     super.initState();
     appSettings.addListener(_onLangChange);
-    _checkDeviceIntegrity();
     _loadWalletPreview();
   }
 
@@ -228,12 +221,6 @@ class _PaymentPageState extends State<PaymentPage> {
         _loadingWallet = false;
       });
     }
-  }
-
-  Future<void> _checkDeviceIntegrity() async {
-    final trusted = await DeviceIntegrity.isTrusted();
-    if (!mounted || trusted == _deviceTrusted) return;
-    setState(() => _deviceTrusted = trusted);
   }
 
   @override
@@ -368,10 +355,6 @@ class _PaymentPageState extends State<PaymentPage> {
               _walletCreditCard(),
               const SizedBox(height: 16),
               _escrowBanner(),
-              if (!_deviceTrusted) ...[
-                const SizedBox(height: 16),
-                _tamperedDeviceBanner(),
-              ],
               const SizedBox(height: 24),
               Text('اختر طريقة الدفع',
                   style: TextStyle(
@@ -388,8 +371,11 @@ class _PaymentPageState extends State<PaymentPage> {
               // Manual card form is shown only when the user picks the
               // Card row.  Wallet payments (Vodafone / Orange / e&) and
               // Meeza go straight to Paymob's hosted iframe, no PAN
-              // entry on our side.
-              if (_deviceTrusted && _sel == 'card') ...[
+              // entry on our side.  Paymob is PCI-DSS Level 1
+              // certified and the PAN never touches our servers, so
+              // we render the form on every device — we don't second-
+              // guess the OS integrity ourselves.
+              if (_sel == 'card') ...[
                 const SizedBox(height: 16),
                 _cardForm(),
               ],
@@ -402,49 +388,6 @@ class _PaymentPageState extends State<PaymentPage> {
       ]),
     );
   }
-
-  // ── Tampered Device Banner ─────────────────────────────────────
-  // Shown in place of the card form when flutter_jailbreak_detection
-  // flags the device as rooted / jailbroken.  We don't block the user
-  // from paying entirely — they can still use Fawry voucher or wallet
-  // — but we refuse to render a PAN entry field on a compromised OS.
-  Widget _tamperedDeviceBanner() => Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-              colors: [Color(0xFFB91C1C), Color(0xFFEF4444)]),
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Row(children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(10)),
-            child: const Icon(Icons.gpp_bad_rounded,
-                color: Colors.white, size: 22),
-          ),
-          const SizedBox(width: 12),
-          const Expanded(
-              child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('جهازك غير آمن لإدخال بيانات البطاقة ⚠️',
-                  style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w900)),
-              SizedBox(height: 4),
-              Text(
-                  'عشان حماية فلوسك من الاختراق — الدفع بالكارت '
-                  'غير متاح على أجهزة Root/Jailbreak. '
-                  'يمكنك الدفع بـ فوري أو المحفظة بأمان.',
-                  style: TextStyle(color: Colors.white, fontSize: 11, height: 1.5)),
-            ],
-          )),
-        ]),
-      );
 
   // ── Escrow Banner ─────────────────────────────────────────────
   Widget _escrowBanner() => Container(
