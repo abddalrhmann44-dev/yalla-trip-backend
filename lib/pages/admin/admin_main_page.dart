@@ -33,6 +33,7 @@ import 'admin_ab_testing_page.dart';
 import 'admin_api_keys_page.dart';
 import 'admin_chat_monitor_page.dart';
 import 'admin_promo_banner_page.dart';
+import 'admin_owners_page.dart';
 
 const _kOcean  = Color(0xFFFF6B35);
 const _kGreen  = Color(0xFF4CAF50);
@@ -321,6 +322,17 @@ class _AdminMainPageState extends State<AdminMainPage> {
                       context,
                       MaterialPageRoute(
                           builder: (_) => const AdminUsersPage())),
+                ),
+                const SizedBox(height: 10),
+                _navTile(
+                  icon: Icons.home_work_rounded,
+                  title: 'إدارة الملاك',
+                  subtitle: 'عقارات، تقييمات، وإيرادات كل مالك',
+                  color: _kOcean,
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const AdminOwnersPage())),
                 ),
                 const SizedBox(height: 10),
                 _navTile(

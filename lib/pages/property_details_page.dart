@@ -5,6 +5,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../main.dart' show appSettings;
 import '../services/sharing_service.dart';
 import '../utils/app_strings.dart';
@@ -392,18 +393,30 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Category + Area badges
-                    Row(children: [
+                    // Category + Area + Audience badges.
+                    // ``audience_type`` defaults to ``both`` (= no
+                    // restriction) for the vast majority of listings,
+                    // so we only surface the chip when the host
+                    // explicitly narrowed the audience to families
+                    // OR youth.  Showing a "الاتنين عادي" badge on
+                    // every property would just add noise.
+                    Wrap(spacing: 8, runSpacing: 8, children: [
                       _badge(p.categoryEmoji, p.category,
                           p.areaColor.withValues(alpha: 0.12), p.areaColor),
-                      const SizedBox(width: 8),
                       _badge('📍', p.area,
-                          Color(0xFFF3F4F6), context.kSub),
-                      if (p.isFeatured) ...[
-                        const SizedBox(width: 8),
+                          const Color(0xFFF3F4F6), context.kSub),
+                      if (p.audienceType == 'family_only')
+                        _badge('👨‍👩‍�', 'عائلات فقط',
+                            const Color(0xFFFFF3E0),
+                            const Color(0xFFE65100)),
+                      if (p.audienceType == 'youth_only')
+                        _badge('🧑‍🤝‍🧑', 'شباب فقط',
+                            const Color(0xFFE3F2FD),
+                            const Color(0xFF1565C0)),
+                      if (p.isFeatured)
                         _badge('⭐', S.featured,
-                            const Color(0xFFFFF8E1), const Color(0xFFF59E0B)),
-                      ],
+                            const Color(0xFFFFF8E1),
+                            const Color(0xFFF59E0B)),
                     ]),
                     const SizedBox(height: 12),
                     // Property name
@@ -413,17 +426,63 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
                           color: context.kText, height: 1.2,
                         )),
                     const SizedBox(height: 8),
-                    // Location
+                    // Location row — prefixes the village / compound
+                    // name (e.g. "بورتو السخنة") in front of the area
+                    // name when the host filled it in on the owner
+                    // form.  Day-use, aqua-park and boat listings
+                    // never have a village name, so the row collapses
+                    // back to a single "العين السخنة"-style label.
                     Row(children: [
                       const Icon(Icons.location_on_rounded,
                           size: 15, color: _kOrange),
                       const SizedBox(width: 4),
                       Expanded(child: Text(
-                        p.area,
+                        (p.villageName != null &&
+                                p.villageName!.trim().isNotEmpty)
+                            ? '${p.villageName!.trim()}، ${p.area}'
+                            : p.area,
                         style: TextStyle(
-                            fontSize: 13, color: context.kSub),
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: context.kText),
                       )),
                     ]),
+                    // Google Maps link.  Falls back to the home
+                    // device's default maps app when the URL is a
+                    // ``maps.google.com`` / ``goo.gl/maps`` deep link;
+                    // otherwise opens in the browser.  Silently no-op
+                    // on parse failure so a malformed legacy URL
+                    // never crashes the details page.
+                    if ((p.locationLink ?? '').trim().isNotEmpty) ...[
+                      const SizedBox(height: 10),
+                      GestureDetector(
+                        onTap: () => _openMapsLink(p.locationLink!),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 12),
+                          decoration: BoxDecoration(
+                            color: _kOrange.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                                color: _kOrange.withValues(alpha: 0.25)),
+                          ),
+                          child: Row(children: [
+                            const Icon(Icons.map_rounded,
+                                size: 18, color: _kOrange),
+                            const SizedBox(width: 8),
+                            const Expanded(
+                              child: Text('افتح الموقع على جوجل ماب',
+                                  style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w800,
+                                      color: _kOrange)),
+                            ),
+                            const Icon(Icons.open_in_new_rounded,
+                                size: 16, color: _kOrange),
+                          ]),
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 14),
                     // Rating + reviews
                     Row(children: [
@@ -626,6 +685,45 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
         ),
       ]),
     );
+  }
+
+  /// Hands the property's Google Maps URL off to the OS.  We try the
+  /// native maps app first (``LaunchMode.externalApplication``); if
+  /// that fails — typically because the URL is not a recognised
+  /// ``geo:`` / ``maps.google.com`` deep link — the user gets a
+  /// snackbar instead of a silent failure.  Doing nothing on a broken
+  /// URL was the old behaviour and led to several support tickets
+  /// ("the location button doesn't work").
+  Future<void> _openMapsLink(String raw) async {
+    HapticFeedback.selectionClick();
+    final uri = Uri.tryParse(raw.trim());
+    if (uri == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: const Text('لينك الموقع غير صالح'),
+          backgroundColor: _kOrange,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12)),
+          margin: const EdgeInsets.all(16),
+        ));
+      }
+      return;
+    }
+    try {
+      final ok = await launchUrl(uri,
+          mode: LaunchMode.externalApplication);
+      if (!ok && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: const Text('تعذّر فتح خرائط جوجل'),
+          backgroundColor: _kOrange,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12)),
+          margin: const EdgeInsets.all(16),
+        ));
+      }
+    } catch (_) {/* ignore — the snackbar above handles UX */}
   }
 
   Future<void> _startBooking() async {
