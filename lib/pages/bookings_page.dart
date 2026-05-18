@@ -91,7 +91,7 @@ class _BookingsPageState extends State<BookingsPage>
     // When opened directly (deep-link, /bookings route, push notification),
     // bounce guests through the login prompt before we hit the API.
     if (!widget.embedded) {
-      AuthGuard.requireOrPop(context, feature: 'تشوف حجوزاتك');
+      AuthGuard.requireOrPop(context, feature: S.featureViewBookings);
     }
     appSettings.addListener(_onLangChange);
     _tabCtrl = TabController(length: 3, vsync: this);
@@ -159,21 +159,20 @@ class _BookingsPageState extends State<BookingsPage>
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('تأكيد الوصول والدفع'),
+        title: Text(S.confirmArrivalPaymentTitle),
         content: Text(
-          'هل وصلت العقار ودفعت ${b.remainingCashAmount.toStringAsFixed(0)} '
-          'جنيه كاش للمضيف؟ بمجرد التأكيد لا يمكن التراجع.',
+          S.confirmArrivalPaymentBody(b.remainingCashAmount.toStringAsFixed(0)),
           textAlign: TextAlign.right,
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('إلغاء'),
+            child: Text(S.cancel),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: FilledButton.styleFrom(backgroundColor: _kGreen),
-            child: const Text('نعم، أكد'),
+            child: Text(S.yesConfirm),
           ),
         ],
       ),
@@ -183,8 +182,8 @@ class _BookingsPageState extends State<BookingsPage>
       await BookingService.confirmArrival(b.id);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('تم تأكيد وصولك. شكراً!'),
+        SnackBar(
+          content: Text(S.arrivalConfirmedThanks),
           backgroundColor: _kGreen,
         ),
       );
@@ -193,7 +192,7 @@ class _BookingsPageState extends State<BookingsPage>
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('تعذر التأكيد: $e'),
+          content: Text(S.confirmFailed(e.toString())),
           backgroundColor: _kRed,
         ),
       );
@@ -253,7 +252,7 @@ class _BookingsPageState extends State<BookingsPage>
               !b.cashFullyConfirmed &&
               !b.noShowReported) ...[
             const SizedBox(width: 6),
-            Text('· ${b.remainingCashAmount.toStringAsFixed(0)} جنيه',
+            Text('· ${b.remainingCashAmount.toStringAsFixed(0)} ${S.egp}',
                 style: TextStyle(fontSize: 11, color: fg)),
           ],
         ],
@@ -331,7 +330,7 @@ class _BookingsPageState extends State<BookingsPage>
                     horizontal: 10, vertical: 5),
                 decoration: BoxDecoration(
                   color: _kOrange, borderRadius: BorderRadius.circular(20)),
-                child: Text('$upcoming قادمة',
+                child: Text(S.upcomingCount(upcoming),
                     style: const TextStyle(color: Colors.white,
                         fontSize: 11, fontWeight: FontWeight.w800)),
               ),
@@ -347,9 +346,9 @@ class _BookingsPageState extends State<BookingsPage>
           labelStyle: const TextStyle(
               fontSize: 13, fontWeight: FontWeight.w800),
           tabs: [
-            Tab(text: '📅 القادمة (${_byStatus("upcoming").length})'),
-            Tab(text: '✅ المنتهية (${_byStatus("past").length})'),
-            Tab(text: '❌ الملغية (${_byStatus("cancelled").length})'),
+            Tab(text: S.tabUpcoming(_byStatus("upcoming").length)),
+            Tab(text: S.tabPast(_byStatus("past").length)),
+            Tab(text: S.tabCancelled(_byStatus("cancelled").length)),
           ],
         ),
       ])),
@@ -368,12 +367,9 @@ class _BookingsPageState extends State<BookingsPage>
   }
 
   Widget _emptyState(String status) {
-    final data = {
-      'upcoming':  ('📅', 'مفيش حجوزات قادمة',   'ابحث عن شاليه وأحجز رحلتك الجاية'),
-      'past':      ('🏖️', 'مفيش حجوزات منتهية',  'حجوزاتك السابقة هتظهر هنا'),
-      'cancelled': ('✅', 'مفيش حجوزات ملغية',    'الحمد لله 😄'),
-    };
-    final (emoji, title, sub) = data[status]!;
+    final emoji = status == 'upcoming' ? '📅' : status == 'past' ? '🏖️' : '✅';
+    final title = S.emptyBookingTitle(status);
+    final sub = S.emptyBookingSub(status);
     return Center(child: Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
@@ -434,8 +430,7 @@ class _BookingsPageState extends State<BookingsPage>
                           : Colors.black.withValues(alpha: 0.5),
                       borderRadius: BorderRadius.circular(20)),
                     child: Text(
-                      isCancelled ? '❌ ملغي'
-                          : isUpcoming ? '📅 قادم' : '✅ منتهي',
+                      S.bookingStatusBadge(isCancelled, isUpcoming),
                       style: const TextStyle(color: Colors.white,
                           fontSize: 10, fontWeight: FontWeight.w800)),
                   )),
@@ -458,11 +453,11 @@ class _BookingsPageState extends State<BookingsPage>
                           horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(color: Colors.white,
                           borderRadius: BorderRadius.circular(20)),
-                      child: const Row(children: [
-                        Icon(Icons.qr_code_rounded,
+                      child: Row(children: [
+                        const Icon(Icons.qr_code_rounded,
                             size: 12, color: _kOcean),
-                        SizedBox(width: 4),
-                        Text('QR كود', style: TextStyle(fontSize: 10,
+                        const SizedBox(width: 4),
+                        Text(S.qrCode, style: const TextStyle(fontSize: 10,
                             color: _kOcean,
                             fontWeight: FontWeight.w700)),
                       ]),
@@ -487,7 +482,7 @@ class _BookingsPageState extends State<BookingsPage>
                       Icon(Icons.location_on_rounded,
                           size: 11, color: _areaColor(b.propertyArea)),
                       const SizedBox(width: 2),
-                      Text(b.propertyArea,
+                      Text(S.areaName(b.propertyArea),
                           style: TextStyle(fontSize: 10,
                               color: _areaColor(b.propertyArea),
                               fontWeight: FontWeight.w600)),
@@ -514,13 +509,13 @@ class _BookingsPageState extends State<BookingsPage>
               Divider(height: 1, color: context.kBorder),
               const SizedBox(height: 10),
               Row(children: [
-                _infoChip(Icons.login_rounded,  'وصول',   _fmtDate(b.checkIn)),
+                _infoChip(Icons.login_rounded,  S.arrivalShort,   _fmtDate(b.checkIn)),
                 Icon(Icons.arrow_forward_rounded,
                     size: 14, color: context.kSub),
-                _infoChip(Icons.logout_rounded, 'مغادرة', _fmtDate(b.checkOut)),
+                _infoChip(Icons.logout_rounded, S.departureShort, _fmtDate(b.checkOut)),
                 const Spacer(),
                 _infoChip(Icons.nights_stay_rounded,
-                    'ليالي', '${b.nights}'),
+                    S.nights, '${b.nights}'),
               ]),
               const SizedBox(height: 10),
               Row(children: [
@@ -551,8 +546,7 @@ class _BookingsPageState extends State<BookingsPage>
                       icon: const Icon(Icons.check_circle_rounded,
                           size: 18),
                       label: Text(
-                        'أكد وصولك ودفعك '
-                        '(${b.remainingCashAmount.toStringAsFixed(0)} جنيه كاش)',
+                        S.confirmArrivalCash(b.remainingCashAmount.toStringAsFixed(0)),
                         style: const TextStyle(
                             fontSize: 12.5, fontWeight: FontWeight.w900),
                       ),
@@ -575,8 +569,8 @@ class _BookingsPageState extends State<BookingsPage>
                     onPressed: () => _rate(b),
                     icon: const Icon(Icons.star_rounded,
                         size: 16, color: Color(0xFFF59E0B)),
-                    label: const Text('قيّم إقامتك',
-                        style: TextStyle(
+                    label: Text(S.rateStay,
+                        style: const TextStyle(
                             fontSize: 12, fontWeight: FontWeight.w800)),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: const Color(0xFFF59E0B),
@@ -596,8 +590,8 @@ class _BookingsPageState extends State<BookingsPage>
                     onPressed: () => _cancel(b),
                     icon: const Icon(Icons.close_rounded,
                         size: 16, color: _kRed),
-                    label: const Text('إلغاء الحجز',
-                        style: TextStyle(
+                    label: Text(S.cancelBooking,
+                        style: const TextStyle(
                             fontSize: 12, fontWeight: FontWeight.w800)),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: _kRed,
@@ -707,7 +701,7 @@ class _DetailSheet extends StatelessWidget {
             Row(children: [
               Icon(Icons.location_on_rounded,
                   size: 13, color: ac),
-              Text(' ${b.propertyArea}',
+              Text(' ${S.areaName(b.propertyArea)}',
                   style: TextStyle(fontSize: 12, color: ac,
                       fontWeight: FontWeight.w600)),
             ]),
@@ -717,13 +711,13 @@ class _DetailSheet extends StatelessWidget {
               decoration: BoxDecoration(
                 color: context.kSand, borderRadius: BorderRadius.circular(16)),
               child: Column(children: [
-                _row(context, '📋 كود الحجز',
+                _row(context, '📋 ${S.bookingCode}',
                     '#${b.bookingCode.isNotEmpty ? b.bookingCode : b.id.toString()}'),
-                _row(context, '📅 تاريخ الوصول',    _fmtDate(b.checkIn)),
-                _row(context, '🚪 تاريخ المغادرة',  _fmtDate(b.checkOut)),
-                _row(context, '🌙 عدد الليالي',      '${b.nights} ليالي'),
-                _row(context, '💳 حالة الدفع',      b.paymentStatusAr),
-                _row(context, '💰 إجمالي المدفوع',
+                _row(context, '📅 ${S.arrivalDate}',    _fmtDate(b.checkIn)),
+                _row(context, '🚪 ${S.departureDate}',  _fmtDate(b.checkOut)),
+                _row(context, '🌙 ${S.nightsCount}',     S.nightsXTotal(b.nights)),
+                _row(context, '💳 ${S.paymentStatus}',  b.paymentStatusAr),
+                _row(context, '💰 ${S.totalPaid}',
                     'EGP ${comma(b.totalPrice.toInt())}', highlight: true),
               ]),
             ),
@@ -740,11 +734,11 @@ class _DetailSheet extends StatelessWidget {
                   const Icon(Icons.qr_code_2_rounded,
                       size: 80, color: _kOcean),
                   const SizedBox(height: 8),
-                  Text('QR كود الدخول',
+                  Text(S.entryQrCode,
                       style: TextStyle(fontSize: 14,
                           fontWeight: FontWeight.w800, color: context.kText)),
                   const SizedBox(height: 4),
-                  Text('اعرض الكود ده عند الوصول',
+                  Text(S.showQrOnArrival,
                       style: TextStyle(fontSize: 12, color: context.kSub)),
                 ]),
               ),

@@ -77,7 +77,7 @@ class _ProfilePageState extends State<ProfilePage> {
   void initState() {
     super.initState();
     if (!widget.embedded) {
-      AuthGuard.requireOrPop(context, feature: 'تدخل على ملفك');
+      AuthGuard.requireOrPop(context, feature: S.featureOpenProfile);
     }
     userProvider.addListener(_onUserChanged);
     // Rebuild when the admin toggles shadow-guest mode so the owner
@@ -149,16 +149,16 @@ class _ProfilePageState extends State<ProfilePage> {
       context: context,
       builder: (_) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('تحويل الحساب لمالك عقار؟',
-            style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
+        title: Text(S.becomeOwnerTitle,
+            style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
         content: Text(
-          'هتقدر تضيف عقاراتك وتستقبل حجوزات وتستلم مدفوعات.\n\nممكن ترجع عميل في أي وقت.',
+          S.becomeOwnerBody,
           style: TextStyle(color: context.kSub, height: 1.5),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: Text('إلغاء',
+            child: Text(S.cancel,
                 style: TextStyle(color: context.kSub, fontWeight: FontWeight.w700)),
           ),
           ElevatedButton(
@@ -168,8 +168,8 @@ class _ProfilePageState extends State<ProfilePage> {
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12)),
             ),
-            child: const Text('تحويل لمالك',
-                style: TextStyle(
+            child: Text(S.switchToOwner,
+                style: const TextStyle(
                     color: Colors.white, fontWeight: FontWeight.w800)),
           ),
         ],
@@ -193,8 +193,8 @@ class _ProfilePageState extends State<ProfilePage> {
       debugPrint('Become owner error: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: const Text('حصل خطأ أثناء تحويل الحساب. حاول تاني.',
-              style: TextStyle(fontWeight: FontWeight.w600)),
+          content: Text(S.becomeOwnerError,
+              style: const TextStyle(fontWeight: FontWeight.w600)),
           backgroundColor: _kRed,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -222,8 +222,8 @@ class _ProfilePageState extends State<ProfilePage> {
       debugPrint('Become guest error: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: const Text('حصل خطأ أثناء تغيير الحساب. حاول تاني.',
-              style: TextStyle(fontWeight: FontWeight.w600)),
+          content: Text(S.switchAccountError,
+              style: const TextStyle(fontWeight: FontWeight.w600)),
           backgroundColor: _kRed,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -360,12 +360,12 @@ class _ProfilePageState extends State<ProfilePage> {
                                 .withValues(alpha: 0.08)),
                       ),
                       child:
-                          const Row(mainAxisSize: MainAxisSize.min, children: [
-                        Icon(Icons.edit_rounded,
+                          Row(mainAxisSize: MainAxisSize.min, children: [
+                        const Icon(Icons.edit_rounded,
                             size: 13, color: _kOrange),
-                        SizedBox(width: 4),
-                        Text('تعديل',
-                            style: TextStyle(
+                        const SizedBox(width: 4),
+                        Text(S.edit,
+                            style: const TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w700,
                                 color: _kOrange)),

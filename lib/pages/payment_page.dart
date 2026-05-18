@@ -68,8 +68,8 @@ const _kEtisalatBg  = Color(0xFFFCE4EC);
 List<_PayMethod> get _kMethods => [
       _PayMethod(
         id: 'card',
-        name: 'فيزا / ماستر كارد',
-        desc: 'الدفع بالكارت — أى بنك مصرى أو أجنبى',
+        name: S.visaMaster,
+        desc: S.cardPaymentDesc,
         logos: const [
           'assets/images/payment/visa.jpeg',
           'assets/images/payment/mastercard.jpeg',
@@ -79,24 +79,24 @@ List<_PayMethod> get _kMethods => [
       ),
       _PayMethod(
         id: 'meeza',
-        name: 'ميزة',
-        desc: 'كروت ميزة الوطنية المصرية',
+        name: S.meeza,
+        desc: S.meezaPaymentDesc,
         logos: const ['assets/images/payment/meeza.jpeg'],
         color: _kMeezaGreen,
         bg: _kMeezaBg,
       ),
       _PayMethod(
         id: 'vodafone_cash',
-        name: 'فودافون كاش',
-        desc: 'ادفع من محفظة فودافون كاش',
+        name: S.vodafone,
+        desc: S.vodafoneCashDesc,
         logos: const ['assets/images/payment/vodafone_cash.jpeg'],
         color: _kVfRed,
         bg: _kVfBg,
       ),
       _PayMethod(
         id: 'orange_cash',
-        name: 'اورنچ كاش',
-        desc: 'ادفع من محفظة Orange Cash',
+        name: S.orangeCash,
+        desc: S.orangeCashDesc,
         logos: const ['assets/images/payment/orange_cash.jpeg'],
         color: _kOrangeBrand,
         bg: _kOrangeBg,
@@ -104,7 +104,7 @@ List<_PayMethod> get _kMethods => [
       _PayMethod(
         id: 'etisalat_cash',
         name: 'e& money',
-        desc: 'ادفع من محفظة اتصالات الجديدة',
+        desc: S.etisalatMoneyDesc,
         logos: const ['assets/images/payment/etisalat_money.jpeg'],
         color: _kEtisalat,
         bg: _kEtisalatBg,
@@ -253,7 +253,9 @@ class _PaymentPageState extends State<PaymentPage> {
       if (!res.valid) {
         setState(() {
           _validatingPromo = false;
-          _promoError = res.reasonAr ?? res.reason ?? 'كود غير صالح';
+          _promoError = appSettings.arabic
+              ? (res.reasonAr ?? res.reason ?? S.invalidPromoCode)
+              : (res.reason ?? S.invalidPromoCode);
           _appliedCode = null;
           _discount = 0;
         });
@@ -271,7 +273,7 @@ class _PaymentPageState extends State<PaymentPage> {
       if (!mounted) return;
       setState(() {
         _validatingPromo = false;
-        _promoError = 'تعذّر التحقق من الكود';
+        _promoError = S.promoVerifyFailed;
       });
     }
   }
@@ -337,7 +339,7 @@ class _PaymentPageState extends State<PaymentPage> {
               color: context.kText, size: 18),
           onPressed: () => Navigator.pop(context),
         ),
-        title: Text('إتمام الدفع',
+        title: Text(S.paymentTitle,
             style: TextStyle(
                 fontSize: 16, fontWeight: FontWeight.w900, color: context.kText)),
         centerTitle: true,
@@ -356,14 +358,14 @@ class _PaymentPageState extends State<PaymentPage> {
               const SizedBox(height: 16),
               _escrowBanner(),
               const SizedBox(height: 24),
-              Text('اختر طريقة الدفع',
+              Text(S.chooseMethod,
                   style: TextStyle(
                       fontSize: 17,
                       fontWeight: FontWeight.w900,
                       color: context.kText)),
               const SizedBox(height: 6),
               Text(
-                'كل المعاملات مؤمّنة بتشفير البنوك الدولى وفق معايير PCI-DSS',
+                S.pciDssHint,
                 style: TextStyle(fontSize: 12, color: context.kSub),
               ),
               const SizedBox(height: 14),
@@ -409,31 +411,31 @@ class _PaymentPageState extends State<PaymentPage> {
                   color: Colors.white, size: 22),
             ),
             const SizedBox(width: 12),
-            const Expanded(
+            Expanded(
                 child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('حجزك محمي بضمان Talaa 🛡️',
-                    style: TextStyle(
+                Text(S.escrowProtectedTitle,
+                    style: const TextStyle(
                         color: Colors.white,
                         fontSize: 13,
                         fontWeight: FontWeight.w900)),
-                SizedBox(height: 2),
-                Text('فلوسك محجوزة لحد ما تدخل العقار وتتأكد',
-                    style: TextStyle(color: Colors.white70, fontSize: 11)),
+                const SizedBox(height: 2),
+                Text(S.escrowProtectedSubtitle,
+                    style: const TextStyle(color: Colors.white70, fontSize: 11)),
               ],
             )),
           ]),
           const SizedBox(height: 12),
           // Timeline
           Row(children: [
-            _timelineStep('💳', 'دفع', true),
+            _timelineStep('💳', S.timelinePay, true),
             _timelineLine(),
-            _timelineStep('🏠', 'وصول', false),
+            _timelineStep('🏠', S.timelineArrive, false),
             _timelineLine(),
-            _timelineStep('✅', 'تأكيد +24h', false),
+            _timelineStep('✅', S.timelineConfirm24h, false),
             _timelineLine(),
-            _timelineStep('💰', 'تحويل\nللمالك', false),
+            _timelineStep('💰', S.timelineTransferOwner, false),
           ]),
         ]),
       );
@@ -514,8 +516,8 @@ class _PaymentPageState extends State<PaymentPage> {
                         fontWeight: FontWeight.w800,
                         color: context.kText)),
                 Text(
-                    '${p.area} · ${widget.nights} ليالي · '
-                    '${widget.guests} ضيوف',
+                    '${S.areaName(p.area)} · ${S.nightsXTotal(widget.nights)} · '
+                    '${widget.guests} ${S.guestsShort}',
                     style: TextStyle(fontSize: 12, color: context.kSub)),
                 Text('${widget.checkIn}  →  ${widget.checkOut}',
                     style: TextStyle(fontSize: 11, color: context.kSub)),
@@ -523,26 +525,26 @@ class _PaymentPageState extends State<PaymentPage> {
             )),
           ]),
           Divider(height: 18, color: context.kBorder),
-          _row('${p.pricePerNight.toStringAsFixed(0)} × ${widget.nights} ليالي',
-              '${widget.baseAmount} جنيه'),
+          _row('${p.pricePerNight.toStringAsFixed(0)} × ${S.nightsXTotal(widget.nights)}',
+              '${widget.baseAmount} ${S.egp}'),
           if (widget.cleaningFee > 0)
-            _row(S.cleaningFee, '${widget.cleaningFee} جنيه'),
+            _row(S.cleaningFee, '${widget.cleaningFee} ${S.egp}'),
           if (_discount > 0)
             _row(
-              'كود خصم ($_appliedCode)',
-              '- ${_discount.toStringAsFixed(0)} جنيه',
+              S.promoCodeRow(_appliedCode!),
+              '- ${_discount.toStringAsFixed(0)} ${S.egp}',
               color: _kGreen,
             ),
           if (_walletDiscount > 0)
             _row(
-              'رصيد الدعوات',
-              '- ${_walletDiscount.toStringAsFixed(0)} جنيه',
+              S.walletCreditTitle,
+              '- ${_walletDiscount.toStringAsFixed(0)} ${S.egp}',
               color: _kGreen,
             ),
           Divider(height: 14, color: context.kBorder),
           _row(
             S.totalPrice,
-            '${_effectiveTotalAfterDiscounts.toStringAsFixed(0)} جنيه',
+            '${_effectiveTotalAfterDiscounts.toStringAsFixed(0)} ${S.egp}',
             bold: true,
           ),
           if (widget.isCashOnArrival) ...[
@@ -552,7 +554,7 @@ class _PaymentPageState extends State<PaymentPage> {
             // Legacy 100 %-online flow keeps the original "amount due
             // now" line right under the total.
             const SizedBox(height: 4),
-            _row('المطلوب الآن', '$_finalAmount جنيه', bold: true,
+            _row(S.amountDueNow, '$_finalAmount ${S.egp}', bold: true,
                 color: _kOrange),
           ],
         ]),
@@ -576,13 +578,13 @@ class _PaymentPageState extends State<PaymentPage> {
         border: Border.all(color: const Color(0xFF2E7D32), width: 1.4),
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: const [
-          Text('💵', style: TextStyle(fontSize: 18)),
-          SizedBox(width: 8),
+        Row(children: [
+          const Text('💵', style: TextStyle(fontSize: 18)),
+          const SizedBox(width: 8),
           Expanded(
             child: Text(
-              'دفع جزئى — تدفع ليلة واحدة دلوقتى والباقى كاش للمضيف عند الوصول',
-              style: TextStyle(
+              S.hybridSplitHero,
+              style: const TextStyle(
                   fontSize: 12.5,
                   fontWeight: FontWeight.w900,
                   color: Color(0xFF1B5E20)),
@@ -590,7 +592,7 @@ class _PaymentPageState extends State<PaymentPage> {
           ),
         ]),
         const SizedBox(height: 10),
-        _row('تدفع الآن (عربون ليلة واحدة)', '$_finalAmount جنيه',
+        _row(S.depositOneNightLabel, '$_finalAmount ${S.egp}',
             bold: true, color: const Color(0xFF1B5E20)),
         const SizedBox(height: 6),
         // Hero "remaining" callout — boxed and bigger so the guest
@@ -607,17 +609,17 @@ class _PaymentPageState extends State<PaymentPage> {
             const Icon(Icons.account_balance_wallet_rounded,
                 color: Color(0xFFE65100), size: 18),
             const SizedBox(width: 8),
-            const Expanded(
+            Expanded(
               child: Text(
-                'المتبقى للمضيف عند الوصول',
-                style: TextStyle(
+                S.remainingToHostArrival,
+                style: const TextStyle(
                     fontSize: 12.5,
                     fontWeight: FontWeight.w800,
                     color: Color(0xFFE65100)),
               ),
             ),
             Text(
-              '${remaining.toStringAsFixed(0)} جنيه',
+              '${remaining.toStringAsFixed(0)} ${S.egp}',
               style: const TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w900,
@@ -647,13 +649,13 @@ class _PaymentPageState extends State<PaymentPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('تم تطبيق الكود $_appliedCode',
+                Text(S.promoAppliedCode(_appliedCode!),
                     style: const TextStyle(
                         color: _kGreen,
                         fontWeight: FontWeight.w800,
                         fontSize: 13)),
                 Text(
-                  'خصم ${_discount.toStringAsFixed(0)} جنيه',
+                  S.discountAmount(_discount.toInt()),
                   style: TextStyle(color: context.kSub, fontSize: 11),
                 ),
               ],
@@ -661,8 +663,8 @@ class _PaymentPageState extends State<PaymentPage> {
           ),
           TextButton(
             onPressed: _removePromoCode,
-            child: const Text('إلغاء',
-                style: TextStyle(color: Colors.red, fontSize: 12)),
+            child: Text(S.cancel,
+                style: const TextStyle(color: Colors.red, fontSize: 12)),
           ),
         ]),
       );
@@ -680,7 +682,7 @@ class _PaymentPageState extends State<PaymentPage> {
           Row(children: [
             Icon(Icons.local_offer_outlined, color: context.kText, size: 18),
             const SizedBox(width: 8),
-            Text('عندك كود خصم؟',
+            Text(S.havePromoCode,
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w800,
@@ -694,7 +696,7 @@ class _PaymentPageState extends State<PaymentPage> {
                 controller: _promoCtrl,
                 textCapitalization: TextCapitalization.characters,
                 decoration: InputDecoration(
-                  hintText: 'أدخل الكود',
+                  hintText: S.enterCode,
                   isDense: true,
                   contentPadding: const EdgeInsets.symmetric(
                       horizontal: 12, vertical: 10),
@@ -724,8 +726,8 @@ class _PaymentPageState extends State<PaymentPage> {
                           strokeWidth: 2, color: Colors.white,
                         ),
                       )
-                    : const Text('تطبيق',
-                        style: TextStyle(fontWeight: FontWeight.w700)),
+                    : Text(S.applyPromo,
+                        style: const TextStyle(fontWeight: FontWeight.w700)),
               ),
             ),
           ]),
@@ -767,7 +769,7 @@ class _PaymentPageState extends State<PaymentPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('استخدم رصيد الدعوات',
+              Text(S.useReferralCredit,
                   style: TextStyle(
                       color: context.kText,
                       fontSize: 13,
@@ -775,15 +777,15 @@ class _PaymentPageState extends State<PaymentPage> {
               const SizedBox(height: 3),
               Text(
                 _loadingWallet
-                    ? 'جارى فحص الرصيد...'
+                    ? S.checkingBalance
                     : canUse
-                        ? 'متاح خصم ${preview.maxRedeemable.toStringAsFixed(0)} جنيه من رصيدك'
-                        : reason ?? 'متاح عند حجوزات من 3000 جنيه أو أكثر',
+                        ? S.walletRedeemable(preview.maxRedeemable.toInt())
+                        : reason ?? S.walletMinBooking,
                 style: TextStyle(color: context.kSub, fontSize: 11.5),
               ),
               if (!_loadingWallet && available > 0) ...[
                 const SizedBox(height: 2),
-                Text('رصيدك: ${available.toStringAsFixed(0)} جنيه',
+                Text(S.walletBalance(available.toInt()),
                     style: TextStyle(color: context.kSub, fontSize: 11)),
               ],
             ],
@@ -924,11 +926,11 @@ class _PaymentPageState extends State<PaymentPage> {
           border: Border.all(color: context.kBorder),
         ),
         child: Column(children: [
-          _cf(_numCtrl, 'رقم البطاقة', Icons.credit_card_rounded,
+          _cf(_numCtrl, S.cardNumberHint, Icons.credit_card_rounded,
               TextInputType.number,
               fmt: FilteringTextInputFormatter.digitsOnly, max: 16),
           const SizedBox(height: 10),
-          _cf(_nameCtrl, 'الاسم على البطاقة', Icons.person_outline_rounded,
+          _cf(_nameCtrl, S.cardNameHint, Icons.person_outline_rounded,
               TextInputType.name),
           const SizedBox(height: 10),
           Row(children: [
@@ -977,7 +979,7 @@ class _PaymentPageState extends State<PaymentPage> {
         child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
           Icon(Icons.lock_rounded, size: 13, color: Colors.grey.shade400),
           const SizedBox(width: 6),
-          Text('مدفوعاتك محمية بتشفير SSL 256-bit وفق معايير PCI-DSS',
+          Text(S.sslPaymentProtection,
               style: TextStyle(fontSize: 11, color: Colors.grey.shade400)),
         ]),
       );
@@ -1011,8 +1013,8 @@ class _PaymentPageState extends State<PaymentPage> {
                       child: CircularProgressIndicator(
                           color: Colors.white, strokeWidth: 2.5))
                   : Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                      const Text('تأكيد الدفع',
-                          style: TextStyle(
+                      Text(S.confirmPay,
+                          style: const TextStyle(
                               fontSize: 16, fontWeight: FontWeight.w900)),
                       const SizedBox(width: 10),
                       Container(
@@ -1024,7 +1026,7 @@ class _PaymentPageState extends State<PaymentPage> {
                         // Wave 25 — show the deposit (= what's
                         // actually leaving the card) for hybrid
                         // bookings, the full total otherwise.
-                        child: Text('$_finalAmount جنيه',
+                        child: Text('$_finalAmount ${S.egp}',
                             style: const TextStyle(
                                 fontSize: 14, fontWeight: FontWeight.w900)),
                       ),
@@ -1093,7 +1095,7 @@ class _PaymentPageState extends State<PaymentPage> {
           _expCtrl.text.length < 5 ||
           _cvvCtrl.text.length < 3 ||
           _nameCtrl.text.trim().isEmpty) {
-        _snack('يرجى إدخال بيانات البطاقة كاملة', isError: true);
+        _snack(S.completeCardData, isError: true);
         return;
       }
     }
@@ -1166,7 +1168,7 @@ class _PaymentPageState extends State<PaymentPage> {
     } on ApiException catch (e) {
       _snack(ErrorHandler.getMessage(e), isError: true);
     } catch (_) {
-      _snack('حدث خطأ، حاول مرة أخرى', isError: true);
+      _snack(S.tryAgainError, isError: true);
     } finally {
       if (mounted) setState(() => _loading = false);
     }

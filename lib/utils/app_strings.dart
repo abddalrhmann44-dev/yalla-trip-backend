@@ -755,6 +755,437 @@ class S {
   static String get maxUsageField =>
       _ar ? 'أقصى استخدام (اختياري)' : 'Max Usage (optional)';
 
+  // ── PROPERTY DETAILS — extras ────────────────────────────
+  static String get propertyNotFound =>
+      _ar ? 'العقار غير موجود' : 'Property not found';
+  static String get unexpectedError =>
+      _ar ? 'حدث خطأ غير متوقع' : 'Unexpected error';
+  static String get familyOnlyBadge => _ar ? 'عائلات فقط' : 'Families only';
+  static String get youthOnlyBadge => _ar ? 'شباب فقط' : 'Youth only';
+  static String get openOnGoogleMaps =>
+      _ar ? 'افتح الموقع على جوجل ماب' : 'Open in Google Maps';
+  static String get invalidLocationLink =>
+      _ar ? 'لينك الموقع غير صالح' : 'Invalid location link';
+  static String get cannotOpenMaps =>
+      _ar ? 'تعذّر فتح خرائط جوجل' : 'Cannot open Google Maps';
+  static String get pricingTitle => _ar ? '💰 التسعير' : '💰 Pricing';
+  static String get arrivalTimesTitle =>
+      _ar ? '🕐 مواعيد الوصول' : '🕐 Arrival Times';
+  static String get reviewsSectionTitle =>
+      _ar ? '⭐ التقييمات' : '⭐ Reviews';
+  static String get hostSectionTitle => _ar ? '🏠 المضيف' : '🏠 Host';
+  static String get similarPropertiesTitle =>
+      _ar ? '✨ عقارات مشابهة' : '✨ Similar Properties';
+  static String get amenitiesSectionTitle =>
+      _ar ? '✨ المرافق والخدمات' : '✨ Amenities & Services';
+  static String get servicesSectionTitle =>
+      _ar ? '🏊 الخدمات' : '🏊 Services';
+  static String get negotiateBtn => _ar ? 'فاوض' : 'Negotiate';
+  static String get bookNowEmoji =>
+      _ar ? 'احجز الآن 🏖️' : 'Book Now 🏖️';
+  static String get basePricePerNight =>
+      _ar ? 'السعر الأساسي / ليلة' : 'Base price / night';
+  static String get electricityFeeLabel =>
+      _ar ? 'رسوم الكهرباء' : 'Electricity fee';
+  static String get waterFeeLabel => _ar ? 'رسوم المياه' : 'Water fee';
+  static String get refundableDeposit =>
+      _ar ? 'تأمين (مسترد)' : 'Security deposit (refundable)';
+  static String get minStayLabel =>
+      _ar ? 'الحد الأدنى للإقامة' : 'Minimum stay';
+  static String get oneNight => _ar ? '1 ليلة' : '1 night';
+  static String get arrivalCheckInLabel =>
+      _ar ? 'تسجيل الوصول' : 'Check-in';
+  static String get closingTimeLabel => _ar ? 'وقت الإغلاق' : 'Closing time';
+  static String get noReviewsYet =>
+      _ar ? 'لا يوجد تقييمات بعد' : 'No reviews yet';
+  static String reviewCountText(int n) => _ar ? '$n تقييم' : '$n reviews';
+  static String get verifiedHostBadge =>
+      _ar ? 'مضيف موثّق' : 'Verified Host';
+  static String get hostOnTalaa => _ar ? 'مضيف في Talaa' : 'Host on Talaa';
+  static String get contactBtn => _ar ? 'تواصل' : 'Contact';
+  static String get perNightSlash => _ar ? '/ الليلة' : '/ night';
+  // Feature labels used by AuthGuard.require — these appear in the
+  // login-required dialog as "Login to <feature>".  Translating them
+  // makes the auth prompt fully bilingual.
+  static String get featureReportProperty =>
+      _ar ? 'تبلّغ عن العقار' : 'report this property';
+  static String get featureBookProperty =>
+      _ar ? 'تحجز العقار' : 'book this property';
+  static String get featureContactOwner =>
+      _ar ? 'تتواصل مع المالك' : 'contact the owner';
+  static String get featureNegotiate =>
+      _ar ? 'تتفاوض مع المالك' : 'negotiate with the owner';
+  static String get linkCopiedMessage =>
+      _ar
+          ? 'تم نسخ رابط العقار — الصقه أينما تريد للمشاركة'
+          : 'Property link copied — paste it anywhere to share';
+  static String get ownerFallback => _ar ? 'المالك' : 'Owner';
+  static String get reportTooltip => _ar ? 'بلّغ' : 'Report';
+
+  // ── BOOKING FLOW — extras ────────────────────────────────
+  static String get nextDetailsBtn =>
+      _ar ? 'التالي: تفاصيل الحجز ←' : 'Next: Booking Details →';
+  static String get nextReviewBtn =>
+      _ar ? 'التالي: مراجعة الحجز ←' : 'Next: Review →';
+  static String get minStayHint => _ar ? 'الحد الأدنى 1 ليالي' : 'Minimum 1 night';
+  static String get minStayWarning =>
+      _ar ? 'الحد الأدنى للإقامة 1 ليالي' : 'Minimum stay is 1 night';
+  static String get pickDate => _ar ? 'اختر تاريخ' : 'Pick a date';
+  static String get noteToHostOptional =>
+      _ar ? 'ملاحظة للمضيف (اختياري)' : 'Note to host (optional)';
+  static String get noteHostHint => _ar
+      ? 'أي طلبات خاصة؟ (وقت وصول مبكر، مناسبة، إلخ)'
+      : 'Any special requests? (early arrival, occasion, etc.)';
+  static String get policySectionTitle =>
+      _ar ? 'سياسة الإلغاء والحجز' : 'Cancellation & Booking Policy';
+  static String get freeCancelTitle => _ar ? 'إلغاء مجاني' : 'Free Cancellation';
+  static String get freeCancelBody => _ar
+      ? 'يمكنك الإلغاء مجاناً قبل الوصول بـ 7 أيام على الأقل.'
+      : 'Cancel for free at least 7 days before arrival.';
+  static String get partialCancelTitle =>
+      _ar ? 'إلغاء جزئي' : 'Partial Refund';
+  static String get partialCancelBody => _ar
+      ? 'الإلغاء بين 3 و7 أيام قبل الوصول: استرداد 50% من المبلغ.'
+      : 'Cancel 3–7 days before arrival: 50% refund.';
+  static String get noRefundTitle => _ar ? 'بدون استرداد' : 'No Refund';
+  static String get noRefundBody => _ar
+      ? 'الإلغاء قبل أقل من 3 أيام أو عدم الحضور: لا يُسترد المبلغ.'
+      : 'Cancel less than 3 days or no-show: no refund.';
+  static String get arrivalDepartureTitle =>
+      _ar ? 'وقت الوصول والمغادرة' : 'Check-in & Check-out';
+  static String arrivalDepartureBody(String closing) => _ar
+      ? 'الوصول من الساعة 14:00 — وقت الإغلاق $closing.'
+      : 'Check-in from 14:00 — closing time $closing.';
+  static String get propertyRulesTitle =>
+      _ar ? 'قواعد العقار' : 'House Rules';
+  static String get propertyRulesBody => _ar
+      ? 'يُرجى احترام جيران العقار وعدم إقامة حفلات صاخبة.'
+      : 'Please respect neighbours — no loud parties.';
+  static String get policyAcknowledge => _ar
+      ? '⚠️ بالمتابعة وإتمام الدفع، أنت توافق على سياسة الإلغاء والقواعد المذكورة أعلاه.'
+      : '⚠️ By proceeding to payment you agree to the cancellation policy and rules above.';
+  static String get tripSummary => _ar ? 'ملخص الرحلة' : 'Trip Summary';
+  static String get completeBookingPay =>
+      _ar ? 'إتمام الحجز والدفع' : 'Complete Booking & Pay';
+  static String get securePayment =>
+      _ar ? '🔒 دفع آمن ومشفر' : '🔒 Secure encrypted payment';
+  static String get partialPaymentHero => _ar
+      ? 'دفع جزئى — استلم الباقى للمضيف عند الوصول'
+      : 'Partial payment — settle the rest with the host on arrival';
+  static String payNowDepositLabel(String label) => _ar
+      ? 'تدفع الآن (عربون $label)'
+      : 'Pay now (deposit $label)';
+  static String get payNowDepositSimple =>
+      _ar ? 'تدفع الآن (عربون)' : 'Pay now (deposit)';
+  static String get payCashOnArrival =>
+      _ar ? 'تدفع كاش للمضيف عند الوصول' : 'Pay cash to host on arrival';
+  static String get oneNightAr => _ar ? 'ليلة واحدة' : 'one night';
+  static String nightsCountLabel(int n) =>
+      _ar ? 'ليالى $n' : '$n nights';
+  static String get arrival => _ar ? 'الوصول' : 'Arrival';
+  static String get departure => _ar ? 'المغادرة' : 'Departure';
+  static String get guestsShort => _ar ? 'ضيوف' : 'Guests';
+  static String get egpPerNightTwoLine => _ar ? 'جنيه/ليلة' : 'EGP/night';
+  static String nightsXTotal(int nights) =>
+      _ar ? '$nights ليالي' : '$nights nights';
+  static String pricePerNightCalc(int price, int nights) => _ar
+      ? '$price جنيه × $nights ليالي'
+      : '$price EGP × $nights nights';
+
+  // ── PAYMENT PAGE — extras ────────────────────────────────
+  static String get paymentTitle => _ar ? 'إتمام الدفع' : 'Complete Payment';
+  static String get escrowProtectedTitle =>
+      _ar ? 'حجزك محمي بضمان Talaa 🛡️' : 'Your booking is protected by Talaa 🛡️';
+  static String get escrowProtectedSubtitle => _ar
+      ? 'فلوسك محجوزة لحد ما تدخل العقار وتتأكد'
+      : 'Your money is held until you check in and confirm';
+  static String get timelinePay => _ar ? 'دفع' : 'Pay';
+  static String get timelineArrive => _ar ? 'وصول' : 'Arrive';
+  static String get timelineConfirm24h =>
+      _ar ? 'تأكيد +24h' : 'Confirm +24h';
+  static String get timelineTransferOwner =>
+      _ar ? 'تحويل\nللمالك' : 'Transfer\nto host';
+  static String get chooseMethod => _ar ? 'اختر طريقة الدفع' : 'Choose payment method';
+  static String get pciDssHint => _ar
+      ? 'كل المعاملات مؤمّنة بتشفير البنوك الدولى وفق معايير PCI-DSS'
+      : 'All transactions secured by bank-grade encryption per PCI-DSS';
+  static String get hybridSplitHero => _ar
+      ? 'دفع جزئى — تدفع ليلة واحدة دلوقتى والباقى كاش للمضيف عند الوصول'
+      : 'Partial payment — pay one night now, the rest in cash on arrival';
+  static String get depositOneNightLabel =>
+      _ar ? 'تدفع الآن (عربون ليلة واحدة)' : 'Pay now (one-night deposit)';
+  static String get remainingCashLabel =>
+      _ar ? 'الباقى كاش عند الوصول' : 'Remaining cash on arrival';
+  static String get promoCodeTitle => _ar ? 'كود الخصم' : 'Promo Code';
+  static String get applyPromo => _ar ? 'تطبيق' : 'Apply';
+  static String get verifying => _ar ? 'جاري التحقق…' : 'Verifying…';
+  static String get walletCreditTitle =>
+      _ar ? 'رصيد الدعوات' : 'Referral Credit';
+  static String walletCreditSubtitle(int amount) => _ar
+      ? 'متاح: $amount جنيه'
+      : 'Available: $amount EGP';
+  static String walletUseAmount(int amount) => _ar
+      ? 'استخدم $amount جنيه'
+      : 'Use $amount EGP';
+  static String get walletRedeemNote => _ar
+      ? 'يتم خصم الرصيد تلقائياً من إجمالي الحجز'
+      : 'Credit applied automatically to your booking total';
+  static String get amountDueNow => _ar ? 'المطلوب الآن' : 'Amount due now';
+  static String get confirmPay => _ar ? 'تأكيد الدفع' : 'Confirm Payment';
+  static String get totalProtected =>
+      _ar ? 'إجمالى محمى' : 'Total protected';
+  static String paymentFor(String code) => _ar
+      ? 'دفع لحجز $code'
+      : 'Payment for booking $code';
+  static String get cardPaymentDesc =>
+      _ar ? 'الدفع بالكارت — أى بنك مصرى أو أجنبى' : 'Pay by card — any Egyptian or international bank';
+  static String get meezaPaymentDesc =>
+      _ar ? 'كروت ميزة الوطنية المصرية' : 'Egyptian national Meeza cards';
+  static String get vodafoneCashDesc =>
+      _ar ? 'ادفع من محفظة فودافون كاش' : 'Pay from Vodafone Cash wallet';
+  static String get orangeCash => _ar ? 'اورنچ كاش' : 'Orange Cash';
+  static String get orangeCashDesc =>
+      _ar ? 'ادفع من محفظة Orange Cash' : 'Pay from Orange Cash wallet';
+  static String get etisalatMoneyDesc =>
+      _ar ? 'ادفع من محفظة اتصالات الجديدة' : 'Pay from e& money wallet';
+  static String get invalidPromoCode => _ar ? 'كود غير صالح' : 'Invalid code';
+  static String get promoVerifyFailed =>
+      _ar ? 'تعذّر التحقق من الكود' : 'Could not verify code';
+  static String get discountCodeLabel => _ar ? 'كود خصم' : 'Promo code';
+  static String promoCodeRow(String code) =>
+      _ar ? 'كود خصم ($code)' : 'Promo code ($code)';
+  static String get remainingToHostArrival =>
+      _ar ? 'المتبقى للمضيف عند الوصول' : 'Remaining to host on arrival';
+  static String promoAppliedCode(String code) =>
+      _ar ? 'تم تطبيق الكود $code' : 'Code $code applied';
+  static String discountAmount(int amount) =>
+      _ar ? 'خصم $amount جنيه' : 'Discount $amount EGP';
+  static String get havePromoCode =>
+      _ar ? 'عندك كود خصم؟' : 'Have a promo code?';
+  static String get enterCode => _ar ? 'أدخل الكود' : 'Enter code';
+  static String get useReferralCredit =>
+      _ar ? 'استخدم رصيد الدعوات' : 'Use referral credit';
+  static String get checkingBalance =>
+      _ar ? 'جارى فحص الرصيد...' : 'Checking balance...';
+  static String walletRedeemable(int amount) => _ar
+      ? 'متاح خصم $amount جنيه من رصيدك'
+      : '$amount EGP available from your credit';
+  static String get walletMinBooking =>
+      _ar ? 'متاح عند حجوزات من 3000 جنيه أو أكثر' : 'Available for bookings of 3000 EGP or more';
+  static String walletBalance(int amount) =>
+      _ar ? 'رصيدك: $amount جنيه' : 'Your balance: $amount EGP';
+  static String get cardNumberHint => _ar ? 'رقم البطاقة' : 'Card number';
+  static String get cardNameHint =>
+      _ar ? 'الاسم على البطاقة' : 'Name on card';
+  static String get sslPaymentProtection =>
+      _ar ? 'مدفوعاتك محمية بتشفير SSL 256-bit وفق معايير PCI-DSS' : 'Your payments are protected by 256-bit SSL encryption and PCI-DSS';
+  static String get completeCardData =>
+      _ar ? 'يرجى إدخال بيانات البطاقة كاملة' : 'Please enter complete card details';
+  static String get tryAgainError =>
+      _ar ? 'حدث خطأ، حاول مرة أخرى' : 'Something went wrong, please try again';
+
+  // ── CHAT PAGE — extras ───────────────────────────────────
+  static String get chatOpenError =>
+      _ar ? 'حدث خطأ أثناء فتح المحادثة' : 'Could not open chat';
+  static String get contactSharingBlocked => _ar
+      ? '⚠️ تبادل أرقام التواصل غير مسموح. أكمل الحجز أولاً ثم يمكنك التواصل المباشر.'
+      : '⚠️ Sharing contact numbers is not allowed. Complete the booking first, then you can contact directly.';
+  static String sendFailed(String error) =>
+      _ar ? 'فشل الإرسال: $error' : 'Send failed: $error';
+  static String get conversationFallback => _ar ? 'المحادثة' : 'Conversation';
+  static String get startChatPrompt =>
+      _ar ? 'ابدأ المحادثة — اكتب أول رسالة 👇' : 'Start the conversation — write the first message 👇';
+  static String get chatRulesTitle => _ar ? 'قواعد الدردشة' : 'Chat Rules';
+  static String get chatRuleNegotiate =>
+      _ar ? 'التفاوض على السعر مسموح به بالكامل' : 'Price negotiation is fully allowed';
+  static String get chatRuleDates =>
+      _ar ? 'سؤال عن المواعيد والخدمات' : 'Ask about dates and services';
+  static String get chatRulePhotos =>
+      _ar ? 'طلب صور إضافية للمكان' : 'Request extra photos of the place';
+  static String get chatRuleNoPhones =>
+      _ar ? 'تبادل أرقام الهاتف أو الواتساب' : 'Sharing phone or WhatsApp numbers';
+  static String get chatRuleNoExternal =>
+      _ar ? 'مشاركة روابط خارجية للتواصل' : 'Sharing external contact links';
+  static String get chatRuleNoOutsidePay =>
+      _ar ? 'الدفع خارج التطبيق' : 'Paying outside the app';
+  static String get chatSafetyNote => _ar
+      ? '$appName يحمي حقوقك! جميع الاتفاقيات والمدفوعات تتم داخل التطبيق لضمان أمانك.'
+      : '$appName protects your rights! All agreements and payments happen inside the app for your safety.';
+  static String get tripDetails => _ar ? 'تفاصيل الرحلة' : 'Trip Details';
+  static String get tripDetailsHint => _ar
+      ? 'حدد تاريخ الوصول والمغادرة وعدد الأفراد قبل فتح المحادثة'
+      : 'Select check-in, check-out, and guests before opening the chat';
+  static String get chooseTripDates =>
+      _ar ? 'اختر تاريخ الوصول والمغادرة' : 'Choose check-in and check-out dates';
+  static String get peopleCount => _ar ? 'عدد الأفراد' : 'Number of people';
+  static String get sendOffer => _ar ? 'إرسال عرض سعر' : 'Send Price Offer';
+  static String get offerHint => _ar
+      ? 'ادخل السعر المقترح بالجنيه المصري (لليلة للشاليه / للساعة للمراكب).'
+      : 'Enter your proposed price in EGP (per night for chalets / per hour for boats).';
+  static String get examplePrice => _ar ? 'مثال: 1500' : 'Example: 1500';
+  static String get offerSendError =>
+      _ar ? 'حدث خطأ أثناء إرسال العرض' : 'Could not send offer';
+  static String get offerDeclineError =>
+      _ar ? 'حدث خطأ أثناء رفض العرض' : 'Could not decline offer';
+  static String get offerAcceptError =>
+      _ar ? 'حدث خطأ أثناء قبول العرض' : 'Could not accept offer';
+  static String get confirmAcceptOffer =>
+      _ar ? 'تأكيد قبول العرض' : 'Confirm Offer Acceptance';
+  static String acceptOfferBody(String amount) => _ar
+      ? 'هيتم إنشاء حجز بالسعر المتفق عليه ($amount ج.م/ليلة) وهتنتقل لصفحة الدفع مباشرة.'
+      : 'A booking will be created at the agreed price ($amount EGP/night), then you will go directly to payment.';
+  static String bookingCreatedPayFromBookings(String code) => _ar
+      ? 'تم إنشاء حجز $code ✅ — تابع الدفع من حجوزاتي'
+      : 'Booking $code created ✅ — continue payment from My Bookings';
+  static String acceptedBanner(int? bookingId) => _ar
+      ? (bookingId != null
+          ? 'تم الاتفاق — حجز رقم #$bookingId.  تابع الحجز من قسم «حجوزاتي» لإتمام الدفع وعرض بيانات التواصل.'
+          : 'تم الاتفاق — تابع الحجز من قسم «حجوزاتي».')
+      : (bookingId != null
+          ? 'Agreement reached — booking #$bookingId. Continue from My Bookings to pay and view contact details.'
+          : 'Agreement reached — continue from My Bookings.');
+  static String get yourOffer => _ar ? 'عرضك' : 'Your offer';
+  static String get newOffer => _ar ? 'عرض جديد' : 'New offer';
+  static String get accept => _ar ? 'قبول' : 'Accept';
+  static String get counterOffer => _ar ? 'عرض مضاد' : 'Counter offer';
+
+  // ── PROFILE PAGE — extras ─────────────────────────────────
+  static String get featureOpenProfile =>
+      _ar ? 'تدخل على ملفك' : 'open your profile';
+  static String get becomeOwnerTitle =>
+      _ar ? 'تحويل الحساب لمالك عقار؟' : 'Switch account to property owner?';
+  static String get becomeOwnerBody => _ar
+      ? 'هتقدر تضيف عقاراتك وتستقبل حجوزات وتستلم مدفوعات.\n\nممكن ترجع عميل في أي وقت.'
+      : 'You will be able to add properties, receive bookings, and collect payouts.\n\nYou can switch back to guest mode anytime.';
+  static String get switchToOwner => _ar ? 'تحويل لمالك' : 'Switch to Owner';
+  static String get becomeOwnerError =>
+      _ar ? 'حصل خطأ أثناء تحويل الحساب. حاول تاني.' : 'Could not switch account. Please try again.';
+  static String get switchAccountError =>
+      _ar ? 'حصل خطأ أثناء تغيير الحساب. حاول تاني.' : 'Could not change account mode. Please try again.';
+
+  // ── BOOKINGS PAGE — extras ───────────────────────────────
+  static String get featureViewBookings =>
+      _ar ? 'تشوف حجوزاتك' : 'view your bookings';
+  static String get confirmArrivalPaymentTitle =>
+      _ar ? 'تأكيد الوصول والدفع' : 'Confirm arrival and payment';
+  static String confirmArrivalPaymentBody(String amount) => _ar
+      ? 'هل وصلت العقار ودفعت $amount جنيه كاش للمضيف؟ بمجرد التأكيد لا يمكن التراجع.'
+      : 'Have you arrived and paid $amount EGP cash to the host? This confirmation cannot be undone.';
+  static String get yesConfirm => _ar ? 'نعم، أكد' : 'Yes, confirm';
+  static String get arrivalConfirmedThanks =>
+      _ar ? 'تم تأكيد وصولك. شكراً!' : 'Arrival confirmed. Thank you!';
+  static String confirmFailed(String error) =>
+      _ar ? 'تعذر التأكيد: $error' : 'Could not confirm: $error';
+  static String upcomingCount(int n) => _ar ? '$n قادمة' : '$n upcoming';
+  static String tabUpcoming(int n) => _ar ? '📅 القادمة ($n)' : '📅 Upcoming ($n)';
+  static String tabPast(int n) => _ar ? '✅ المنتهية ($n)' : '✅ Completed ($n)';
+  static String tabCancelled(int n) => _ar ? '❌ الملغية ($n)' : '❌ Cancelled ($n)';
+  static String emptyBookingTitle(String status) {
+    if (status == 'upcoming') return _ar ? 'مفيش حجوزات قادمة' : 'No upcoming bookings';
+    if (status == 'past') return _ar ? 'مفيش حجوزات منتهية' : 'No completed bookings';
+    return _ar ? 'مفيش حجوزات ملغية' : 'No cancelled bookings';
+  }
+  static String emptyBookingSub(String status) {
+    if (status == 'upcoming') return _ar ? 'ابحث عن شاليه وأحجز رحلتك الجاية' : 'Find a chalet and book your next trip';
+    if (status == 'past') return _ar ? 'حجوزاتك السابقة هتظهر هنا' : 'Your previous bookings will appear here';
+    return _ar ? 'الحمد لله 😄' : 'Great news 😄';
+  }
+  static String bookingStatusBadge(bool cancelled, bool upcoming) => _ar
+      ? (cancelled ? '❌ ملغي' : upcoming ? '📅 قادم' : '✅ منتهي')
+      : (cancelled ? '❌ Cancelled' : upcoming ? '📅 Upcoming' : '✅ Completed');
+  static String get qrCode => _ar ? 'QR كود' : 'QR Code';
+  static String get arrivalShort => _ar ? 'وصول' : 'Arrival';
+  static String get departureShort => _ar ? 'مغادرة' : 'Departure';
+  static String confirmArrivalCash(String amount) => _ar
+      ? 'أكد وصولك ودفعك ($amount جنيه كاش)'
+      : 'Confirm arrival and cash payment ($amount EGP)';
+  static String get bookingCode => _ar ? 'كود الحجز' : 'Booking code';
+  static String get paymentStatus => _ar ? 'حالة الدفع' : 'Payment status';
+  static String get entryQrCode => _ar ? 'QR كود الدخول' : 'Entry QR code';
+  static String get showQrOnArrival =>
+      _ar ? 'اعرض الكود ده عند الوصول' : 'Show this code on arrival';
+
+  // ── HOME PAGE — extras ───────────────────────────────────
+  static String get greetingMorning =>
+      _ar ? 'صباح الخير ☀️' : 'Good Morning ☀️';
+  static String get greetingAfternoon =>
+      _ar ? 'مساء الخير 🌤️' : 'Good Afternoon 🌤️';
+  static String get greetingEvening =>
+      _ar ? 'مساء النور 🌙' : 'Good Evening 🌙';
+  static String get guestNameLabel => _ar ? 'ضيفنا' : 'Guest';
+  static String get featureViewFavorites =>
+      _ar ? 'تشوف عقاراتك المفضلة' : 'view your favorites';
+  static String get featureChatHosts =>
+      _ar ? 'تتواصل مع الملاك' : 'message hosts';
+  static String get featureViewNotifications =>
+      _ar ? 'تشوف إشعاراتك' : 'view your notifications';
+  static String get filterAreaTitle => _ar ? '📍 المنطقة' : '📍 Area';
+  static String get filterPropertyType =>
+      _ar ? '🏠 نوع الوحدة' : '🏠 Property type';
+  static String get filterPriceRange =>
+      _ar ? '💰 السعر في الليلة (EGP)' : '💰 Price per night (EGP)';
+  static String get filterGuestCount => _ar ? '👥 عدد الأشخاص' : '👥 Guests';
+  static String get filterMinRatingTitle =>
+      _ar ? '⭐ الحد الأدنى للتقييم' : '⭐ Minimum rating';
+  static String get filterFeatures => _ar ? '✨ مميزات' : '✨ Features';
+  static String get filterGuestsRow => _ar ? 'ضيوف' : 'Guests';
+  static String get filterRoomsRow => _ar ? 'غرف' : 'Rooms';
+  static String get featurePool => _ar ? '🏊 مسبح' : '🏊 Pool';
+  static String get featurePrivateBeach =>
+      _ar ? '🏖️ شاطئ خاص' : '🏖️ Private beach';
+  static String get featureInstantBook =>
+      _ar ? '⚡ حجز فوري' : '⚡ Instant book';
+  static String get featureOnlineNow =>
+      _ar ? '🟢 أونلاين الآن' : '🟢 Online now';
+  static String get featureWifi => _ar ? '📶 واي فاي' : '📶 Wi-Fi';
+  static String get featureParking => _ar ? '🚗 موقف سيارات' : '🚗 Parking';
+  static String get recentlyViewedTitle =>
+      _ar ? 'اللي شوفتهم مؤخراً' : 'Recently viewed';
+  static String get selectedChaletsHotels =>
+      _ar ? 'مختارات شاليهات وفنادق' : 'Selected chalets & hotels';
+  static String get tripsForYou =>
+      _ar ? 'وجهات مقترحة ليك' : 'Trips you might like';
+  static String get stayInDahab => _ar ? 'اقعد في دهب' : 'Stay in Dahab';
+  static String get stayInSahel => _ar ? 'اقعد في الساحل' : 'Stay in Sahel';
+  static String get dahabSubtitle =>
+      _ar ? 'هدوء + شعاب مرجانية' : 'Calm + coral reefs';
+  static String get sahelSubtitle =>
+      _ar ? 'مية فيروزية + سهرات' : 'Turquoise water + nights';
+  static String get exploreNowShort => _ar ? 'استكشف الآن' : 'Explore';
+  static String get exclusiveDeals =>
+      _ar ? '🔥 العروض الحصرية' : '🔥 Exclusive Deals';
+  static String get noOffersNow =>
+      _ar ? 'لا توجد عروض حالياً' : 'No offers right now';
+  static String get offersWillAppear => _ar
+      ? 'ستظهر العروض والخصومات هنا فور إضافتها'
+      : 'Offers and discounts will appear here as soon as they are added';
+  static String get navHomeTab => _ar ? 'الرئيسية' : 'Home';
+  static String get navBestTrip => _ar ? 'أحلى رحلة' : 'Best Trip';
+  static String get navMessages => _ar ? 'رسائل' : 'Messages';
+  static String get navProfile => _ar ? 'حسابى' : 'Profile';
+  static String get navToday => _ar ? 'اليوم' : 'Today';
+  static String get navListings => _ar ? 'عقاراتى' : 'Listings';
+  static String get navReservations => _ar ? 'الحجوزات' : 'Reservations';
+  static String get navEarnings => _ar ? 'الأرباح' : 'Earnings';
+  static String get startSearch => _ar ? 'ابدأ بحثك' : 'Start your search';
+  static String get searchHintHome => _ar
+      ? 'ابحث عن وجهة، نوع، أو اسم عقار…'
+      : 'Search destination, type, or property name…';
+  static String get endsIn => _ar ? 'ينتهي خلال ' : 'Ends in ';
+  static String suggestChaletsArea(String area) =>
+      _ar ? 'شاليهات $area' : 'Chalets in $area';
+  static String suggestVillasArea(String area) =>
+      _ar ? 'فيلات $area' : 'Villas in $area';
+  static String suggestResortsArea(String area) =>
+      _ar ? 'منتجعات $area' : 'Resorts in $area';
+  static String suggestHotelsArea(String area) =>
+      _ar ? 'فنادق $area' : 'Hotels in $area';
+  static String suggestDealsArea(String area) =>
+      _ar ? 'عروض $area' : 'Deals in $area';
+  static String get suggestAquaPark => _ar ? 'أكوا بارك' : 'Aqua Park';
+  static String get suggestChaletsPool =>
+      _ar ? 'شاليهات بحمام سباحة' : 'Chalets with pool';
+
   // ── ADMIN FINANCIAL SETTINGS ─────────────────────────────
   static String get feeSettings =>
       _ar ? 'إعدادات الرسوم' : 'Fee Settings';

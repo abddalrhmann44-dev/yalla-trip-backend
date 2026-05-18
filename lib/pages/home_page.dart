@@ -595,7 +595,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 // instead of an opaque 401/empty screen.
                 _hdrIcon(Icons.favorite_border_rounded, onTap: () async {
                   if (!await AuthGuard.require(context,
-                      feature: 'تشوف عقاراتك المفضلة')) {
+                      feature: S.featureViewFavorites)) {
                     return;
                   }
                   if (!mounted) return;
@@ -605,7 +605,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 const SizedBox(width: 8),
                 _hdrIcon(Icons.chat_bubble_outline_rounded, onTap: () async {
                   if (!await AuthGuard.require(context,
-                      feature: 'تتواصل مع الملاك')) {
+                      feature: S.featureChatHosts)) {
                     return;
                   }
                   if (!mounted) return;
@@ -616,7 +616,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 _hdrIcon(Icons.notifications_outlined, notif: true,
                     onTap: () async {
                   if (!await AuthGuard.require(context,
-                      feature: 'تشوف إشعاراتك')) {
+                      feature: S.featureViewNotifications)) {
                     return;
                   }
                   if (!mounted) return;
@@ -728,7 +728,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       // ① المنطقة
-                      _fSection('📍 المنطقة'),
+                      _fSection(S.filterAreaTitle),
                       const SizedBox(height: 10),
                       Wrap(
                         spacing: 8,
@@ -750,7 +750,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                               ? const Color(0xFFFF6B35)
                                               : context.kBorder),
                                     ),
-                                    child: Text(a,
+                                    child: Text(a == 'الكل' ? S.all : S.areaName(a),
                                         style: TextStyle(
                                             fontSize: 13,
                                             fontWeight: FontWeight.w600,
@@ -764,7 +764,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                       const SizedBox(height: 20),
 
                       // ② نوع الوحدة
-                      _fSection('🏠 نوع الوحدة'),
+                      _fSection(S.filterPropertyType),
                       const SizedBox(height: 10),
                       Wrap(
                         spacing: 8,
@@ -786,7 +786,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                               ? const Color(0xFFFF6D00)
                                               : context.kBorder),
                                     ),
-                                    child: Text(t,
+                                    child: Text(t == 'الكل' ? S.all : S.catName(t),
                                         style: TextStyle(
                                             fontSize: 13,
                                             fontWeight: FontWeight.w600,
@@ -800,15 +800,15 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                       const SizedBox(height: 20),
 
                       // ③ نطاق السعر
-                      _fSection('💰 السعر في الليلة (EGP)'),
+                      _fSection(S.filterPriceRange),
                       const SizedBox(height: 4),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          _priceChip('${tmpPrice.start.round()} ج'),
+                          _priceChip('${tmpPrice.start.round()} ${S.egp}'),
                           Icon(Icons.arrow_forward_rounded,
                               size: 16, color: context.kSub),
-                          _priceChip('${tmpPrice.end.round()} ج'),
+                          _priceChip('${tmpPrice.end.round()} ${S.egp}'),
                         ],
                       ),
                       RangeSlider(
@@ -823,10 +823,10 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                       const SizedBox(height: 16),
 
                       // ④ عدد الأشخاص
-                      _fSection('👥 عدد الأشخاص'),
+                      _fSection(S.filterGuestCount),
                       const SizedBox(height: 10),
                       _counterRow(
-                        label: 'ضيوف',
+                        label: S.filterGuestsRow,
                         value: tmpGuests,
                         onDec: () {
                           if (tmpGuests > 1) setSheet(() => tmpGuests--);
@@ -837,7 +837,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                       ),
                       const SizedBox(height: 10),
                       _counterRow(
-                        label: 'غرف',
+                        label: S.filterRoomsRow,
                         value: tmpRooms,
                         onDec: () {
                           if (tmpRooms > 1) setSheet(() => tmpRooms--);
@@ -849,7 +849,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                       const SizedBox(height: 20),
 
                       // ⑤ الحد الأدنى للتقييم
-                      _fSection('⭐ الحد الأدنى للتقييم'),
+                      _fSection(S.filterMinRatingTitle),
                       const SizedBox(height: 8),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -884,20 +884,20 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                       const SizedBox(height: 20),
 
                       // ⑥ مميزات
-                      _fSection('✨ مميزات'),
+                      _fSection(S.filterFeatures),
                       const SizedBox(height: 10),
                       Wrap(spacing: 10, runSpacing: 10, children: [
-                        _featureChip('🏊 مسبح', tmpPool,
+                        _featureChip(S.featurePool, tmpPool,
                             () => setSheet(() => tmpPool = !tmpPool)),
-                        _featureChip('🏖️ شاطئ خاص', tmpBeach,
+                        _featureChip(S.featurePrivateBeach, tmpBeach,
                             () => setSheet(() => tmpBeach = !tmpBeach)),
-                        _featureChip('⚡ حجز فوري', tmpInstant,
+                        _featureChip(S.featureInstantBook, tmpInstant,
                             () => setSheet(() => tmpInstant = !tmpInstant)),
-                        _featureChip('🟢 أونلاين الآن', tmpOnline,
+                        _featureChip(S.featureOnlineNow, tmpOnline,
                             () => setSheet(() => tmpOnline = !tmpOnline)),
-                        _featureChip('📶 واي فاي', tmpWifi,
+                        _featureChip(S.featureWifi, tmpWifi,
                             () => setSheet(() => tmpWifi = !tmpWifi)),
-                        _featureChip('🚗 موقف سيارات', tmpParking,
+                        _featureChip(S.featureParking, tmpParking,
                             () => setSheet(() => tmpParking = !tmpParking)),
                       ]),
 
@@ -1062,9 +1062,9 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
   String _getGreeting() {
     final h = DateTime.now().hour;
-    if (h < 12) return 'صباح الخير ☀️';
-    if (h < 17) return 'مساء الخير 🌤️';
-    return 'مساء النور 🌙';
+    if (h < 12) return S.greetingMorning;
+    if (h < 17) return S.greetingAfternoon;
+    return S.greetingEvening;
   }
 
   String _getUserName() {
@@ -1072,9 +1072,9 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       return userProvider.name.split(' ').first;
     }
     final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return 'ضيفنا';
-    if (user.isAnonymous) return 'ضيفنا';
-    final name = user.displayName ?? user.email ?? 'ضيفنا';
+    if (user == null) return S.guestNameLabel;
+    if (user.isAnonymous) return S.guestNameLabel;
+    final name = user.displayName ?? user.email ?? S.guestNameLabel;
     return name.split(' ').first;
   }
 
@@ -1339,7 +1339,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                         color: Colors.white
                                             .withValues(alpha: 0.35)),
                                   ),
-                                  child: Text(cat,
+                                  child: Text(S.catName(cat),
                                       style: const TextStyle(
                                           color: Colors.white,
                                           fontSize: 11,
@@ -1584,7 +1584,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         Padding(
           padding: const EdgeInsets.fromLTRB(20, 26, 20, 14),
           child: _secTitle(
-            appSettings.arabic ? 'اللي شوفتهم مؤخراً' : 'Recently viewed',
+            S.recentlyViewedTitle,
             action: '',
           ),
         ),
@@ -1686,7 +1686,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      p.area,
+                      S.areaName(p.area),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
@@ -1743,14 +1743,13 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   // ══════════════════════════════════════════════════════════
   Widget _buildRandomChaletsAndHotels() {
     if (_randomPicks.isEmpty) return const SizedBox.shrink();
-    final ar = appSettings.arabic;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(20, 26, 20, 14),
           child: _secTitle(
-            ar ? 'مختارات شاليهات وفنادق' : 'Selected chalets & hotels',
+            S.selectedChaletsHotels,
             action: '',
           ),
         ),
@@ -1775,14 +1774,13 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   //  filters, etc. stay consistent).
   // ══════════════════════════════════════════════════════════
   Widget _buildRecommendationBanners() {
-    final ar = appSettings.arabic;
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 26, 20, 4),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _secTitle(
-            ar ? 'وجهات مقترحة ليك' : 'Trips you might like',
+            S.tripsForYou,
             action: '',
           ),
           const SizedBox(height: 14),
@@ -1790,10 +1788,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             Expanded(
               child: _recommendationCard(
                 area: 'دهب',
-                titleAr: 'اقعد في دهب',
-                titleEn: 'Stay in Dahab',
-                subtitleAr: 'هدوء + شعاب مرجانية',
-                subtitleEn: 'Calm + coral reefs',
+                title: S.stayInDahab,
+                subtitle: S.dahabSubtitle,
                 emoji: '🐠',
                 colors: const [Color(0xFF00897B), Color(0xFF004D40)],
               ),
@@ -1802,10 +1798,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             Expanded(
               child: _recommendationCard(
                 area: 'الساحل الشمالي',
-                titleAr: 'اقعد في الساحل',
-                titleEn: 'Stay in Sahel',
-                subtitleAr: 'مية فيروزية + سهرات',
-                subtitleEn: 'Turquoise water + nights',
+                title: S.stayInSahel,
+                subtitle: S.sahelSubtitle,
                 emoji: '🏖️',
                 colors: const [Color(0xFFE85A24), Color(0xFFFF6B35)],
               ),
@@ -1818,14 +1812,11 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
   Widget _recommendationCard({
     required String area,
-    required String titleAr,
-    required String titleEn,
-    required String subtitleAr,
-    required String subtitleEn,
+    required String title,
+    required String subtitle,
     required String emoji,
     required List<Color> colors,
   }) {
-    final ar = appSettings.arabic;
     return GestureDetector(
       onTap: () => Navigator.push(
         context,
@@ -1866,7 +1857,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
-                  area,
+                  S.areaName(area),
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 10,
@@ -1876,7 +1867,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               ),
               const Spacer(),
               Text(
-                ar ? titleAr : titleEn,
+                title,
                 style: const TextStyle(
                   color: Colors.white,
                   fontSize: 17,
@@ -1886,7 +1877,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               ),
               const SizedBox(height: 4),
               Text(
-                ar ? subtitleAr : subtitleEn,
+                subtitle,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
@@ -1898,7 +1889,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               const SizedBox(height: 8),
               Row(children: [
                 Text(
-                  ar ? 'استكشف الآن' : 'Explore',
+                  S.exploreNowShort,
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 11,
@@ -1944,7 +1935,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         Padding(
           padding: const EdgeInsets.fromLTRB(20, 26, 20, 14),
           child: _secTitle(
-            appSettings.arabic ? '🔥 العروض الحصرية' : '🔥 Exclusive Deals',
+            S.exclusiveDeals,
             action: '',
           ),
         ),
@@ -1987,11 +1978,11 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 color: Color(0xFFFF6B35), size: 32),
           ),
           const SizedBox(height: 16),
-          Text('لا توجد عروض حالياً',
+          Text(S.noOffersNow,
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800,
                   color: context.kText)),
           const SizedBox(height: 6),
-          Text('ستظهر العروض والخصومات هنا فور إضافتها',
+          Text(S.offersWillAppear,
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 13, color: context.kSub)),
         ]),
@@ -2076,7 +2067,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Text(
-                        p.area,
+                        S.areaName(p.area),
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 10,
@@ -2173,7 +2164,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   //  BOTTOM NAV
   // ═══════════════════════════════════════════════════════════════
   Widget _buildNavBar() {
-    final ar = appSettings.arabic;
     // ── Two distinct, ordered tab sets ────────────────────
     // Guest set is the discovery flow (4 tabs).  Host set is the
     // dashboard flow (5 tabs) and Profile sits at the end so the
@@ -2183,41 +2173,41 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             _NavItem(
                 Icons.dashboard_rounded,
                 Icons.dashboard_outlined,
-                ar ? 'اليوم' : 'Today'),
+                S.navToday),
             _NavItem(
                 Icons.apartment_rounded,
                 Icons.apartment_outlined,
-                ar ? 'عقاراتى' : 'Listings'),
+                S.navListings),
             _NavItem(
                 Icons.calendar_month_rounded,
                 Icons.calendar_month_outlined,
-                ar ? 'الحجوزات' : 'Reservations'),
+                S.navReservations),
             _NavItem(
                 Icons.account_balance_wallet_rounded,
                 Icons.account_balance_wallet_outlined,
-                ar ? 'الأرباح' : 'Earnings'),
+                S.navEarnings),
             _NavItem(
                 Icons.person_rounded,
                 Icons.person_outline_rounded,
-                ar ? 'حسابى' : 'Profile'),
+                S.navProfile),
           ]
         : <_NavItem>[
             _NavItem(
                 Icons.home_rounded,
                 Icons.home_outlined,
-                ar ? 'الرئيسية' : 'Home'),
+                S.navHomeTab),
             _NavItem(
                 Icons.travel_explore_rounded,
                 Icons.travel_explore_outlined,
-                ar ? 'أحلى رحلة' : 'Best Trip'),
+                S.navBestTrip),
             _NavItem(
                 Icons.chat_rounded,
                 Icons.chat_bubble_outline_rounded,
-                ar ? 'رسائل' : 'Messages'),
+                S.navMessages),
             _NavItem(
                 Icons.person_rounded,
                 Icons.person_outline_rounded,
-                ar ? 'حسابى' : 'Profile'),
+                S.navProfile),
           ];
 
     const accent = Color(0xFFFF6D00); // orange for active tab
@@ -2249,10 +2239,10 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                     // definition.
                     if (!_isHost && i != 0) {
                       final feature = i == 1
-                          ? 'تشوف حجوزاتك'
+                          ? S.featureViewBookings
                           : i == 2
-                              ? 'تتواصل مع الملاك'
-                              : 'تدخل على ملفك';
+                              ? S.featureChatHosts
+                              : S.featureOpenProfile;
                       if (!await AuthGuard.require(context,
                           feature: feature)) {
                         return;
@@ -2437,7 +2427,7 @@ class _SearchSheetState extends State<_SearchSheet> {
                   if (v.trim().isNotEmpty) widget.onSearch(v.trim());
                 },
                 decoration: InputDecoration(
-                  hintText: 'ابحث عن وجهة، نوع، أو اسم عقار…',
+                  hintText: S.searchHintHome,
                   hintStyle: TextStyle(color: context.kSub, fontSize: 14),
                   border: InputBorder.none,
                 ),
@@ -2511,6 +2501,38 @@ class _SearchSheetState extends State<_SearchSheet> {
             itemCount: _filtered.length,
             itemBuilder: (_, i) {
               final s = _filtered[i];
+              final area = s['area'] ?? '';
+              final type = s['type'] ?? '';
+              // Translate the visible label by re-deriving it from
+              // (area, type) instead of trusting the Arabic key.
+              final String displayLabel;
+              if (area.isNotEmpty && type.isEmpty) {
+                final cat = (s['label'] ?? '').split(' ').first;
+                if (cat == 'شاليهات') {
+                  displayLabel = S.suggestChaletsArea(S.areaName(area));
+                } else if (cat == 'فيلات') {
+                  displayLabel = S.suggestVillasArea(S.areaName(area));
+                } else if (cat == 'منتجعات') {
+                  displayLabel = S.suggestResortsArea(S.areaName(area));
+                } else if (cat == 'فنادق') {
+                  displayLabel = S.suggestHotelsArea(S.areaName(area));
+                } else if (cat == 'عروض') {
+                  displayLabel = S.suggestDealsArea(S.areaName(area));
+                } else {
+                  displayLabel = s['label']!;
+                }
+              } else if (type == 'أكوا بارك') {
+                displayLabel = S.suggestAquaPark;
+              } else if (type == 'شاليه') {
+                displayLabel = S.suggestChaletsPool;
+              } else {
+                displayLabel = s['label']!;
+              }
+              final displaySubtitle = area.isNotEmpty
+                  ? S.areaName(area)
+                  : type.isNotEmpty
+                      ? S.catName(type)
+                      : '';
               return ListTile(
                 leading: Container(
                   width: 42,
@@ -2523,13 +2545,13 @@ class _SearchSheetState extends State<_SearchSheet> {
                       child: Text(s['icon']!,
                           style: const TextStyle(fontSize: 20))),
                 ),
-                title: Text(s['label']!,
+                title: Text(displayLabel,
                     style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w700,
                         color: context.kText)),
                 subtitle: Text(
-                  s['area']!.isNotEmpty ? s['area']! : s['type']!,
+                  displaySubtitle,
                   style:
                       TextStyle(fontSize: 12, color: context.kSub),
                 ),
@@ -2572,7 +2594,6 @@ class _HomeSearchPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ar = appSettings.arabic;
     return Container(
       height: 58,
       margin: const EdgeInsets.only(bottom: 20),
@@ -2614,7 +2635,7 @@ class _HomeSearchPill extends StatelessWidget {
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  ar ? 'ابدأ بحثك' : 'Start your search',
+                  S.startSearch,
                   style: const TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w700,
@@ -2731,7 +2752,6 @@ class _OfferCountdownState extends State<_OfferCountdown> {
   @override
   Widget build(BuildContext context) {
     if (_remaining == Duration.zero) return const SizedBox.shrink();
-    final ar = widget.arabic;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
@@ -2748,7 +2768,7 @@ class _OfferCountdownState extends State<_OfferCountdown> {
           const Icon(Icons.timer_outlined, color: Colors.white, size: 12),
           const SizedBox(width: 4),
           Text(
-            ar ? 'ينتهي خلال ' : 'Ends in ',
+            S.endsIn,
             style: const TextStyle(
               color: Colors.white,
               fontSize: 10,

@@ -123,7 +123,7 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
     } on ApiException catch (e) {
       if (mounted) setState(() { _error = ErrorHandler.getMessage(e); _loading = false; });
     } catch (_) {
-      if (mounted) setState(() { _error = 'حدث خطأ غير متوقع'; _loading = false; });
+      if (mounted) setState(() { _error = S.unexpectedError; _loading = false; });
     }
   }
 
@@ -181,7 +181,7 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
       return Scaffold(
         backgroundColor: context.kSand,
         appBar: AppBar(backgroundColor: _kOrange, elevation: 0),
-        body: Center(child: Text(_error ?? 'العقار غير موجود',
+        body: Center(child: Text(_error ?? S.propertyNotFound,
             style: TextStyle(fontSize: 16, color: context.kSub))),
       );
     }
@@ -236,7 +236,7 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
               GestureDetector(
                 onTap: () async {
                   if (!await AuthGuard.require(context,
-                      feature: 'تبلّغ عن العقار')) {
+                      feature: S.featureReportProperty)) {
                     return;
                   }
                   if (!context.mounted) return;
@@ -401,16 +401,16 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
                     // OR youth.  Showing a "الاتنين عادي" badge on
                     // every property would just add noise.
                     Wrap(spacing: 8, runSpacing: 8, children: [
-                      _badge(p.categoryEmoji, p.category,
+                      _badge(p.categoryEmoji, S.catName(p.category),
                           p.areaColor.withValues(alpha: 0.12), p.areaColor),
-                      _badge('📍', p.area,
+                      _badge('📍', S.areaName(p.area),
                           const Color(0xFFF3F4F6), context.kSub),
                       if (p.audienceType == 'family_only')
-                        _badge('👨‍👩‍�', 'عائلات فقط',
+                        _badge('👨‍👩‍👧', S.familyOnlyBadge,
                             const Color(0xFFFFF3E0),
                             const Color(0xFFE65100)),
                       if (p.audienceType == 'youth_only')
-                        _badge('🧑‍🤝‍🧑', 'شباب فقط',
+                        _badge('🧑‍🤝‍🧑', S.youthOnlyBadge,
                             const Color(0xFFE3F2FD),
                             const Color(0xFF1565C0)),
                       if (p.isFeatured)
@@ -439,8 +439,8 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
                       Expanded(child: Text(
                         (p.villageName != null &&
                                 p.villageName!.trim().isNotEmpty)
-                            ? '${p.villageName!.trim()}، ${p.area}'
-                            : p.area,
+                            ? '${p.villageName!.trim()}, ${S.areaName(p.area)}'
+                            : S.areaName(p.area),
                         style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w600,
@@ -470,9 +470,9 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
                             const Icon(Icons.map_rounded,
                                 size: 18, color: _kOrange),
                             const SizedBox(width: 8),
-                            const Expanded(
-                              child: Text('افتح الموقع على جوجل ماب',
-                                  style: TextStyle(
+                            Expanded(
+                              child: Text(S.openOnGoogleMaps,
+                                  style: const TextStyle(
                                       fontSize: 13,
                                       fontWeight: FontWeight.w800,
                                       color: _kOrange)),
@@ -503,7 +503,7 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
                               style: const TextStyle(
                                   fontSize: 13, fontWeight: FontWeight.w800,
                                   color: Color(0xFF92400E))),
-                          Text(' (${p.reviewCount} تقييم)',
+                          Text(' (${S.reviewCountText(p.reviewCount)})',
                               style: const TextStyle(
                                   fontSize: 11, color: Color(0xFF92400E))),
                         ]),
@@ -571,7 +571,9 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
                         onTap: () =>
                             setState(() => _descExpand = !_descExpand),
                         child: Text(
-                            _descExpand ? 'عرض أقل ↑' : 'قرأة المزيد ↓',
+                            _descExpand
+                                ? '${S.showLess} ↑'
+                                : '${S.showMore} ↓',
                             style: const TextStyle(
                                 fontSize: 13, color: _kOrange,
                                 fontWeight: FontWeight.w700)),
@@ -584,28 +586,28 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
 
               // ── Amenities ────────────────────────────
               if (p.amenities.isNotEmpty)
-                _section('✨ المرافق والخدمات', _chipGrid(p.amenities)),
+                _section(S.amenitiesSectionTitle, _chipGrid(p.amenities)),
 
               // ── Services ────────────────────────────
               if (p.services.isNotEmpty)
-                _section('🏊 الخدمات', _servicesGrid()),
+                _section(S.servicesSectionTitle, _servicesGrid()),
 
               // ── Pricing breakdown ────────────────────
-              _section('💰 التسعير', _pricingCard()),
+              _section(S.pricingTitle, _pricingCard()),
 
               // ── Check-in / closing time ───────────────
-              _section('🕐 مواعيد الوصول', _checkInCard()),
+              _section(S.arrivalTimesTitle, _checkInCard()),
 
               // ── Reviews placeholder ──────────────────
-              _section('⭐ التقييمات', _reviewsSection()),
+              _section(S.reviewsSectionTitle, _reviewsSection()),
 
               // ── Owner info ───────────────────────────
               if (p.owner != null)
-                _section('🏠 المضيف', _ownerCard()),
+                _section(S.hostSectionTitle, _ownerCard()),
 
               // ── Similar properties ───────────────────
               if (_similar.isNotEmpty)
-                _section('✨ عقارات مشابهة', _similarList()),
+                _section(S.similarPropertiesTitle, _similarList()),
 
               const SizedBox(height: 120),
             ],
@@ -628,12 +630,12 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
             child: Row(children: [
               // Price
               Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text('${p.pricePerNight.toStringAsFixed(0)} جنيه',
+                Text('${p.pricePerNight.toStringAsFixed(0)} ${S.egp}',
                     style: TextStyle(
                       fontSize: 20, fontWeight: FontWeight.w900,
                       color: _kOrange,
                     )),
-                Text('/ الليلة',
+                Text(S.perNightSlash,
                     style: TextStyle(fontSize: 11, color: context.kSub)),
               ]),
               const Spacer(),
@@ -645,8 +647,8 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
                     onPressed: _openNegotiation,
                     icon: const Icon(Icons.chat_bubble_outline_rounded,
                         size: 18, color: _kOrange),
-                    label: const Text('فاوض',
-                        style: TextStyle(
+                    label: Text(S.negotiateBtn,
+                        style: const TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w900,
                             color: _kOrange)),
@@ -674,7 +676,7 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
                         borderRadius: BorderRadius.circular(16)),
                   ),
                   child: Text(
-                    p.isAvailable ? 'احجز الآن 🏖️' : 'غير متاح',
+                    p.isAvailable ? S.bookNowEmoji : S.notAvailable,
                     style: const TextStyle(
                         fontSize: 14, fontWeight: FontWeight.w900),
                   ),
@@ -700,7 +702,7 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
     if (uri == null) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: const Text('لينك الموقع غير صالح'),
+          content: Text(S.invalidLocationLink),
           backgroundColor: _kOrange,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(
@@ -715,7 +717,7 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
           mode: LaunchMode.externalApplication);
       if (!ok && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: const Text('تعذّر فتح خرائط جوجل'),
+          content: Text(S.cannotOpenMaps),
           backgroundColor: _kOrange,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(
@@ -727,7 +729,7 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
   }
 
   Future<void> _startBooking() async {
-    if (!await AuthGuard.require(context, feature: 'تحجز العقار')) return;
+    if (!await AuthGuard.require(context, feature: S.featureBookProperty)) return;
     if (!mounted) return;
     Navigator.push(context, MaterialPageRoute(
       builder: (_) => BookingFlowPage(propertyApi: p),
@@ -741,7 +743,7 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
   bool get _chatEligible => p.negotiable;
 
   Future<void> _openNegotiation() async {
-    if (!await AuthGuard.require(context, feature: 'تتفاوض مع المالك')) return;
+    if (!await AuthGuard.require(context, feature: S.featureNegotiate)) return;
     if (!mounted) return;
     Navigator.of(context).push(MaterialPageRoute(
       builder: (_) => ChatPage(propertyId: p.id),
@@ -833,25 +835,25 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
   );
 
   Widget _pricingCard() => Column(children: [
-    _priceRow('السعر الأساسي / ليلة',
-        '${p.pricePerNight.toStringAsFixed(0)} جنيه'),
+    _priceRow(S.basePricePerNight,
+        '${p.pricePerNight.toStringAsFixed(0)} ${S.egp}'),
     if ((p.weekendPrice ?? 0) > 0)
-      _priceRow('سعر نهاية الأسبوع',
-          '${p.weekendPrice!.toStringAsFixed(0)} جنيه'),
+      _priceRow(S.weekendPrice,
+          '${p.weekendPrice!.toStringAsFixed(0)} ${S.egp}'),
     if (p.cleaningFee > 0)
       _priceRow(S.cleaningFee,
-          '${p.cleaningFee.toStringAsFixed(0)} جنيه'),
+          '${p.cleaningFee.toStringAsFixed(0)} ${S.egp}'),
     if (p.electricityFee > 0)
-      _priceRow('رسوم الكهرباء',
-          '${p.electricityFee.toStringAsFixed(0)} جنيه'),
+      _priceRow(S.electricityFeeLabel,
+          '${p.electricityFee.toStringAsFixed(0)} ${S.egp}'),
     if (p.waterFee > 0)
-      _priceRow('رسوم المياه',
-          '${p.waterFee.toStringAsFixed(0)} جنيه'),
+      _priceRow(S.waterFeeLabel,
+          '${p.waterFee.toStringAsFixed(0)} ${S.egp}'),
     if (p.securityDeposit > 0)
-      _priceRow('تأمين (مسترد)',
-          '${p.securityDeposit.toStringAsFixed(0)} جنيه'),
+      _priceRow(S.refundableDeposit,
+          '${p.securityDeposit.toStringAsFixed(0)} ${S.egp}'),
     Divider(color: context.kBorder, height: 24),
-    _priceRow('الحد الأدنى للإقامة', '1 ليلة', bold: true),
+    _priceRow(S.minStayLabel, S.oneNight, bold: true),
   ]);
 
   Widget _priceRow(String label, String val, {bool bold = false}) =>
@@ -870,11 +872,11 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
     );
 
   Widget _checkInCard() => Row(children: [
-    Expanded(child: _timeCard('تسجيل الوصول',
+    Expanded(child: _timeCard(S.arrivalCheckInLabel,
         '14:00',
         Icons.login_rounded, const Color(0xFF22C55E))),
     const SizedBox(width: 12),
-    Expanded(child: _timeCard('وقت الإغلاق',
+    Expanded(child: _timeCard(S.closingTimeLabel,
         p.closingTime ?? '22:00',
         Icons.logout_rounded, _kOrange)),
   ]);
@@ -902,7 +904,7 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 12),
         child: Center(
-          child: Text('لا يوجد تقييمات بعد',
+          child: Text(S.noReviewsYet,
               style: TextStyle(color: context.kSub, fontSize: 13)),
         ),
       );
@@ -920,7 +922,7 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
                 ? Icons.star_rounded
                 : Icons.star_border_rounded,
             color: const Color(0xFFF59E0B), size: 20))),
-          Text('${p.reviewCount} تقييم',
+          Text(S.reviewCountText(p.reviewCount),
               style: TextStyle(fontSize: 13, color: context.kSub)),
         ]),
       ]),
@@ -936,7 +938,7 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
   }
 
   Widget _ownerCard() {
-    final ownerName = p.owner?.name ?? 'المالك';
+    final ownerName = p.owner?.name ?? S.ownerFallback;
     final ownerVerified = p.owner?.isVerified ?? false;
     return Row(children: [
       Container(
@@ -970,16 +972,16 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
           ]),
           const SizedBox(height: 2),
           if (ownerVerified)
-            const VerifiedChip(label: 'مضيف موثّق')
+            VerifiedChip(label: S.verifiedHostBadge)
           else
-            Text('مضيف في Talaa',
+            Text(S.hostOnTalaa,
                 style: TextStyle(fontSize: 12, color: context.kSub)),
         ],
       )),
       GestureDetector(
         onTap: () async {
           if (!await AuthGuard.require(context,
-              feature: 'تتواصل مع المالك')) {
+              feature: S.featureContactOwner)) {
             return;
           }
           if (!mounted) return;
@@ -993,8 +995,8 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
             border: Border.all(color: _kOrange),
             borderRadius: BorderRadius.circular(12),
           ),
-          child: const Text('تواصل',
-              style: TextStyle(fontSize: 13,
+          child: Text(S.contactBtn,
+              style: const TextStyle(fontSize: 13,
                   fontWeight: FontWeight.w700, color: _kOrange)),
         ),
       ),
@@ -1077,7 +1079,7 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
                         size: 11, color: context.kSub),
                     const SizedBox(width: 2),
                     Expanded(
-                      child: Text(sp.area,
+                      child: Text(S.areaName(sp.area),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
@@ -1097,7 +1099,7 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
                               color: context.kText)),
                     ],
                     const Spacer(),
-                    Text('${sp.pricePerNight.toStringAsFixed(0)} ج.م',
+                    Text('${sp.pricePerNight.toStringAsFixed(0)} ${S.egp}',
                         style: const TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w900,
@@ -1161,9 +1163,7 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          appSettings.arabic
-              ? 'تم نسخ رابط العقار — الصقه أينما تريد للمشاركة'
-              : 'Property link copied — paste it anywhere to share',
+          S.linkCopiedMessage,
           style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
         ),
         backgroundColor: _kOrange,

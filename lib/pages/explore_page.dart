@@ -597,7 +597,7 @@ class _ExplorePageState extends State<ExplorePage>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(area.name,
+                  Text(S.areaName(area.name),
                       style: const TextStyle(
                           color: Colors.white,
                           fontSize: 14,
@@ -609,7 +609,7 @@ class _ExplorePageState extends State<ExplorePage>
                     const Icon(Icons.location_on_rounded,
                         color: Colors.white70, size: 10),
                     const SizedBox(width: 2),
-                    Text(appSettings.arabic ? 'مصر' : 'Egypt',
+                    Text(S.egypt,
                         style: const TextStyle(
                             color: Colors.white70,
                             fontSize: 10,
@@ -680,7 +680,7 @@ class _ExplorePageState extends State<ExplorePage>
           Row(children: [
             Icon(Icons.location_on_rounded, size: 11, color: p.areaColor),
             const SizedBox(width: 2),
-            Text(p.area,
+            Text(S.areaName(p.area),
                 style: TextStyle(fontSize: 10, color: p.areaColor,
                     fontWeight: FontWeight.w600)),
           ]),

@@ -193,7 +193,7 @@ class _BookingFlowPageState extends State<BookingFlowPage>
             style: TextStyle(fontSize: 18,
                 fontWeight: FontWeight.w900, color: context.kText)),
         const SizedBox(height: 4),
-        Text('الحد الأدنى 1 ليالي',
+        Text(S.minStayHint,
             style: TextStyle(fontSize: 13, color: context.kSub)),
         const SizedBox(height: 20),
 
@@ -230,12 +230,12 @@ class _BookingFlowPageState extends State<BookingFlowPage>
               const Icon(Icons.nights_stay_rounded,
                   color: _kOrange, size: 20),
               const SizedBox(width: 10),
-              Text('$_nights ليالي',
+              Text(S.nightsXTotal(_nights),
                   style: const TextStyle(
                       fontSize: 15, fontWeight: FontWeight.w900,
                       color: _kOrange)),
               const Spacer(),
-              Text('${_baseTotal.toString()} جنيه',
+              Text('$_baseTotal ${S.egp}',
                   style: const TextStyle(
                       fontSize: 15, fontWeight: FontWeight.w900,
                       color: _kOrange)),
@@ -259,7 +259,7 @@ class _BookingFlowPageState extends State<BookingFlowPage>
                   color: Color(0xFFEF5350), size: 18),
               const SizedBox(width: 8),
               Expanded(child: Text(
-                'الحد الأدنى للإقامة 1 ليالي',
+                S.minStayWarning,
                 style: const TextStyle(
                     fontSize: 12, color: Color(0xFFEF5350),
                     fontWeight: FontWeight.w600),
@@ -283,8 +283,8 @@ class _BookingFlowPageState extends State<BookingFlowPage>
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16)),
             ),
-            child: const Text('التالي: تفاصيل الحجز ←',
-                style: TextStyle(fontSize: 15,
+            child: Text(S.nextDetailsBtn,
+                style: const TextStyle(fontSize: 15,
                     fontWeight: FontWeight.w900)),
           ),
         ),
@@ -327,7 +327,7 @@ class _BookingFlowPageState extends State<BookingFlowPage>
         Text(
           date != null
               ? '${date.day}/${date.month}/${date.year}'
-              : 'اختر تاريخ',
+              : S.pickDate,
           style: TextStyle(
               fontSize: 15, fontWeight: FontWeight.w900,
               color: date != null ? context.kText : context.kSub),
@@ -399,7 +399,7 @@ class _BookingFlowPageState extends State<BookingFlowPage>
         const SizedBox(height: 20),
 
         // Note to host
-        Text('ملاحظة للمضيف (اختياري)',
+        Text(S.noteToHostOptional,
             style: TextStyle(fontSize: 16,
                 fontWeight: FontWeight.w900, color: context.kText)),
         const SizedBox(height: 10),
@@ -415,7 +415,7 @@ class _BookingFlowPageState extends State<BookingFlowPage>
             maxLength: 200,
             onChanged: (v) => _guestNote = v,
             decoration: InputDecoration(
-              hintText: 'أي طلبات خاصة؟ (وقت وصول مبكر، مناسبة، إلخ)',
+              hintText: S.noteHostHint,
               hintStyle: TextStyle(
                   color: Colors.grey.shade400, fontSize: 13),
               contentPadding: const EdgeInsets.all(16),
@@ -440,8 +440,8 @@ class _BookingFlowPageState extends State<BookingFlowPage>
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16)),
             ),
-            child: const Text('التالي: مراجعة الحجز ←',
-                style: TextStyle(fontSize: 15,
+            child: Text(S.nextReviewBtn,
+                style: const TextStyle(fontSize: 15,
                     fontWeight: FontWeight.w900)),
           ),
         ),
@@ -463,7 +463,7 @@ class _BookingFlowPageState extends State<BookingFlowPage>
       Row(children: [
         Icon(Icons.policy_rounded, color: _kOrange, size: 18),
         SizedBox(width: 8),
-        Text('سياسة الإلغاء والحجز',
+        Text(S.policySectionTitle,
             style: TextStyle(fontSize: 15,
                 fontWeight: FontWeight.w900, color: context.kText)),
       ]),
@@ -473,22 +473,22 @@ class _BookingFlowPageState extends State<BookingFlowPage>
       _policyItem(
         icon: Icons.cancel_outlined,
         color: _kGreen,
-        title: 'إلغاء مجاني',
-        body: 'يمكنك الإلغاء مجاناً قبل الوصول بـ 7 أيام على الأقل.',
+        title: S.freeCancelTitle,
+        body: S.freeCancelBody,
       ),
       const SizedBox(height: 12),
       _policyItem(
         icon: Icons.cancel_rounded,
         color: _kOrange,
-        title: 'إلغاء جزئي',
-        body: 'الإلغاء بين 3 و7 أيام قبل الوصول: استرداد 50% من المبلغ.',
+        title: S.partialCancelTitle,
+        body: S.partialCancelBody,
       ),
       const SizedBox(height: 12),
       _policyItem(
         icon: Icons.money_off_rounded,
         color: const Color(0xFFEF5350),
-        title: 'بدون استرداد',
-        body: 'الإلغاء قبل أقل من 3 أيام أو عدم الحضور: لا يُسترد المبلغ.',
+        title: S.noRefundTitle,
+        body: S.noRefundBody,
       ),
       Divider(height: 20, color: context.kBorder),
 
@@ -496,16 +496,15 @@ class _BookingFlowPageState extends State<BookingFlowPage>
       _policyItem(
         icon: Icons.access_time_rounded,
         color: _kOrange,
-        title: 'وقت الوصول والمغادرة',
-        body: 'الوصول من الساعة 14:00 '
-              '— وقت الإغلاق ${p.closingTime ?? "22:00"}.',
+        title: S.arrivalDepartureTitle,
+        body: S.arrivalDepartureBody(p.closingTime ?? '22:00'),
       ),
       const SizedBox(height: 12),
       _policyItem(
         icon: Icons.no_drinks_rounded,
         color: context.kSub,
-        title: 'قواعد العقار',
-        body: 'يُرجى احترام جيران العقار وعدم إقامة حفلات صاخبة.',
+        title: S.propertyRulesTitle,
+        body: S.propertyRulesBody,
       ),
 
       const SizedBox(height: 12),
@@ -515,9 +514,9 @@ class _BookingFlowPageState extends State<BookingFlowPage>
           color: const Color(0xFFFFF8E1),
           borderRadius: BorderRadius.circular(10),
         ),
-        child: const Text(
-          '⚠️ بالمتابعة وإتمام الدفع، أنت توافق على سياسة الإلغاء والقواعد المذكورة أعلاه.',
-          style: TextStyle(fontSize: 12,
+        child: Text(
+          S.policyAcknowledge,
+          style: const TextStyle(fontSize: 12,
               color: Color(0xFF92400E), height: 1.5),
         ),
       ),
@@ -564,7 +563,7 @@ class _BookingFlowPageState extends State<BookingFlowPage>
         const SizedBox(height: 20),
 
         // Trip summary
-        Text('ملخص الرحلة',
+        Text(S.tripSummary,
             style: TextStyle(fontSize: 16,
                 fontWeight: FontWeight.w900, color: context.kText)),
         const SizedBox(height: 12),
@@ -572,7 +571,7 @@ class _BookingFlowPageState extends State<BookingFlowPage>
         const SizedBox(height: 20),
 
         // Price breakdown
-        Text('تفاصيل السعر',
+        Text(S.pricingDetails,
             style: TextStyle(fontSize: 16,
                 fontWeight: FontWeight.w900, color: context.kText)),
         const SizedBox(height: 12),
@@ -594,8 +593,8 @@ class _BookingFlowPageState extends State<BookingFlowPage>
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Text('إتمام الحجز والدفع',
-                    style: TextStyle(fontSize: 16,
+                Text(S.completeBookingPay,
+                    style: const TextStyle(fontSize: 16,
                         fontWeight: FontWeight.w900)),
                 const SizedBox(width: 8),
                 Container(
@@ -609,7 +608,7 @@ class _BookingFlowPageState extends State<BookingFlowPage>
                   // the *deposit* (= what's about to leave the
                   // guest's card right now), not the grand total.
                   child: Text(
-                    '${p.cashOnArrivalEnabled ? _depositAmount : _grandTotal} جنيه',
+                    '${p.cashOnArrivalEnabled ? _depositAmount : _grandTotal} ${S.egp}',
                     style: const TextStyle(
                         fontSize: 13, fontWeight: FontWeight.w900),
                   ),
@@ -620,7 +619,7 @@ class _BookingFlowPageState extends State<BookingFlowPage>
         ),
         const SizedBox(height: 12),
         Center(
-          child: Text('🔒 دفع آمن ومشفر',
+          child: Text(S.securePayment,
               style: TextStyle(fontSize: 12, color: context.kSub)),
         ),
       ]),
@@ -635,12 +634,12 @@ class _BookingFlowPageState extends State<BookingFlowPage>
       border: Border.all(color: context.kBorder),
     ),
     child: Column(children: [
-      _priceRow('${p.pricePerNight.toStringAsFixed(0)} جنيه × $_nights ليالي',
-          '$_baseTotal جنيه'),
+      _priceRow(S.pricePerNightCalc(p.pricePerNight.toInt(), _nights),
+          '$_baseTotal ${S.egp}'),
       if (_cleaningFee > 0)
-        _priceRow(S.cleaningFee, '$_cleaningFee جنيه'),
+        _priceRow(S.cleaningFee, '$_cleaningFee ${S.egp}'),
       Divider(height: 20, color: context.kBorder),
-      _priceRow(S.totalPrice, '$_grandTotal جنيه', bold: true),
+      _priceRow(S.totalPrice, '$_grandTotal ${S.egp}', bold: true),
       // ── Wave 25 — hybrid deposit + cash split ───────────────
       // Surface this only for opted-in listings; legacy ones keep
       // showing just the grand total exactly like before.
@@ -657,8 +656,8 @@ class _BookingFlowPageState extends State<BookingFlowPage>
   Widget _depositSplitCard() {
     final depositLabel = _depositNights > 0
         ? (_depositNights == 1
-            ? 'ليلة واحدة'
-            : 'ليالى $_depositNights')
+            ? S.oneNightAr
+            : S.nightsCountLabel(_depositNights))
         : '';
     return Container(
       padding: const EdgeInsets.all(14),
@@ -670,13 +669,13 @@ class _BookingFlowPageState extends State<BookingFlowPage>
         border: Border.all(color: const Color(0xFF66BB6A), width: 1.2),
       ),
       child: Column(children: [
-        Row(children: const [
-          Text('💵', style: TextStyle(fontSize: 18)),
-          SizedBox(width: 8),
+        Row(children: [
+          const Text('💵', style: TextStyle(fontSize: 18)),
+          const SizedBox(width: 8),
           Expanded(
             child: Text(
-              'دفع جزئى — استلم الباقى للمضيف عند الوصول',
-              style: TextStyle(
+              S.partialPaymentHero,
+              style: const TextStyle(
                   fontSize: 13.5,
                   fontWeight: FontWeight.w900,
                   color: Color(0xFF1B5E20)),
@@ -686,15 +685,15 @@ class _BookingFlowPageState extends State<BookingFlowPage>
         const SizedBox(height: 10),
         _priceRow(
           depositLabel.isNotEmpty
-              ? 'تدفع الآن (عربون $depositLabel)'
-              : 'تدفع الآن (عربون)',
-          '$_depositAmount جنيه',
+              ? S.payNowDepositLabel(depositLabel)
+              : S.payNowDepositSimple,
+          '$_depositAmount ${S.egp}',
           bold: true,
         ),
         if (_remainingCash > 0)
           _priceRow(
-            'تدفع كاش للمضيف عند الوصول',
-            '$_remainingCash جنيه',
+            S.payCashOnArrival,
+            '$_remainingCash ${S.egp}',
           ),
       ]),
     );
@@ -773,7 +772,7 @@ class _BookingFlowPageState extends State<BookingFlowPage>
               style: TextStyle(fontSize: 14,
                   fontWeight: FontWeight.w800, color: context.kText)),
           const SizedBox(height: 3),
-          Text('${p.categoryEmoji} ${p.category} · ${p.area}',
+          Text('${p.categoryEmoji} ${S.catName(p.category)} · ${S.areaName(p.area)}',
               style: TextStyle(fontSize: 12, color: context.kSub)),
           const SizedBox(height: 3),
           Row(children: [
@@ -787,7 +786,7 @@ class _BookingFlowPageState extends State<BookingFlowPage>
           ]),
         ],
       )),
-      Text('${p.pricePerNight.toStringAsFixed(0)}\nجنيه/ليلة',
+      Text('${p.pricePerNight.toStringAsFixed(0)}\n${S.egpPerNightTwoLine}',
           textAlign: TextAlign.center,
           style: const TextStyle(fontSize: 13,
               fontWeight: FontWeight.w900, color: _kOrange)),
@@ -803,7 +802,7 @@ class _BookingFlowPageState extends State<BookingFlowPage>
     ),
     child: Column(children: [
       Row(children: [
-        _summaryItem(Icons.login_rounded, 'الوصول',
+        _summaryItem(Icons.login_rounded, S.arrival,
             _checkIn != null
                 ? '${_checkIn!.day}/${_checkIn!.month}/${_checkIn!.year}'
                 : '—',
@@ -811,17 +810,17 @@ class _BookingFlowPageState extends State<BookingFlowPage>
         const SizedBox(width: 1),
         Container(width: 1, height: 40, color: context.kBorder),
         const SizedBox(width: 1),
-        _summaryItem(Icons.logout_rounded, 'المغادرة',
+        _summaryItem(Icons.logout_rounded, S.departure,
             _checkOut != null
                 ? '${_checkOut!.day}/${_checkOut!.month}/${_checkOut!.year}'
                 : '—',
             _kOrange),
         Container(width: 1, height: 40, color: context.kBorder),
         _summaryItem(Icons.nights_stay_rounded,
-            'ليالي', '$_nights', _kOrange),
+            S.nights, '$_nights', _kOrange),
         Container(width: 1, height: 40, color: context.kBorder),
         _summaryItem(Icons.people_rounded,
-            'ضيوف', '$_guests', context.kSub),
+            S.guestsShort, '$_guests', context.kSub),
       ]),
     ]),
   );
