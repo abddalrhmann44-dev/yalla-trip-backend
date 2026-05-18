@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "WebFetch(domain:waapi.readme.io)"
+      "WebFetch(domain:waapi.readme.io)",
+      "Bash(dart analyze *)"
     ]
   }
 }
