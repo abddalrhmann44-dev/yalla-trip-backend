@@ -8,8 +8,10 @@ from httpx import AsyncClient
 from app.models.phone_otp import PhoneOtp
 from app.services.chat_sanitizer import (
     contains_phone_like,
+    detect_contact_attempt,
     sanitize_chat_text,
 )
+from app.services.chat_moderation import scan as scan_chat
 from app.services import phone_otp_service
 
 
@@ -53,6 +55,111 @@ def test_sanitizer_masks_email():
     out = sanitize_chat_text("ايميل info@talaa.com")
     assert "info@talaa.com" not in out
     assert "•••" in out
+
+
+# ══════════════════════════════════════════════════════════
+#  Wave 31 — indirect contact-exchange tricks
+# ══════════════════════════════════════════════════════════
+
+def test_sanitizer_catches_arabic_spelled_digits():
+    # "صفر واحد صفر واحد اتنين تلاتة أربعة خمسة ستة سبعة تمنية"
+    raw = "رقمى: صفر واحد صفر واحد اتنين تلاتة أربعة خمسة ستة سبعة تمنية"
+    assert contains_phone_like(raw), raw
+    out = sanitize_chat_text(raw)
+    assert "•••" in out
+    # The spelled words themselves should be gone from the redacted run
+    assert "صفر واحد صفر" not in out
+
+
+def test_sanitizer_catches_english_spelled_digits():
+    raw = "my number is zero one zero one two three four five six seven eight"
+    assert contains_phone_like(raw)
+    out = sanitize_chat_text(raw)
+    assert "•••" in out
+    assert "zero one zero" not in out
+
+
+def test_sanitizer_preserves_casual_number_words():
+    # Below the 3-word threshold — prose stays intact.
+    raw = "we are two friends, three nights please"
+    assert not contains_phone_like(raw)
+    assert sanitize_chat_text(raw) == raw
+
+
+def test_sanitizer_preserves_short_arabic_number_words():
+    raw = "كنا اتنين بس، تلات ليالى لو سمحت"
+    assert not contains_phone_like(raw)
+    # No mask should appear in the output.
+    assert "•••" not in sanitize_chat_text(raw)
+
+
+def test_sanitizer_catches_homoglyph_obfuscation():
+    # "0" written as letter "O", "1" written as lowercase "l".
+    raw = "اتصل OlOl2345678"
+    assert contains_phone_like(raw)
+    out = sanitize_chat_text(raw)
+    assert "OlOl2345678" not in out
+    assert "•••" in out
+
+
+def test_sanitizer_redacts_social_handle_with_platform_keyword():
+    raw = "whatsapp me @ahmed_2024 please"
+    out = sanitize_chat_text(raw)
+    assert "@ahmed_2024" not in out
+    assert "•••" in out
+
+
+def test_sanitizer_redacts_arabic_social_handle():
+    raw = "كلمني على تليجرام @ahmed_2024"
+    out = sanitize_chat_text(raw)
+    assert "@ahmed_2024" not in out
+    assert "•••" in out
+
+
+def test_sanitizer_keeps_email_style_at_in_unrelated_text():
+    # No platform keyword present → @everyone stays untouched.
+    raw = "مرحبا @everyone كيفكم"
+    out = sanitize_chat_text(raw)
+    assert "@everyone" in out
+
+
+def test_detect_contact_attempt_reasons():
+    assert detect_contact_attempt("اتصل 01012345678") == "محاولة مشاركة رقم تليفون"
+    assert detect_contact_attempt(
+        "صفر واحد صفر اتنين تلاتة"
+    ) == "محاولة مشاركة رقم تليفون"
+    assert detect_contact_attempt("info@talaa.com") == "محاولة مشاركة بريد إلكتروني"
+    assert detect_contact_attempt(
+        "telegram @ahmed_2024"
+    ) == "محاولة مشاركة حساب على منصة أخرى"
+    assert detect_contact_attempt("نشتغل بكره الصبح؟") is None
+
+
+def test_moderation_flags_phone_request_without_digits():
+    flagged, reason = scan_chat("ابعتلى رقم تليفونك لو سمحت")
+    assert flagged is True
+    assert reason and "خارج المنصة" in reason
+
+
+def test_moderation_flags_english_phone_request():
+    flagged, reason = scan_chat("send me your whatsapp number please")
+    assert flagged is True
+    assert reason  # could be social-handle or contact-request
+
+
+def test_moderation_flags_spelled_digits_run():
+    flagged, reason = scan_chat(
+        "نمرتى صفر واحد صفر اتنين تلاتة أربعة خمسة ستة سبعة"
+    )
+    assert flagged is True
+    assert reason == "محاولة مشاركة رقم تليفون"
+
+
+def test_moderation_passes_clean_negotiation_message():
+    flagged, reason = scan_chat("ينفع تخفض السعر ١٥٠٠ بدل ١٨٠٠؟")
+    # 4 Arabic-Indic digits = run of 4 → below threshold; clean.
+    assert flagged is False
+    assert reason is None
 
 
 # ══════════════════════════════════════════════════════════

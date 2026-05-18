@@ -22,19 +22,9 @@ in a separate module so it can be:
 
 from __future__ import annotations
 
-import re
 from typing import Iterable
 
-# ── Phone-number patterns (Egypt + International) ────────
-_PHONE_PATTERNS: tuple[re.Pattern[str], ...] = (
-    re.compile(r"(?:\+?20|0)?1[0-2,5]\d{8}"),  # Egyptian mobile
-    re.compile(r"\+?\d[\d\s\-]{8,}\d"),        # generic international
-)
-# Fast path: any digit run of 8+ characters is suspicious.
-_DIGIT_RUN = re.compile(r"\d{8,}")
-
-# ── Email pattern (lenient) ──────────────────────────────
-_EMAIL = re.compile(r"[\w.+-]+@[\w-]+\.[a-z]{2,}", re.IGNORECASE)
+from app.services.chat_sanitizer import detect_contact_attempt
 
 # ── Off-platform payment vocabulary ──────────────────────
 # Arabic + English keywords that historically correlate with users
@@ -53,6 +43,31 @@ _OFF_PLATFORM = (
     "outside the app", "venmo",
 )
 
+# ── Phone-request / hand-off vocabulary ──────────────────
+# Even when the message contains *no* digits, certain phrases reliably
+# indicate the user is asking for or offering an off-platform contact
+# channel.  Catching this layer lets the chat-monitor team intervene
+# before the next message exchange completes the leak.
+_CONTACT_REQUEST = (
+    # Arabic — phone request / offer
+    "ابعتلي رقم", "ابعتلى رقم", "ابعتلي نمرت", "ابعتلى نمرت",
+    "ابعتلي تليفون", "ابعتلى تليفون",
+    "اديني رقم", "ادينى رقم", "اديني نمرت", "ادينى نمرت",
+    "ادينى تليفون", "اديني تليفون",
+    "هتبعت رقم", "هبعتلك رقم", "هبعت رقم",
+    "خد رقمي", "خد رقمى", "خدي رقمي", "خدى رقمى",
+    "كلمني على", "كلمنى على", "اتصل بيا", "اتصل بى",
+    "كلمني واتس", "كلمنى واتس", "كلمني على واتس",
+    "رقمي يبدأ", "رقمى يبدأ", "نمرتي تبدأ", "نمرتى تبدا",
+    "ابعت رقمك", "ابعتلي تليجرام", "ابعتلي انستا",
+    # English
+    "send me your number", "give me your number",
+    "your phone number", "your whatsapp", "your telegram",
+    "text me on", "call me on", "dm me on",
+    "my number is", "my number starts",
+    "reach me on", "contact me on",
+)
+
 # ── Profanity (small starter list) ───────────────────────
 _PROFANITY = (
     # Arabic (very common offensive terms)
@@ -63,14 +78,9 @@ _PROFANITY = (
 )
 
 
-def _normalise(text: str) -> str:
-    """Lowercase + strip diacritics-friendly normalisation."""
-    return text.lower()
-
-
 def _matches_any(text: str, words: Iterable[str]) -> str | None:
     """Return the first matching word (lowercased) or None."""
-    norm = _normalise(text)
+    norm = text.lower()
     for w in words:
         if w in norm:
             return w
@@ -83,25 +93,36 @@ def scan(body: str) -> tuple[bool, str | None]:
     The reason is a short Arabic phrase suitable for showing in the
     admin's chat-monitor list; ``None`` means the message looked
     clean.
+
+    Detection priority (first match wins):
+      1. Phone / email / social-handle leak — delegated to the smart
+         ``chat_sanitizer.detect_contact_attempt`` so spelled-out
+         digits, homoglyph obfuscation and ``@handle`` mentions are
+         all caught.
+      2. Indirect contact-request phrases (Arabic + English).
+      3. Off-platform payment language.
+      4. Profanity.
     """
     if not body or not body.strip():
         return False, None
     text = body.strip()
 
-    # Phone numbers — anything resembling a long digit run.
-    if _DIGIT_RUN.search(text) or any(p.search(text) for p in _PHONE_PATTERNS):
-        return True, "محاولة مشاركة رقم هاتف"
+    # 1. Direct + obfuscated phone / email / social leaks.
+    direct = detect_contact_attempt(text)
+    if direct is not None:
+        return True, direct
 
-    # Emails — same intent as phones.
-    if _EMAIL.search(text):
-        return True, "محاولة مشاركة بريد إلكتروني"
+    # 2. Indirect contact-request language ("ابعتلي رقمك", ...).
+    hit = _matches_any(text, _CONTACT_REQUEST)
+    if hit is not None:
+        return True, "طلب أو عرض تواصل خارج المنصة"
 
-    # Off-platform payment language.
+    # 3. Off-platform payment language.
     hit = _matches_any(text, _OFF_PLATFORM)
     if hit is not None:
         return True, f"إشارة لدفع خارج المنصة ({hit})"
 
-    # Profanity.
+    # 4. Profanity.
     hit = _matches_any(text, _PROFANITY)
     if hit is not None:
         return True, f"لغة مسيئة ({hit})"

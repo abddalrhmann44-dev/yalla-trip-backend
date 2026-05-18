@@ -13,6 +13,7 @@ import '../services/chat_service.dart';
 import '../services/property_service.dart';
 import '../utils/api_client.dart';
 import '../utils/app_strings.dart';
+import '../utils/chat_sanitizer.dart';
 import '../utils/error_handler.dart';
 import '../widgets/chat_bubble.dart';
 import '../widgets/constants.dart';
@@ -63,13 +64,6 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
 
   Timer? _poll;
   bool _foreground = true;
-
-  // ── Phone / contact regex (carried over from the prototype) ─────
-  static final RegExp _contactPattern = RegExp(
-    r'(\+?[\d\s\-]{8,}|01[0125]\d{8}|'
-    r'(واتس|واتساب|whatsapp|telegram|تيليجرام|تلفون|رقم|number|call|اتصل|تليفون))',
-    caseSensitive: false,
-  );
 
   int get _meId => userProvider.user?.id ?? 0;
 
@@ -146,7 +140,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
     } catch (_) {
       if (mounted) {
         setState(() {
-          _error = 'حدث خطأ أثناء فتح المحادثة';
+          _error = S.chatOpenError;
           _loading = false;
         });
       }
@@ -220,11 +214,10 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
     final text = _msgController.text.trim();
     if (text.isEmpty) return;
 
-    if (_contactPattern.hasMatch(text)) {
+    if (ChatSanitizer.looksLikeContactExchange(text)) {
       setState(() {
         _showWarning = true;
-        _warningText =
-            '⚠️ تبادل أرقام التواصل غير مسموح. أكمل الحجز أولاً ثم يمكنك التواصل المباشر.';
+        _warningText = S.contactSharingBlocked;
       });
       Future.delayed(const Duration(seconds: 5), () {
         if (mounted) setState(() => _showWarning = false);
@@ -266,7 +259,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
         });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('فشل الإرسال: ${ErrorHandler.getMessage(e)}'),
+            content: Text(S.sendFailed(ErrorHandler.getMessage(e))),
             backgroundColor: AppColors.error,
           ),
         );
@@ -308,7 +301,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
 
   PreferredSizeWidget _buildAppBar() {
     final other = _conv?.otherParticipant(_meId);
-    final name = other?.name ?? 'المحادثة';
+    final name = other?.name ?? S.conversationFallback;
     final property = _conv?.property;
 
     return AppBar(
@@ -414,7 +407,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
               FilledButton.icon(
                 onPressed: _bootstrap,
                 icon: const Icon(Icons.refresh_rounded, size: 18),
-                label: const Text('إعادة المحاولة'),
+                label: Text(S.retry),
                 style: FilledButton.styleFrom(
                     backgroundColor: AppColors.primary),
               ),
@@ -429,7 +422,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
           child: _messages.isEmpty
               ? Center(
                   child: Text(
-                    'ابدأ المحادثة — اكتب أول رسالة 👇',
+                    S.startChatPrompt,
                     style:
                         TextStyle(color: AppColors.textSecondary, fontSize: 13),
                   ),
@@ -561,7 +554,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
               style: const TextStyle(
                   fontSize: 14, color: AppColors.textPrimary),
               decoration: InputDecoration(
-                hintText: 'اكتب رسالتك...',
+                hintText: S.typeMessage,
                 hintStyle: const TextStyle(
                     color: AppColors.textLight, fontSize: 13),
                 filled: true,
@@ -637,22 +630,22 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(children: const [
-              Icon(Icons.shield_outlined, color: AppColors.primary),
-              SizedBox(width: 10),
-              Text('قواعد الدردشة',
-                  style: TextStyle(
+            Row(children: [
+              const Icon(Icons.shield_outlined, color: AppColors.primary),
+              const SizedBox(width: 10),
+              Text(S.chatRulesTitle,
+                  style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w800,
                       color: AppColors.primary)),
             ]),
             const SizedBox(height: 20),
-            _rule('✅', 'التفاوض على السعر مسموح به بالكامل'),
-            _rule('✅', 'سؤال عن المواعيد والخدمات'),
-            _rule('✅', 'طلب صور إضافية للمكان'),
-            _rule('🚫', 'تبادل أرقام الهاتف أو الواتساب'),
-            _rule('🚫', 'مشاركة روابط خارجية للتواصل'),
-            _rule('🚫', 'الدفع خارج التطبيق'),
+            _rule('✅', S.chatRuleNegotiate),
+            _rule('✅', S.chatRuleDates),
+            _rule('✅', S.chatRulePhotos),
+            _rule('🚫', S.chatRuleNoPhones),
+            _rule('🚫', S.chatRuleNoExternal),
+            _rule('🚫', S.chatRuleNoOutsidePay),
             const SizedBox(height: 20),
             Container(
               padding: const EdgeInsets.all(12),
@@ -661,7 +654,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                 borderRadius: BorderRadius.circular(AppRadius.md),
               ),
               child: Text(
-                '${S.appName} يحمي حقوقك! جميع الاتفاقيات والمدفوعات تتم داخل التطبيق لضمان أمانك.',
+                S.chatSafetyNote,
                 style: const TextStyle(
                   fontSize: 13,
                   color: AppColors.primary,
@@ -718,15 +711,15 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('تفاصيل الرحلة',
-                    style: TextStyle(
+                Text(S.tripDetails,
+                    style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w800,
                         color: AppColors.textPrimary)),
                 const SizedBox(height: 6),
-                const Text(
-                  'حدد تاريخ الوصول والمغادرة وعدد الأفراد قبل فتح المحادثة',
-                  style: TextStyle(
+                Text(
+                  S.tripDetailsHint,
+                  style: const TextStyle(
                       fontSize: 12, color: AppColors.textSecondary),
                 ),
                 const SizedBox(height: 16),
@@ -763,7 +756,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                       Expanded(
                         child: Text(
                           (ci == null || co == null)
-                              ? 'اختر تاريخ الوصول والمغادرة'
+                              ? S.chooseTripDates
                               : '${_fmtDate(ci!)}  →  ${_fmtDate(co!)}',
                           style: TextStyle(
                             fontSize: 13,
@@ -789,8 +782,8 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                   child: Row(children: [
                     const Icon(Icons.group_rounded, color: AppColors.primary),
                     const SizedBox(width: 10),
-                    const Text('عدد الأفراد',
-                        style: TextStyle(
+                    Text(S.peopleCount,
+                        style: const TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w700,
                             color: AppColors.textPrimary)),
@@ -831,8 +824,8 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                           borderRadius:
                               BorderRadius.circular(AppRadius.md)),
                     ),
-                    child: const Text('متابعة',
-                        style: TextStyle(
+                    child: Text(S.continueBtn,
+                        style: const TextStyle(
                             fontSize: 14, fontWeight: FontWeight.w800)),
                   ),
                 ),
@@ -857,23 +850,23 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
     final amount = await showDialog<double>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('إرسال عرض سعر'),
+        title: Text(S.sendOffer),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text(
-              'ادخل السعر المقترح بالجنيه المصري (لليلة للشاليه / للساعة للمراكب).',
-              style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+            Text(
+              S.offerHint,
+              style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
             ),
             const SizedBox(height: 12),
             TextField(
               controller: controller,
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
               autofocus: true,
-              decoration: const InputDecoration(
-                hintText: 'مثال: 1500',
-                suffixText: 'ج.م',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                hintText: S.examplePrice,
+                suffixText: S.egp,
+                border: const OutlineInputBorder(),
               ),
             ),
           ],
@@ -881,14 +874,14 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('إلغاء'),
+            child: Text(S.cancel),
           ),
           FilledButton(
             onPressed: () {
               final v = double.tryParse(controller.text.trim());
               if (v != null && v > 0) Navigator.pop(ctx, v);
             },
-            child: const Text('إرسال'),
+            child: Text(S.send),
           ),
         ],
       ),
@@ -904,7 +897,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
     } on ApiException catch (e) {
       _showError(ErrorHandler.getMessage(e));
     } catch (_) {
-      _showError('حدث خطأ أثناء إرسال العرض');
+      _showError(S.offerSendError);
     }
   }
 
@@ -919,7 +912,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
     } on ApiException catch (e) {
       _showError(ErrorHandler.getMessage(e));
     } catch (_) {
-      _showError('حدث خطأ أثناء رفض العرض');
+      _showError(S.offerDeclineError);
     }
   }
 
@@ -928,21 +921,19 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('تأكيد قبول العرض'),
+        title: Text(S.confirmAcceptOffer),
         content: Text(
-          'هيتم إنشاء حجز بالسعر المتفق عليه '
-          '(${_conv!.latestOfferAmount?.toStringAsFixed(0) ?? '-'} ج.م/ليلة) '
-          'وهتنتقل لصفحة الدفع مباشرة.',
+          S.acceptOfferBody(_conv!.latestOfferAmount?.toStringAsFixed(0) ?? '-'),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('رجوع'),
+            child: Text(S.back),
           ),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: AppColors.success),
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('قبول ومتابعة الدفع'),
+            child: Text('${S.accept} و ${S.proceedPayment}'),
           ),
         ],
       ),
@@ -960,7 +951,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
     } on ApiException catch (e) {
       _showError(ErrorHandler.getMessage(e));
     } catch (_) {
-      _showError('حدث خطأ أثناء قبول العرض');
+      _showError(S.offerAcceptError);
     }
   }
 
@@ -978,8 +969,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
       // the user can still reach the booking from "حجوزاتي".
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         backgroundColor: AppColors.success,
-        content: Text(
-            'تم إنشاء حجز ${result.bookingCode} ✅ — تابع الدفع من حجوزاتي'),
+        content: Text(S.bookingCreatedPayFromBookings(result.bookingCode)),
       ));
       return;
     }
@@ -1016,8 +1006,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         backgroundColor: AppColors.success,
-        content: Text(
-            'تم إنشاء حجز ${result.bookingCode} ✅ — تابع الدفع من حجوزاتي'),
+        content: Text(S.bookingCreatedPayFromBookings(result.bookingCode)),
       ));
     }
   }
@@ -1049,8 +1038,8 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
         Expanded(
           child: Text(
             _conv?.bookingId != null
-                ? 'تم الاتفاق — حجز رقم #${_conv!.bookingId}.  تابع الحجز من قسم «حجوزاتي» لإتمام الدفع وعرض بيانات التواصل.'
-                : 'تم الاتفاق — تابع الحجز من قسم «حجوزاتي».',
+                ? S.acceptedBanner(_conv!.bookingId)
+                : S.acceptedBanner(null),
             style: const TextStyle(
               fontSize: 12,
               color: AppColors.success,
@@ -1121,7 +1110,7 @@ class _OfferBubble extends StatelessWidget {
                         color: sent ? Colors.white : AppColors.primary),
                     const SizedBox(width: 6),
                     Text(
-                      sent ? 'عرضك' : 'عرض جديد',
+                      sent ? S.yourOffer : S.newOffer,
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w800,
@@ -1131,7 +1120,7 @@ class _OfferBubble extends StatelessWidget {
                   ]),
                   const SizedBox(height: 6),
                   Text(
-                    '${amount.toStringAsFixed(0)} ج.م',
+                    '${amount.toStringAsFixed(0)} ${S.egp}',
                     style: TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.w900,
@@ -1158,7 +1147,7 @@ class _OfferBubble extends StatelessWidget {
                         FilledButton.icon(
                           onPressed: onAccept,
                           icon: const Icon(Icons.check_rounded, size: 16),
-                          label: const Text('قبول'),
+                          label: Text(S.accept),
                           style: FilledButton.styleFrom(
                             backgroundColor: AppColors.success,
                             padding: const EdgeInsets.symmetric(
@@ -1170,7 +1159,7 @@ class _OfferBubble extends StatelessWidget {
                           onPressed: onCounter,
                           icon: const Icon(Icons.swap_horiz_rounded,
                               size: 16),
-                          label: const Text('عرض مضاد'),
+                          label: Text(S.counterOffer),
                           style: OutlinedButton.styleFrom(
                             foregroundColor:
                                 sent ? Colors.white : AppColors.primary,
@@ -1186,7 +1175,7 @@ class _OfferBubble extends StatelessWidget {
                         TextButton.icon(
                           onPressed: onDecline,
                           icon: const Icon(Icons.close_rounded, size: 16),
-                          label: const Text('رفض'),
+                          label: Text(S.adminReject),
                           style: TextButton.styleFrom(
                             foregroundColor: AppColors.error,
                             padding: const EdgeInsets.symmetric(
