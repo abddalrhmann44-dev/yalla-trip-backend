@@ -5,6 +5,7 @@
 
 import 'package:flutter/material.dart';
 import '../main.dart' show appSettings;
+import '../services/platform_config.dart';
 import '../utils/app_strings.dart';
 import '../widgets/constants.dart';
 import '../widgets/guests_animation_counter.dart';
@@ -48,7 +49,9 @@ class _BookingFlowPageState extends State<BookingFlowPage>
   }
 
   int get _cleaningFee => p.cleaningFee.toStringAsFixed(0) == '0' ? 0 : p.cleaningFee.toInt();
-  int get _grandTotal  => _baseTotal + _cleaningFee;
+  int get _adminFeeAmount =>
+      ((_baseTotal + _cleaningFee) * platformConfig.adminFeePercent / 100).round();
+  int get _grandTotal => _baseTotal + _cleaningFee + _adminFeeAmount;
 
   // ── Wave 25: hybrid deposit + cash-on-arrival ─────────────
   // Mirrors ``app/services/deposit.py`` server-side so the receipt
@@ -638,6 +641,8 @@ class _BookingFlowPageState extends State<BookingFlowPage>
           '$_baseTotal ${S.egp}'),
       if (_cleaningFee > 0)
         _priceRow(S.cleaningFee, '$_cleaningFee ${S.egp}'),
+      if (_adminFeeAmount > 0)
+        _priceRow(S.adminFee, '$_adminFeeAmount ${S.egp}'),
       Divider(height: 20, color: context.kBorder),
       _priceRow(S.totalPrice, '$_grandTotal ${S.egp}', bold: true),
       // ── Wave 25 — hybrid deposit + cash split ───────────────
@@ -719,20 +724,18 @@ class _BookingFlowPageState extends State<BookingFlowPage>
 
     Navigator.push(context, MaterialPageRoute(
       builder: (_) => PaymentPage(
-        property:        p,
-        checkIn:         checkInStr,
-        checkOut:        checkOutStr,
-        nights:          _nights,
-        guests:          _guests,
-        guestNote:       _guestNote,
-        baseAmount:      _baseTotal,
-        cleaningFee:     _cleaningFee,
-        totalAmount:     _grandTotal,
-        // Wave 25 — for hybrid listings the gateway only charges the
-        // deposit; ``totalAmount`` stays as the grand total so the
-        // receipt UI keeps showing the trip-wide cost.
-        depositAmount:   _depositAmount,
-        remainingCash:   _remainingCash,
+        property:      p,
+        checkIn:       checkInStr,
+        checkOut:      checkOutStr,
+        nights:        _nights,
+        guests:        _guests,
+        guestNote:     _guestNote,
+        baseAmount:    _baseTotal,
+        cleaningFee:   _cleaningFee,
+        adminFee:      _adminFeeAmount,
+        totalAmount:   _grandTotal,
+        depositAmount: _depositAmount,
+        remainingCash: _remainingCash,
       ),
     ));
   }

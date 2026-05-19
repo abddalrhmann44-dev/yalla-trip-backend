@@ -277,6 +277,66 @@ async def delete_my_post(
 #  Moderation (admin)
 # ══════════════════════════════════════════════════════════════
 
+class _AdminTripPostOut(BaseModel):
+    id: int
+    verdict: TripVerdict
+    caption: str | None
+    image_urls: list[str]
+    is_hidden: bool
+    created_at: datetime
+    property_id: int
+    booking_id: int
+    author_id: int
+    author_name: str | None = None
+    property_name: str | None = None
+
+
+@router.get("/admin/list", response_model=list[_AdminTripPostOut])
+async def admin_list_posts(
+    hidden_only: bool = Query(False, description="Return only hidden posts"),
+    verdict: TripVerdict | None = None,
+    search: str | None = Query(None, description="Search author name / property name"),
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+    _: User = Depends(_admin_only),
+    db: AsyncSession = Depends(get_db),
+):
+    """Admin moderation list — all posts visible (hidden + visible)."""
+    stmt = select(TripPost)
+    if hidden_only:
+        stmt = stmt.where(TripPost.is_hidden.is_(True))
+    if verdict is not None:
+        stmt = stmt.where(TripPost.verdict == verdict)
+    stmt = stmt.order_by(TripPost.created_at.desc()).offset(offset).limit(limit)
+    rows = (await db.execute(stmt)).scalars().all()
+
+    out = []
+    for p in rows:
+        author_name = p.author.name if p.author else None
+        prop_name = p.property.name if p.property else None
+        if search:
+            s = search.lower()
+            if (
+                (author_name or "").lower().find(s) == -1
+                and (prop_name or "").lower().find(s) == -1
+            ):
+                continue
+        out.append(_AdminTripPostOut(
+            id=p.id,
+            verdict=p.verdict,
+            caption=p.caption,
+            image_urls=p.image_urls or [],
+            is_hidden=p.is_hidden,
+            created_at=p.created_at,
+            property_id=p.property_id,
+            booking_id=p.booking_id,
+            author_id=p.author_id,
+            author_name=author_name,
+            property_name=prop_name,
+        ))
+    return out
+
+
 @router.post("/admin/{post_id}/hide", response_model=TripPostOut)
 async def admin_hide(
     post_id: int,

@@ -15,12 +15,46 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.middleware.auth_middleware import get_current_active_user
+from app.models.platform_setting import PlatformSetting
 from app.models.property import Property
 from app.models.user import User, UserRole
 from app.services.pricing_intelligence import compute_suggestions
 
 logger = structlog.get_logger(__name__)
 router = APIRouter(prefix="/pricing", tags=["Pricing"])
+
+
+class _PublicPricingSettings(BaseModel):
+    """Subset of platform settings safe to surface to the public client.
+
+    The booking flow needs ``admin_fee_percent`` so it can show the
+    administrative-fee line item *before* the user commits to the
+    booking.  We deliberately keep this payload minimal — anything
+    that touches host economics (``platform_fee_percent``,
+    ``payout_hold_days``) stays inside the admin-only endpoint.
+    """
+
+    admin_fee_percent: float
+
+
+@router.get(
+    "/public-settings",
+    response_model=_PublicPricingSettings,
+    summary="Public pricing knobs",
+)
+async def get_public_pricing_settings(db: AsyncSession = Depends(get_db)):
+    """Return the admin-tunable fee percentages clients are allowed to
+    read without authentication.  Used by the booking flow to render
+    the administrative-fee row in the price breakdown.
+
+    When the singleton row hasn't been seeded yet (rare — test DBs
+    bootstrapped without migrations) we self-heal to zero so the
+    client gracefully renders no admin-fee line.
+    """
+    row = await db.get(PlatformSetting, 1)
+    return _PublicPricingSettings(
+        admin_fee_percent=float(row.admin_fee_percent) if row else 0.0,
+    )
 
 
 class SuggestionOut(BaseModel):

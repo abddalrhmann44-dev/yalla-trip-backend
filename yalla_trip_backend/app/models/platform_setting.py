@@ -32,8 +32,16 @@ class PlatformSetting(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
 
     # Commission charged on every paid booking (percent, 0-100).
+    # Deducted from the *host's* payout — guest's total is unchanged.
     platform_fee_percent: Mapped[float] = mapped_column(
         Float, nullable=False, default=10.0, server_default="10.0",
+    )
+    # Administrative / service fee charged to the *guest* on top of
+    # the subtotal (percent, 0-100).  Independent of platform_fee:
+    # admin_fee is *added* to total_price and never reduces the host's
+    # payout.  Used to recover infra / KYC / gateway costs.
+    admin_fee_percent: Mapped[float] = mapped_column(
+        Float, nullable=False, default=0.0, server_default="0.0",
     )
     # Default deposit percentage when an owner does not override it.
     deposit_percent_default: Mapped[float] = mapped_column(

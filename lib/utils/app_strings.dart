@@ -342,6 +342,7 @@ class S {
   static String get bookProperty => _ar ? 'احجز الآن' : 'Book Now';
   static String get contactOwner => _ar ? 'تواصل مع المالك' : 'Contact Owner';
   static String get cleaningFee => _ar ? 'رسوم التنظيف' : 'Cleaning Fee';
+  static String get adminFee => _ar ? 'المصاريف الإدارية' : 'Administrative Fee';
   static String get totalPrice => _ar ? 'الإجمالي' : 'Total';
   static String get notAvailable => _ar ? 'غير متاح حالياً' : 'Not Available';
   static String get nearby => _ar ? 'أماكن قريبة' : 'Nearby';

@@ -11,6 +11,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../services/admin_service.dart';
+import '../../services/platform_config.dart';
 import '../../utils/api_client.dart';
 import '../../utils/error_handler.dart';
 import '../../widgets/constants.dart';
@@ -36,6 +37,7 @@ class _AdminPricingRulesPageState extends State<AdminPricingRulesPage> {
   // Each setting gets its own controller so unsaved edits stay
   // local until the admin taps Save.
   final _fee = TextEditingController();
+  final _adminFee = TextEditingController();
   final _deposit = TextEditingController();
   final _holdDays = TextEditingController();
   final _walletMin = TextEditingController();
@@ -53,6 +55,7 @@ class _AdminPricingRulesPageState extends State<AdminPricingRulesPage> {
   void dispose() {
     for (final c in [
       _fee,
+      _adminFee,
       _deposit,
       _holdDays,
       _walletMin,
@@ -71,6 +74,7 @@ class _AdminPricingRulesPageState extends State<AdminPricingRulesPage> {
       final data = await AdminService.getPlatformSettings();
       _initial = data;
       _fee.text = '${data['platform_fee_percent'] ?? 10}';
+      _adminFee.text = '${data['admin_fee_percent'] ?? 0}';
       _deposit.text = '${data['deposit_percent_default'] ?? 20}';
       _holdDays.text = '${data['payout_hold_days'] ?? 1}';
       _walletMin.text = '${data['wallet_min_redeem_subtotal'] ?? 3000}';
@@ -104,6 +108,7 @@ class _AdminPricingRulesPageState extends State<AdminPricingRulesPage> {
     }
 
     check('platform_fee_percent', _fee, false);
+    check('admin_fee_percent', _adminFee, false);
     check('deposit_percent_default', _deposit, false);
     check('payout_hold_days', _holdDays, true);
     check('wallet_min_redeem_subtotal', _walletMin, false);
@@ -175,6 +180,7 @@ class _AdminPricingRulesPageState extends State<AdminPricingRulesPage> {
       _updatedAt = data['updated_at'] as String?;
       _updatedBy = data['updated_by_name'] as String?;
       _note.clear();
+      platformConfig.load();
       _snack('تم حفظ الإعدادات ✅', _kGreen);
     } on ApiException catch (e) {
       if (mounted) _snack(ErrorHandler.getMessage(e), _kRed);
@@ -187,6 +193,7 @@ class _AdminPricingRulesPageState extends State<AdminPricingRulesPage> {
 
   String _arabicLabel(String key) => switch (key) {
         'platform_fee_percent' => 'عمولة المنصة (%)',
+        'admin_fee_percent' => 'المصاريف الإدارية (%)',
         'deposit_percent_default' => 'العربون الافتراضي (%)',
         'payout_hold_days' => 'مدة احتجاز الدفع (يوم)',
         'wallet_min_redeem_subtotal' => 'حد محفظة الاسترداد (ج.م)',
@@ -260,7 +267,16 @@ class _AdminPricingRulesPageState extends State<AdminPricingRulesPage> {
                   hint: '10',
                   suffix: '%',
                   description:
-                      'النسبة التي تأخذها المنصة من كل حجز مدفوع.',
+                      'النسبة التي تأخذها المنصة من حصة المضيف في كل حجز مدفوع. لا تظهر للضيف كبند منفصل.',
+                ),
+                const SizedBox(height: 12),
+                _numberField(
+                  controller: _adminFee,
+                  label: 'المصاريف الإدارية (%)',
+                  hint: '0',
+                  suffix: '%',
+                  description:
+                      'مصاريف إدارية تُضاف إلى فاتورة الضيف فوق سعر الإقامة. تُحصَّل لصالح المنصة ولا تُخصم من حصة المضيف.',
                 ),
                 const SizedBox(height: 12),
                 _numberField(

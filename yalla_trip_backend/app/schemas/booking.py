@@ -70,6 +70,11 @@ class BookingOut(BaseModel):
     total_price: float
     platform_fee: float
     owner_payout: float
+    # Wave 31 — administrative fee charged to the guest, snapshotted
+    # from ``platform_settings.admin_fee_percent`` at booking time.
+    # Defaults to 0 so legacy bookings created before the column was
+    # added serialise cleanly.
+    admin_fee: float = 0.0
     # Wave 25 — hybrid deposit + cash-on-arrival.  When the host
     # didn't enable cash-on-arrival, ``deposit_amount == total_price``
     # and ``remaining_cash_amount == 0`` so the legacy clients keep

@@ -18,6 +18,7 @@ import 'offer_creation_page.dart';
 import 'owner_add_property_page.dart';
 import 'owner_edit_property_page.dart';
 import 'owner_payouts_page.dart';
+import 'owner_property_bookings_page.dart';
 
 // Accent colors (same in light & dark)
 const _kOcean  = Color(0xFFFF6B35);
@@ -229,6 +230,7 @@ class _OwnerDashboardPageState extends State<OwnerDashboardPage>
                     if (_properties.isEmpty)
                       _buildEmptySliver()
                     else ...[
+                      _buildBookingsBanner(),
                       _buildSectionTitle('عقاراتك'),
                       _buildPropertiesList(),
                     ],
@@ -566,6 +568,69 @@ class _OwnerDashboardPageState extends State<OwnerDashboardPage>
               },
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  // ── Bookings Banner ──────────────────────────────────────────
+  Widget _buildBookingsBanner() {
+    return SliverToBoxAdapter(
+      child: GestureDetector(
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(
+              builder: (_) => const OwnerPropertyBookingsPage()),
+        ),
+        child: Container(
+          margin: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFF5C6BC0), Color(0xFF7986CB)],
+            ),
+            borderRadius: BorderRadius.circular(18),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF5C6BC0).withValues(alpha: 0.3),
+                blurRadius: 14,
+                offset: const Offset(0, 5),
+              ),
+            ],
+          ),
+          child: Row(children: [
+            Container(
+              width: 46,
+              height: 46,
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: const Icon(Icons.receipt_long_rounded,
+                  color: Colors.white, size: 24),
+            ),
+            const SizedBox(width: 14),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('حجوزات عقاراتي',
+                      style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w900,
+                          color: Colors.white)),
+                  SizedBox(height: 2),
+                  Text('تفاصيل كل حجز، الفلوس، والمعادات لكل عقار',
+                      style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.white70,
+                          fontWeight: FontWeight.w500)),
+                ],
+              ),
+            ),
+            const Icon(Icons.arrow_forward_ios_rounded,
+                color: Colors.white70, size: 14),
+          ]),
         ),
       ),
     );

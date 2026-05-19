@@ -21,6 +21,7 @@ import 'pages/profile_page.dart';
 import 'widgets/constants.dart';
 import 'utils/app_strings.dart';
 import 'services/connectivity_guard.dart';
+import 'services/platform_config.dart';
 import 'services/version_check_service.dart';
 import 'services/notification_service.dart';
 import 'services/deep_link_service.dart';
@@ -110,6 +111,10 @@ void main() async {
     // start by several seconds.
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       // Fire-and-forget — failures here must never crash the app.
+      // ignore: unawaited_futures
+      platformConfig.load().catchError((e, st) {
+        debugPrint('[PlatformConfig] load failed: $e');
+      });
       // ignore: unawaited_futures
       NotificationService.instance.initialize().catchError((e, st) {
         debugPrint('[Notifications] init failed: $e');

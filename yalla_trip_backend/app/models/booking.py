@@ -88,6 +88,15 @@ class Booking(Base):
     total_price: Mapped[float] = mapped_column(Float, nullable=False)
     platform_fee: Mapped[float] = mapped_column(Float, nullable=False)
     owner_payout: Mapped[float] = mapped_column(Float, nullable=False)
+    # Administrative fee charged to the guest (Wave 31).  Snapshotted
+    # at booking creation from ``platform_settings.admin_fee_percent``
+    # so receipts and analytics stay accurate even if the admin later
+    # tweaks the percentage.  Distinct from ``platform_fee``: this one
+    # is *added* to ``total_price`` (guest pays it) and does not touch
+    # ``owner_payout``.
+    admin_fee: Mapped[float] = mapped_column(
+        Float, default=0.0, server_default="0", nullable=False
+    )
 
     # ── Hybrid cash-on-arrival (Wave 25) ──────────────────────
     # When the host enabled ``cash_on_arrival_enabled`` on the

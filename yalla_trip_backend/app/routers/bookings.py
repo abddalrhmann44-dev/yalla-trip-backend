@@ -27,6 +27,7 @@ from app.models.availability_rule import AvailabilityRule, RuleType
 from app.models.calendar import CalendarBlock
 from app.models.notification import NotificationType
 from app.models.payment import Payment, PaymentState
+from app.models.platform_setting import PlatformSetting
 from app.models.property import Category, Property
 from app.models.user import User, UserRole
 from app.schemas.booking import (
@@ -66,7 +67,8 @@ class _PriceBreakdown:
     """Result of price calculation."""
     __slots__ = (
         "nights_total", "cleaning_fee", "electricity_fee", "water_fee",
-        "security_deposit", "total_price", "platform_fee", "owner_payout",
+        "security_deposit", "admin_fee",
+        "total_price", "platform_fee", "owner_payout",
     )
 
     def __init__(self, **kw):
@@ -74,18 +76,52 @@ class _PriceBreakdown:
             setattr(self, k, v)
 
 
+async def _load_fee_percentages(
+    db: AsyncSession,
+) -> tuple[float, float]:
+    """Return ``(platform_fee_percent, admin_fee_percent)`` from the
+    singleton ``platform_settings`` row, falling back to the static
+    defaults in :mod:`app.config` when the row hasn't been seeded yet
+    (rare — only happens in test DBs bootstrapped without migrations).
+
+    Reading from the DB on every booking creation is cheap (single
+    indexed PK lookup) and makes admin-tuned percentages take effect
+    immediately for new bookings without a server restart.
+    """
+    row = await db.get(PlatformSetting, 1)
+    if row is None:
+        return settings.PLATFORM_FEE_PERCENT, 0.0
+    return float(row.platform_fee_percent), float(row.admin_fee_percent)
+
+
 def _calc_price(
     prop: Property,
     check_in: date,
     check_out: date,
     pricing_rules: list | None = None,
+    *,
+    platform_fee_percent: float | None = None,
+    admin_fee_percent: float = 0.0,
 ) -> _PriceBreakdown:
     """Calculate full price breakdown including utilities and deposit.
 
     If *pricing_rules* is provided (list of AvailabilityRule with
     rule_type == pricing), per-day overrides are applied.  Rules are
     assumed ordered by created_at so the last matching rule wins.
+
+    The two fee percentages have very different economics:
+
+    * ``platform_fee_percent``  — commission deducted from the host's
+      payout.  Defaults to ``settings.PLATFORM_FEE_PERCENT`` when not
+      provided so legacy callers keep working.
+    * ``admin_fee_percent``     — administrative fee *added on top* of
+      the subtotal and paid by the guest.  Never reduces the host's
+      payout; it ends up in the platform's pocket alongside the
+      commission.
     """
+    if platform_fee_percent is None:
+        platform_fee_percent = settings.PLATFORM_FEE_PERCENT
+
     nights_total = 0.0
     day = check_in
     while day < check_out:
@@ -111,13 +147,13 @@ def _calc_price(
     water_fee = (prop.water_fee or 0.0) if is_chalet else 0.0
     security_deposit = (prop.security_deposit or 0.0) if is_chalet else 0.0
 
-    # total = nights + cleaning + utilities (deposit is separate / refundable)
+    # subtotal feeds *both* fee calculations
     subtotal = nights_total + cleaning_fee + electricity_fee + water_fee
-    fee_pct = settings.PLATFORM_FEE_PERCENT / 100.0
-    platform_fee = round(subtotal * fee_pct, 2)
+    platform_fee = round(subtotal * (platform_fee_percent / 100.0), 2)
+    admin_fee = round(subtotal * (admin_fee_percent / 100.0), 2)
     owner_payout = round(subtotal - platform_fee, 2)
-    # total the guest pays = subtotal + deposit
-    total_price = round(subtotal + security_deposit, 2)
+    # total the guest pays = subtotal + admin_fee + refundable deposit
+    total_price = round(subtotal + admin_fee + security_deposit, 2)
 
     return _PriceBreakdown(
         nights_total=round(nights_total, 2),
@@ -125,6 +161,7 @@ def _calc_price(
         electricity_fee=round(electricity_fee, 2),
         water_fee=round(water_fee, 2),
         security_deposit=round(security_deposit, 2),
+        admin_fee=admin_fee,
         total_price=total_price,
         platform_fee=platform_fee,
         owner_payout=owner_payout,
@@ -273,9 +310,17 @@ async def create_booking(
                 ),
             )
 
-    # Price calculation with pricing overrides
+    # Price calculation with pricing overrides.  Read the admin-tuned
+    # percentages from the singleton settings row so any change made
+    # in the admin Pricing-Rules page takes effect immediately for
+    # new bookings (no server restart required).
     pricing_rules = [r for r in avail_rules if r.rule_type == RuleType.pricing]
-    price = _calc_price(prop, body.check_in, body.check_out, pricing_rules)
+    platform_fee_pct, admin_fee_pct = await _load_fee_percentages(db)
+    price = _calc_price(
+        prop, body.check_in, body.check_out, pricing_rules,
+        platform_fee_percent=platform_fee_pct,
+        admin_fee_percent=admin_fee_pct,
+    )
     code = await _generate_code(db)
 
     initial_status = (
@@ -346,7 +391,7 @@ async def create_booking(
     deposit_break = compute_deposit_breakdown(
         total_price=effective_total,
         price_per_night=prop.price_per_night,
-        commission_rate=settings.PLATFORM_FEE_PERCENT / 100.0,
+        commission_rate=platform_fee_pct / 100.0,
         cash_on_arrival_enabled=prop.cash_on_arrival_enabled,
     )
     initial_cash_status = (
@@ -370,6 +415,7 @@ async def create_booking(
         total_price=effective_total,
         platform_fee=platform_fee_final,
         owner_payout=owner_payout_final,
+        admin_fee=price.admin_fee,
         deposit_amount=deposit_break.deposit_amount,
         remaining_cash_amount=deposit_break.remaining_cash_amount,
         cash_collection_status=initial_cash_status,
@@ -476,6 +522,104 @@ async def owner_bookings(
         items=[BookingOut.model_validate(r) for r in rows],
         total=total, page=page, limit=limit, pages=pages,
     )
+
+
+# ── Owner: properties grouped with their bookings ────────────
+class _OwnerBookingItem(BaseModel):
+    booking_id: int
+    booking_code: str
+    guest_name: str | None
+    guest_phone: str | None
+    check_in: str
+    check_out: str
+    guests_count: int
+    total_price: float
+    platform_fee: float
+    admin_fee: float
+    owner_payout: float
+    deposit_amount: float
+    remaining_cash_amount: float
+    promo_discount: float
+    wallet_discount: float
+    status: str
+    payment_status: str
+    payout_status: str
+    cash_collection_status: str
+    created_at: str
+
+
+class _OwnerPropertyGroup(BaseModel):
+    property_id: int
+    property_code: str | None
+    property_name: str
+    area: str
+    category: str
+    price_per_night: float
+    status: str
+    bookings: list[_OwnerBookingItem]
+
+
+@router.get("/owner/by-property", response_model=list[_OwnerPropertyGroup])
+async def owner_bookings_by_property(
+    status_filter: BookingStatus | None = None,
+    user: User = Depends(require_role(UserRole.owner, UserRole.admin)),
+    db: AsyncSession = Depends(get_db),
+):
+    """Owner: all their properties, each with the full booking list and financials."""
+    props = (
+        await db.execute(
+            select(Property)
+            .where(Property.owner_id == user.id, Property.deleted_at.is_(None))
+            .order_by(Property.created_at.desc())
+        )
+    ).scalars().all()
+
+    result = []
+    for prop in props:
+        stmt = select(Booking).where(Booking.property_id == prop.id)
+        if status_filter:
+            stmt = stmt.where(Booking.status == status_filter)
+        stmt = stmt.order_by(Booking.created_at.desc())
+        bookings = (await db.execute(stmt)).scalars().all()
+
+        items = []
+        for b in bookings:
+            guest = await db.get(User, b.guest_id)
+            items.append(_OwnerBookingItem(
+                booking_id=b.id,
+                booking_code=b.booking_code,
+                guest_name=guest.name if guest else None,
+                guest_phone=guest.phone if guest else None,
+                check_in=str(b.check_in),
+                check_out=str(b.check_out),
+                guests_count=b.guests_count,
+                total_price=round(b.total_price, 2),
+                platform_fee=round(b.platform_fee, 2),
+                admin_fee=round(b.admin_fee, 2),
+                owner_payout=round(b.owner_payout, 2),
+                deposit_amount=round(b.deposit_amount, 2),
+                remaining_cash_amount=round(b.remaining_cash_amount, 2),
+                promo_discount=round(b.promo_discount, 2),
+                wallet_discount=round(b.wallet_discount, 2),
+                status=b.status.value,
+                payment_status=b.payment_status.value,
+                payout_status=b.payout_status,
+                cash_collection_status=b.cash_collection_status.value,
+                created_at=b.created_at.isoformat(),
+            ))
+
+        result.append(_OwnerPropertyGroup(
+            property_id=prop.id,
+            property_code=prop.property_code,
+            property_name=prop.name,
+            area=prop.area.value if hasattr(prop.area, "value") else str(prop.area),
+            category=prop.category.value if hasattr(prop.category, "value") else str(prop.category),
+            price_per_night=round(prop.price_per_night, 2),
+            status=prop.status.value,
+            bookings=items,
+        ))
+
+    return result
 
 
 @router.put("/{booking_id}/confirm", response_model=BookingOut)

@@ -330,4 +330,49 @@ class AdminService {
     final data = await _api.get('/admin/stats');
     return data as Map<String, dynamic>;
   }
+
+  static Future<Map<String, dynamic>> getFinancialReport({int months = 12}) async {
+    final data = await _api.get('/admin/financial-report?months=$months');
+    return data as Map<String, dynamic>;
+  }
+
+  // ── Code lookups ───────────────────────────────────────────
+  static Future<Map<String, dynamic>> lookupPropertyCode(String code) async {
+    final data = await _api.get('/admin/lookup/property/${Uri.encodeComponent(code)}');
+    return data as Map<String, dynamic>;
+  }
+
+  static Future<Map<String, dynamic>> lookupBookingCode(String code) async {
+    final data = await _api.get('/admin/lookup/booking/${Uri.encodeComponent(code)}');
+    return data as Map<String, dynamic>;
+  }
+
+  // ── Trip Posts moderation ──────────────────────────────────
+  static Future<List<Map<String, dynamic>>> adminListTripPosts({
+    bool hiddenOnly = false,
+    String? verdict,
+    String? search,
+    int limit = 50,
+    int offset = 0,
+  }) async {
+    var q = '/trip-posts/admin/list?limit=$limit&offset=$offset&hidden_only=$hiddenOnly';
+    if (verdict != null) q += '&verdict=${Uri.encodeComponent(verdict)}';
+    if (search != null && search.isNotEmpty) {
+      q += '&search=${Uri.encodeComponent(search)}';
+    }
+    final data = await _api.get(q);
+    return (data as List).cast<Map<String, dynamic>>();
+  }
+
+  static Future<void> adminHideTripPost(int postId) async {
+    await _api.post('/trip-posts/admin/$postId/hide', {});
+  }
+
+  static Future<void> adminUnhideTripPost(int postId) async {
+    await _api.post('/trip-posts/admin/$postId/unhide', {});
+  }
+
+  static Future<void> adminDeleteTripPost(int postId) async {
+    await _api.delete('/trip-posts/$postId');
+  }
 }

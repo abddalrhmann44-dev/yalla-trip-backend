@@ -34,6 +34,11 @@ import 'admin_api_keys_page.dart';
 import 'admin_chat_monitor_page.dart';
 import 'admin_promo_banner_page.dart';
 import 'admin_owners_page.dart';
+import 'admin_property_suspension_page.dart';
+import 'admin_wallet_management_page.dart';
+import 'admin_financial_report_page.dart';
+import 'admin_trip_posts_moderation_page.dart';
+import 'admin_code_lookup_page.dart';
 
 const _kOcean  = Color(0xFFFF6B35);
 const _kGreen  = Color(0xFF4CAF50);
@@ -382,6 +387,18 @@ class _AdminMainPageState extends State<AdminMainPage> {
                 ),
                 const SizedBox(height: 10),
                 _navTile(
+                  icon: Icons.savings_rounded,
+                  title: 'إدارة المحافظ',
+                  subtitle: 'رصيد المستخدمين، تعديل يدوي، سجل المعاملات',
+                  color: _kGreen,
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) =>
+                              const AdminWalletManagementPage())),
+                ),
+                const SizedBox(height: 10),
+                _navTile(
                   icon: Icons.history_rounded,
                   title: 'سجل الإجراءات',
                   subtitle: 'من فعل ماذا ومتى — forensic audit log',
@@ -414,6 +431,30 @@ class _AdminMainPageState extends State<AdminMainPage> {
                           builder: (_) =>
                               const AdminAnalyticsDashboardPage())),
                 ),
+                const SizedBox(height: 10),
+                _navTile(
+                  icon: Icons.bar_chart_rounded,
+                  title: 'التقرير المالي',
+                  subtitle: 'إيرادات شهرية، عمولات، مستحقات الملاك',
+                  color: _kGreen,
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) =>
+                              const AdminFinancialReportPage())),
+                ),
+                const SizedBox(height: 10),
+                _navTile(
+                  icon: Icons.qr_code_scanner_rounded,
+                  title: 'البحث بالكود',
+                  subtitle: 'بحث بكود العقار أو كود الحجز — بيانات كاملة + صور الهوية',
+                  color: _kPurple,
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) =>
+                              const AdminCodeLookupPage())),
+                ),
                 const SizedBox(height: 18),
                 Padding(
                   padding: const EdgeInsets.only(bottom: 8, right: 4),
@@ -433,6 +474,30 @@ class _AdminMainPageState extends State<AdminMainPage> {
                       MaterialPageRoute(
                           builder: (_) =>
                               const AdminReviewsModerationPage())),
+                ),
+                const SizedBox(height: 10),
+                _navTile(
+                  icon: Icons.photo_library_rounded,
+                  title: 'إشراف بوستات الرحلات',
+                  subtitle: 'إخفاء أو حذف بوستات مسيئة من الفيد',
+                  color: _kOcean,
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) =>
+                              const AdminTripPostsModerationPage())),
+                ),
+                const SizedBox(height: 10),
+                _navTile(
+                  icon: Icons.block_rounded,
+                  title: 'تعليق العقارات',
+                  subtitle: 'تعليق أو رفع تعليق عن عقار بشكل مؤقت',
+                  color: _kRed,
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) =>
+                              const AdminPropertySuspensionPage())),
                 ),
                 const SizedBox(height: 10),
                 _navTile(

@@ -94,6 +94,12 @@ class Property(Base):
         ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
     )
 
+    # Short human-readable code generated on creation (e.g. "PROP-AB12CD").
+    # Used by admin and owners to look up properties without knowing the DB id.
+    property_code: Mapped[str | None] = mapped_column(
+        String(12), unique=True, index=True, nullable=True,
+    )
+
     name: Mapped[str] = mapped_column(String(200), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
 

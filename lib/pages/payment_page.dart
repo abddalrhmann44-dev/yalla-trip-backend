@@ -124,6 +124,7 @@ class PaymentPage extends StatefulWidget {
   // only charges ``depositAmount``.
   final int depositAmount;
   final int remainingCash;
+  final int adminFee;
 
   const PaymentPage({
     super.key,
@@ -138,6 +139,7 @@ class PaymentPage extends StatefulWidget {
     required this.totalAmount,
     this.depositAmount = 0,
     this.remainingCash = 0,
+    this.adminFee = 0,
   });
 
   /// True when the host enabled cash-on-arrival and the booking flow
@@ -529,6 +531,8 @@ class _PaymentPageState extends State<PaymentPage> {
               '${widget.baseAmount} ${S.egp}'),
           if (widget.cleaningFee > 0)
             _row(S.cleaningFee, '${widget.cleaningFee} ${S.egp}'),
+          if (widget.adminFee > 0)
+            _row(S.adminFee, '${widget.adminFee} ${S.egp}'),
           if (_discount > 0)
             _row(
               S.promoCodeRow(_appliedCode!),

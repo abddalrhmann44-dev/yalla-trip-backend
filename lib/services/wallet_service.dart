@@ -279,4 +279,94 @@ class WalletService {
     final res = await _api.get('/wallet/admin/stats');
     return (res as Map).cast<String, dynamic>();
   }
+
+  static Future<List<AdminWalletRow>> adminListWallets({
+    String? search,
+    double? minBalance,
+    int limit = 50,
+    int offset = 0,
+  }) async {
+    var q = '/wallet/admin/list?limit=$limit&offset=$offset';
+    if (search != null && search.isNotEmpty) q += '&search=${Uri.encodeComponent(search)}';
+    if (minBalance != null) q += '&min_balance=$minBalance';
+    final res = await _api.get(q);
+    return (res as List)
+        .map((e) => AdminWalletRow.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  static Future<AdminWalletDetail> adminGetUserWallet(int userId) async {
+    final res = await _api.get('/wallet/admin/$userId');
+    return AdminWalletDetail.fromJson(res as Map<String, dynamic>);
+  }
+}
+
+// ── Admin wallet models ───────────────────────────────────
+class AdminWalletRow {
+  final int userId;
+  final String? userName;
+  final String? userPhone;
+  final String? userEmail;
+  final double balance;
+  final double lifetimeEarned;
+  final double lifetimeSpent;
+  final String? referralCode;
+  final String? updatedAt;
+
+  AdminWalletRow({
+    required this.userId,
+    required this.userName,
+    required this.userPhone,
+    required this.userEmail,
+    required this.balance,
+    required this.lifetimeEarned,
+    required this.lifetimeSpent,
+    required this.referralCode,
+    required this.updatedAt,
+  });
+
+  factory AdminWalletRow.fromJson(Map<String, dynamic> j) => AdminWalletRow(
+        userId: j['user_id'] as int,
+        userName: j['user_name'] as String?,
+        userPhone: j['user_phone'] as String?,
+        userEmail: j['user_email'] as String?,
+        balance: (j['balance'] as num).toDouble(),
+        lifetimeEarned: (j['lifetime_earned'] as num).toDouble(),
+        lifetimeSpent: (j['lifetime_spent'] as num).toDouble(),
+        referralCode: j['referral_code'] as String?,
+        updatedAt: j['updated_at'] as String?,
+      );
+}
+
+class AdminWalletDetail {
+  final int userId;
+  final String? userName;
+  final double balance;
+  final double lifetimeEarned;
+  final double lifetimeSpent;
+  final String? referralCode;
+  final List<WalletTxn> transactions;
+
+  AdminWalletDetail({
+    required this.userId,
+    required this.userName,
+    required this.balance,
+    required this.lifetimeEarned,
+    required this.lifetimeSpent,
+    required this.referralCode,
+    required this.transactions,
+  });
+
+  factory AdminWalletDetail.fromJson(Map<String, dynamic> j) => AdminWalletDetail(
+        userId: j['user_id'] as int,
+        userName: j['user_name'] as String?,
+        balance: (j['balance'] as num).toDouble(),
+        lifetimeEarned: (j['lifetime_earned'] as num).toDouble(),
+        lifetimeSpent: (j['lifetime_spent'] as num).toDouble(),
+        referralCode: j['referral_code'] as String?,
+        transactions: [
+          for (final t in (j['transactions'] as List? ?? []))
+            WalletTxn.fromJson(t as Map<String, dynamic>)
+        ],
+      );
 }

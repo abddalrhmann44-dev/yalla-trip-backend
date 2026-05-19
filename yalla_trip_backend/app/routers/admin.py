@@ -7,7 +7,7 @@ from datetime import date, datetime
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
-from sqlalchemy import delete as sa_delete, func, select
+from sqlalchemy import Integer, delete as sa_delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from pydantic import BaseModel
@@ -1094,6 +1094,7 @@ async def list_suspicious_users(
 # ── Platform settings (pricing-rules page) ───────────────
 class _PlatformSettingsOut(BaseModel):
     platform_fee_percent: float
+    admin_fee_percent: float
     deposit_percent_default: float
     payout_hold_days: int
     wallet_min_redeem_subtotal: float
@@ -1108,6 +1109,7 @@ class _PlatformSettingsOut(BaseModel):
 
 class _PlatformSettingsUpdate(BaseModel):
     platform_fee_percent: float | None = None
+    admin_fee_percent: float | None = None
     deposit_percent_default: float | None = None
     payout_hold_days: int | None = None
     wallet_min_redeem_subtotal: float | None = None
@@ -1159,6 +1161,7 @@ async def update_platform_settings(
     row = await _get_or_create_settings(db)
     before = {
         "platform_fee_percent": row.platform_fee_percent,
+        "admin_fee_percent": row.admin_fee_percent,
         "deposit_percent_default": row.deposit_percent_default,
         "payout_hold_days": row.payout_hold_days,
         "wallet_min_redeem_subtotal": row.wallet_min_redeem_subtotal,
@@ -1174,6 +1177,14 @@ async def update_platform_settings(
                        "Fee must be 0-100",
             )
         row.platform_fee_percent = body.platform_fee_percent
+    if body.admin_fee_percent is not None:
+        if not 0 <= body.admin_fee_percent <= 100:
+            raise HTTPException(
+                status_code=400,
+                detail="نسبة المصاريف الإدارية يجب أن تكون بين 0 و 100 / "
+                       "Admin fee must be 0-100",
+            )
+        row.admin_fee_percent = body.admin_fee_percent
     if body.deposit_percent_default is not None:
         if not 0 <= body.deposit_percent_default <= 100:
             raise HTTPException(
@@ -1209,6 +1220,7 @@ async def update_platform_settings(
     await db.refresh(row)
     after = {
         "platform_fee_percent": row.platform_fee_percent,
+        "admin_fee_percent": row.admin_fee_percent,
         "deposit_percent_default": row.deposit_percent_default,
         "payout_hold_days": row.payout_hold_days,
         "wallet_min_redeem_subtotal": row.wallet_min_redeem_subtotal,
@@ -1538,6 +1550,367 @@ async def dashboard_stats(
         "total_owner_payouts": float(total_owner_payouts),
         "currency": "EGP",
     }
+
+
+# ── Financial report ──────────────────────────────────────────
+@router.get("/financial-report")
+async def financial_report(
+    months: int = Query(12, ge=1, le=24, description="How many past months to include"),
+    _: User = Depends(_admin_only),
+    db: AsyncSession = Depends(get_db),
+):
+    """Monthly revenue breakdown + aggregate totals for the admin finance page."""
+    from datetime import date as _date
+    from calendar import monthrange
+
+    # ── Aggregate totals (all time, paid bookings only) ────────
+    paid_filter = Booking.payment_status == PaymentStatus.paid
+
+    async def _sum(col):
+        return float(
+            (await db.execute(select(func.coalesce(func.sum(col), 0)).where(paid_filter))).scalar() or 0
+        )
+
+    total_revenue        = await _sum(Booking.total_price)
+    total_platform_fees  = await _sum(Booking.platform_fee)
+    total_admin_fees     = await _sum(Booking.admin_fee)
+    total_owner_payouts  = await _sum(Booking.owner_payout)
+    total_promo_discounts = await _sum(Booking.promo_discount)
+    total_wallet_discounts = await _sum(Booking.wallet_discount)
+    total_refunds = float(
+        (await db.execute(
+            select(func.coalesce(func.sum(Booking.refund_amount), 0))
+            .where(Booking.payment_status == PaymentStatus.refunded)
+        )).scalar() or 0
+    )
+
+    total_paid_bookings = int(
+        (await db.execute(select(func.count(Booking.id)).where(paid_filter))).scalar() or 0
+    )
+
+    # ── Monthly breakdown ──────────────────────────────────────
+    today = _date.today()
+    monthly = []
+    for i in range(months - 1, -1, -1):
+        # go back `i` months
+        month = today.month - i
+        year = today.year
+        while month <= 0:
+            month += 12
+            year -= 1
+        _, last_day = monthrange(year, month)
+        start = _date(year, month, 1)
+        end = _date(year, month, last_day)
+
+        rows = (
+            await db.execute(
+                select(
+                    func.coalesce(func.sum(Booking.total_price), 0).label("revenue"),
+                    func.coalesce(func.sum(Booking.platform_fee), 0).label("platform_fee"),
+                    func.coalesce(func.sum(Booking.admin_fee), 0).label("admin_fee"),
+                    func.coalesce(func.sum(Booking.owner_payout), 0).label("owner_payout"),
+                    func.count(Booking.id).label("bookings"),
+                ).where(
+                    paid_filter,
+                    func.date(Booking.created_at) >= start,
+                    func.date(Booking.created_at) <= end,
+                )
+            )
+        ).one()
+
+        monthly.append({
+            "month": f"{year}-{month:02d}",
+            "revenue": float(rows.revenue),
+            "platform_fee": float(rows.platform_fee),
+            "admin_fee": float(rows.admin_fee),
+            "owner_payout": float(rows.owner_payout),
+            "bookings": int(rows.bookings),
+        })
+
+    # ── Top 5 earning properties ───────────────────────────────
+    top_props_rows = (
+        await db.execute(
+            select(
+                Booking.property_id,
+                func.coalesce(func.sum(Booking.total_price), 0).label("revenue"),
+                func.count(Booking.id).label("bookings"),
+            )
+            .where(paid_filter)
+            .group_by(Booking.property_id)
+            .order_by(func.sum(Booking.total_price).desc())
+            .limit(5)
+        )
+    ).all()
+
+    from app.models.property import Property as Prop
+    top_properties = []
+    for row in top_props_rows:
+        prop = await db.get(Prop, row.property_id)
+        top_properties.append({
+            "property_id": row.property_id,
+            "property_name": prop.title if prop else None,
+            "revenue": float(row.revenue),
+            "bookings": int(row.bookings),
+        })
+
+    return {
+        "summary": {
+            "total_revenue": total_revenue,
+            "total_platform_fees": total_platform_fees,
+            "total_admin_fees": total_admin_fees,
+            "total_owner_payouts": total_owner_payouts,
+            "total_promo_discounts": total_promo_discounts,
+            "total_wallet_discounts": total_wallet_discounts,
+            "total_refunds": total_refunds,
+            "total_paid_bookings": total_paid_bookings,
+            "currency": "EGP",
+        },
+        "monthly": monthly,
+        "top_properties": top_properties,
+    }
+
+
+# ════════════════════════════════════════════════════════════════
+#  Code lookup — property + booking
+# ════════════════════════════════════════════════════════════════
+
+class _BookingBrief(BaseModel):
+    booking_code: str
+    guest_name: str | None
+    guest_phone: str | None
+    guest_email: str | None
+    guest_id_front: str | None = None
+    guest_id_back: str | None = None
+    check_in: str
+    check_out: str
+    guests_count: int
+    total_price: float
+    platform_fee: float
+    admin_fee: float
+    owner_payout: float
+    promo_discount: float
+    wallet_discount: float
+    refund_amount: float | None
+    status: str
+    payment_status: str
+    payout_status: str
+    created_at: str
+
+
+class _PropertyLookupOut(BaseModel):
+    property_code: str
+    property_id: int
+    property_name: str
+    area: str
+    category: str
+    status: str
+    price_per_night: float
+    is_verified: bool
+    created_at: str
+    # Owner card
+    owner_id: int
+    owner_name: str
+    owner_phone: str | None
+    owner_email: str | None
+    owner_id_front: str | None
+    owner_id_back: str | None
+    # Bookings
+    bookings: list[_BookingBrief]
+
+
+@router.get("/lookup/property/{code}", response_model=_PropertyLookupOut)
+async def lookup_by_property_code(
+    code: str,
+    _: User = Depends(_admin_only),
+    db: AsyncSession = Depends(get_db),
+):
+    """Fetch full property + owner KYC + all linked bookings by property_code."""
+    from app.models.property import Property as Prop
+    from app.models.booking import Booking as Bk
+    from app.models.user import User as Usr
+    from app.models.user_verification import UserVerification
+
+    prop = (
+        await db.execute(
+            select(Prop).where(Prop.property_code == code.upper())
+        )
+    ).scalar_one_or_none()
+    if prop is None:
+        raise HTTPException(status_code=404, detail="Property code not found")
+
+    owner = await db.get(Usr, prop.owner_id)
+
+    bookings = (
+        await db.execute(
+            select(Bk)
+            .where(Bk.property_id == prop.id)
+            .order_by(Bk.created_at.desc())
+        )
+    ).scalars().all()
+
+    booking_briefs = []
+    for b in bookings:
+        guest = await db.get(Usr, b.guest_id)
+        # Fetch latest KYC doc for guest if available
+        kyc = (
+            await db.execute(
+                select(UserVerification)
+                .where(UserVerification.user_id == b.guest_id)
+                .order_by(UserVerification.created_at.desc())
+                .limit(1)
+            )
+        ).scalar_one_or_none()
+        booking_briefs.append(_BookingBrief(
+            booking_code=b.booking_code,
+            guest_name=guest.name if guest else None,
+            guest_phone=guest.phone if guest else None,
+            guest_email=guest.email if guest else None,
+            guest_id_front=kyc.id_front_url if kyc else None,
+            guest_id_back=kyc.id_back_url if kyc else None,
+            check_in=str(b.check_in),
+            check_out=str(b.check_out),
+            guests_count=b.guests_count,
+            total_price=round(b.total_price, 2),
+            platform_fee=round(b.platform_fee, 2),
+            admin_fee=round(b.admin_fee, 2),
+            owner_payout=round(b.owner_payout, 2),
+            promo_discount=round(b.promo_discount, 2),
+            wallet_discount=round(b.wallet_discount, 2),
+            refund_amount=round(b.refund_amount, 2) if b.refund_amount else None,
+            status=b.status.value,
+            payment_status=b.payment_status.value,
+            payout_status=b.payout_status,
+            created_at=b.created_at.isoformat(),
+        ))
+
+    return _PropertyLookupOut(
+        property_code=prop.property_code or code.upper(),
+        property_id=prop.id,
+        property_name=prop.name,
+        area=prop.area.value if hasattr(prop.area, "value") else str(prop.area),
+        category=prop.category.value if hasattr(prop.category, "value") else str(prop.category),
+        status=prop.status.value,
+        price_per_night=round(prop.price_per_night, 2),
+        is_verified=prop.is_verified,
+        created_at=prop.created_at.isoformat(),
+        owner_id=owner.id if owner else prop.owner_id,
+        owner_name=owner.name if owner else "",
+        owner_phone=owner.phone if owner else None,
+        owner_email=owner.email if owner else None,
+        owner_id_front=prop.id_document_front_url,
+        owner_id_back=prop.id_document_back_url,
+        bookings=booking_briefs,
+    )
+
+
+class _BookingLookupOut(BaseModel):
+    booking_code: str
+    booking_id: int
+    # Property
+    property_code: str | None
+    property_id: int
+    property_name: str
+    area: str
+    # Guest
+    guest_id: int
+    guest_name: str | None
+    guest_phone: str | None
+    guest_email: str | None
+    guest_id_front: str | None
+    guest_id_back: str | None
+    # Owner
+    owner_id: int
+    owner_name: str | None
+    owner_phone: str | None
+    owner_email: str | None
+    # Booking details
+    check_in: str
+    check_out: str
+    guests_count: int
+    total_price: float
+    platform_fee: float
+    admin_fee: float
+    owner_payout: float
+    deposit_amount: float
+    remaining_cash_amount: float
+    promo_discount: float
+    wallet_discount: float
+    refund_amount: float | None
+    status: str
+    payment_status: str
+    payout_status: str
+    cash_collection_status: str
+    created_at: str
+
+
+@router.get("/lookup/booking/{code}", response_model=_BookingLookupOut)
+async def lookup_by_booking_code(
+    code: str,
+    _: User = Depends(_admin_only),
+    db: AsyncSession = Depends(get_db),
+):
+    """Fetch full booking details + guest KYC + property by booking_code."""
+    from app.models.property import Property as Prop
+    from app.models.booking import Booking as Bk
+    from app.models.user import User as Usr
+    from app.models.user_verification import UserVerification
+
+    booking = (
+        await db.execute(
+            select(Bk).where(Bk.booking_code == code.upper())
+        )
+    ).scalar_one_or_none()
+    if booking is None:
+        raise HTTPException(status_code=404, detail="Booking code not found")
+
+    prop = await db.get(Prop, booking.property_id)
+    guest = await db.get(Usr, booking.guest_id)
+    owner = await db.get(Usr, booking.owner_id)
+
+    kyc = (
+        await db.execute(
+            select(UserVerification)
+            .where(UserVerification.user_id == booking.guest_id)
+            .order_by(UserVerification.created_at.desc())
+            .limit(1)
+        )
+    ).scalar_one_or_none()
+
+    return _BookingLookupOut(
+        booking_code=booking.booking_code,
+        booking_id=booking.id,
+        property_code=prop.property_code if prop else None,
+        property_id=booking.property_id,
+        property_name=prop.name if prop else "",
+        area=prop.area.value if prop and hasattr(prop.area, "value") else "",
+        guest_id=booking.guest_id,
+        guest_name=guest.name if guest else None,
+        guest_phone=guest.phone if guest else None,
+        guest_email=guest.email if guest else None,
+        guest_id_front=kyc.id_front_url if kyc else None,
+        guest_id_back=kyc.id_back_url if kyc else None,
+        owner_id=booking.owner_id,
+        owner_name=owner.name if owner else None,
+        owner_phone=owner.phone if owner else None,
+        owner_email=owner.email if owner else None,
+        check_in=str(booking.check_in),
+        check_out=str(booking.check_out),
+        guests_count=booking.guests_count,
+        total_price=round(booking.total_price, 2),
+        platform_fee=round(booking.platform_fee, 2),
+        admin_fee=round(booking.admin_fee, 2),
+        owner_payout=round(booking.owner_payout, 2),
+        deposit_amount=round(booking.deposit_amount, 2),
+        remaining_cash_amount=round(booking.remaining_cash_amount, 2),
+        promo_discount=round(booking.promo_discount, 2),
+        wallet_discount=round(booking.wallet_discount, 2),
+        refund_amount=round(booking.refund_amount, 2) if booking.refund_amount else None,
+        status=booking.status.value,
+        payment_status=booking.payment_status.value,
+        payout_status=booking.payout_status,
+        cash_collection_status=booking.cash_collection_status.value,
+        created_at=booking.created_at.isoformat(),
+    )
 
 
 # ════════════════════════════════════════════════════════════════

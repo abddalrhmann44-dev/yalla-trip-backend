@@ -311,6 +311,96 @@ async def admin_adjust(
     )
 
 
+class _AdminWalletRow(BaseModel):
+    user_id: int
+    user_name: str | None = None
+    user_phone: str | None = None
+    user_email: str | None = None
+    balance: float
+    lifetime_earned: float
+    lifetime_spent: float
+    referral_code: str | None = None
+    updated_at: str | None = None
+
+
+class _AdminWalletDetail(BaseModel):
+    user_id: int
+    user_name: str | None = None
+    balance: float
+    lifetime_earned: float
+    lifetime_spent: float
+    referral_code: str | None = None
+    transactions: list[WalletTxnOut] = []
+
+
+@router.get("/admin/list", response_model=list[_AdminWalletRow])
+async def admin_list_wallets(
+    search: str | None = Query(None, description="Search by name / phone / email"),
+    min_balance: float | None = Query(None, ge=0),
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+    _: User = Depends(_admin_only),
+    db: AsyncSession = Depends(get_db),
+):
+    """Paginated list of all user wallets for the admin panel."""
+    stmt = select(Wallet, User).join(User, User.id == Wallet.user_id)
+    if search:
+        like = f"%{search}%"
+        stmt = stmt.where(
+            User.name.ilike(like)
+            | User.phone.ilike(like)
+            | User.email.ilike(like)
+        )
+    if min_balance is not None:
+        stmt = stmt.where(Wallet.balance >= min_balance)
+    stmt = stmt.order_by(Wallet.balance.desc()).offset(offset).limit(limit)
+    rows = (await db.execute(stmt)).all()
+    return [
+        _AdminWalletRow(
+            user_id=u.id,
+            user_name=u.name,
+            user_phone=u.phone,
+            user_email=u.email,
+            balance=round(w.balance, 2),
+            lifetime_earned=round(w.lifetime_earned, 2),
+            lifetime_spent=round(w.lifetime_spent, 2),
+            referral_code=u.referral_code,
+            updated_at=w.updated_at.isoformat() if w.updated_at else None,
+        )
+        for w, u in rows
+    ]
+
+
+@router.get("/admin/{user_id}", response_model=_AdminWalletDetail)
+async def admin_get_user_wallet(
+    user_id: int,
+    _: User = Depends(_admin_only),
+    db: AsyncSession = Depends(get_db),
+):
+    """Return a user's wallet + last 50 transactions."""
+    user = await db.get(User, user_id)
+    if user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    wallet = await wallet_service.get_or_create_wallet(db, user_id)
+    txns = (
+        await db.execute(
+            select(WalletTransaction)
+            .where(WalletTransaction.wallet_id == wallet.id)
+            .order_by(WalletTransaction.created_at.desc())
+            .limit(50)
+        )
+    ).scalars().all()
+    return _AdminWalletDetail(
+        user_id=user.id,
+        user_name=user.name,
+        balance=round(wallet.balance, 2),
+        lifetime_earned=round(wallet.lifetime_earned, 2),
+        lifetime_spent=round(wallet.lifetime_spent, 2),
+        referral_code=user.referral_code,
+        transactions=[WalletTxnOut.model_validate(t) for t in txns],
+    )
+
+
 @router.get("/admin/stats")
 async def admin_stats(
     _: User = Depends(_admin_only),

@@ -504,7 +504,9 @@ async def post_accept(
     db: AsyncSession = Depends(get_db),
 ):
     # Imported here to avoid a circular import on startup.
-    from app.routers.bookings import _calc_price, _generate_code
+    from app.routers.bookings import (
+        _calc_price, _generate_code, _load_fee_percentages,
+    )
     from app.models.booking import Booking, BookingStatus, DepositStatus
 
     conv = await _get_conv_or_404(cid, user, db)
@@ -543,7 +545,12 @@ async def post_accept(
     prop.price_per_night = float(conv.latest_offer_amount)
     prop.weekend_price = None  # same agreed rate applies to weekends
     try:
-        price = _calc_price(prop, conv.check_in, conv.check_out)
+        platform_fee_pct, admin_fee_pct = await _load_fee_percentages(db)
+        price = _calc_price(
+            prop, conv.check_in, conv.check_out,
+            platform_fee_percent=platform_fee_pct,
+            admin_fee_percent=admin_fee_pct,
+        )
     finally:
         prop.price_per_night = original_rate
         prop.weekend_price = original_weekend
@@ -567,6 +574,7 @@ async def post_accept(
         total_price=price.total_price,
         platform_fee=price.platform_fee,
         owner_payout=price.owner_payout,
+        admin_fee=price.admin_fee,
         status=BookingStatus.pending,
     )
     db.add(booking)

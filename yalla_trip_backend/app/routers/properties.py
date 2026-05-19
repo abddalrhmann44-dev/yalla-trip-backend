@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import asyncio
 import math
+import random
+import string
 from collections import Counter
 from datetime import date, datetime, timedelta, timezone
 from typing import List, Optional
@@ -734,6 +736,25 @@ async def booked_dates(
     return response
 
 
+_CODE_CHARS = string.ascii_uppercase + string.digits
+
+
+async def _unique_property_code(db: AsyncSession) -> str:
+    """Generate a unique PROP-XXXXXX code not already in the table."""
+    from sqlalchemy import select as _select
+    for _ in range(10):
+        suffix = "".join(random.choices(_CODE_CHARS, k=6))
+        code = f"PROP-{suffix}"
+        exists = (
+            await db.execute(
+                _select(Property.id).where(Property.property_code == code)
+            )
+        ).first()
+        if not exists:
+            return code
+    raise RuntimeError("Failed to generate unique property code after 10 attempts")
+
+
 @router.post("", response_model=PropertyOut, status_code=status.HTTP_201_CREATED)
 async def create_property(
     body: PropertyCreate,
@@ -742,6 +763,7 @@ async def create_property(
 ):
     try:
         prop = Property(**body.model_dump(), owner_id=user.id)
+        prop.property_code = await _unique_property_code(db)
         db.add(prop)
         await db.flush()
         await db.refresh(prop)
