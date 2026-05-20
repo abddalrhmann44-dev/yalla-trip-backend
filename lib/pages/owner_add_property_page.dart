@@ -97,11 +97,11 @@ const _kLocations = [
 ];
 
 class _Toggle {
-  final String emoji, label;
-  final bool recommended; // موصى به — اختياري
+  final String label;
+  final bool recommended;
   bool selected;
-  _Toggle(this.emoji, this.label,
-      {this.selected = false, this.recommended = false});
+  XFile? image;
+  _Toggle(this.label, {this.selected = false, this.recommended = false});
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -236,54 +236,54 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
     _progressCtrl.forward();
 
     _amenities = [
-      _Toggle('📶', 'واي فاي', selected: true),
-      _Toggle('📺', 'تلفزيون ذكي'),
-      _Toggle('❄️', 'تكييف', selected: true),
-      _Toggle('🍳', 'مطبخ'),
-      _Toggle('🧊', 'ثلاجة'),
-      _Toggle('🚿', 'مياه ساخنة', selected: true),
-      _Toggle('🛋️', 'غرفة معيشة'),
-      _Toggle('🌅', 'بلكونة'),
-      _Toggle('🧺', 'غسالة'),
-      _Toggle('🅿️', 'جراج خاص'),
-      _Toggle('🔒', 'خزنة'),
-      _Toggle('🌡️', 'تدفئة'),
-      _Toggle('☕', 'ماكينة قهوة'),
-      _Toggle('🍽️', 'منطقة طعام'),
-      _Toggle('💡', 'مكتب عمل'),
+      _Toggle('واي فاي', selected: true),
+      _Toggle('تلفزيون ذكي'),
+      _Toggle('تكييف', selected: true),
+      _Toggle('مطبخ'),
+      _Toggle('ثلاجة'),
+      _Toggle('مياه ساخنة', selected: true),
+      _Toggle('غرفة معيشة'),
+      _Toggle('بلكونة'),
+      _Toggle('غسالة'),
+      _Toggle('جراج خاص'),
+      _Toggle('خزنة'),
+      _Toggle('تدفئة'),
+      _Toggle('ماكينة قهوة'),
+      _Toggle('منطقة طعام'),
+      _Toggle('مكتب عمل'),
     ];
 
     _facilities = [
       // موصى بيهم (recommended)
-      _Toggle('🏖️', 'شاطئ خاص', recommended: true),
-      _Toggle('🏊', 'حمام سباحة', recommended: true, selected: true),
-      _Toggle('🎢', 'أكوا بارك', recommended: true),
-      _Toggle('🏋️', 'جيم', recommended: true),
-      _Toggle('🧘', 'سبا', recommended: true),
+      _Toggle('شاطئ خاص', recommended: true),
+      _Toggle('حمام سباحة', recommended: true, selected: true),
+      _Toggle('أكوا بارك', recommended: true),
+      _Toggle('جيم', recommended: true),
+      _Toggle('سبا', recommended: true),
       // عادي
-      _Toggle('🍽️', 'مطعم'),
-      _Toggle('☕', 'كافيه'),
-      _Toggle('🎮', 'منطقة أطفال'),
-      _Toggle('🚗', 'موقف سيارات'),
-      _Toggle('🎾', 'ملعب تنس'),
-      _Toggle('⚽', 'ملعب كرة قدم'),
-      _Toggle('🎪', 'قاعة فعاليات'),
-      _Toggle('🩺', 'مركز طبي'),
-      _Toggle('🛍️', 'منطقة تسوق'),
-      _Toggle('🎯', 'ترفيه'),
+      _Toggle('مطعم'),
+      _Toggle('كافيه'),
+      _Toggle('منطقة أطفال'),
+      _Toggle('موقف سيارات'),
+      _Toggle('ملعب تنس'),
+      _Toggle('ملعب كرة قدم'),
+      _Toggle('قاعة فعاليات'),
+      _Toggle('مركز طبي'),
+      _Toggle('منطقة تسوق'),
+      _Toggle('ترفيه'),
     ];
 
     _nearby = [
-      _Toggle('🍽️', 'مطاعم'),
-      _Toggle('☕', 'كافيهات'),
-      _Toggle('🛒', 'سوبر ماركت'),
-      _Toggle('💊', 'صيدلية'),
-      _Toggle('🏧', 'ATM'),
-      _Toggle('🚑', 'مستشفى'),
-      _Toggle('🚕', 'تاكسي'),
-      _Toggle('⛽', 'محطة بنزين'),
-      _Toggle('🏪', 'بقالة'),
-      _Toggle('🎠', 'ملاهي'),
+      _Toggle('مطاعم'),
+      _Toggle('كافيهات'),
+      _Toggle('سوبر ماركت'),
+      _Toggle('صيدلية'),
+      _Toggle('ATM'),
+      _Toggle('مستشفى'),
+      _Toggle('تاكسي'),
+      _Toggle('محطة بنزين'),
+      _Toggle('بقالة'),
+      _Toggle('ملاهي'),
     ];
   }
 
@@ -1526,6 +1526,37 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
     );
   }
 
+  Future<void> _pickToggleImage(_Toggle t) async {
+    final picked = await _picker.pickImage(source: ImageSource.gallery);
+    if (picked != null) setState(() => t.image = picked);
+  }
+
+  Widget _uploadDot(_Toggle t, {Color activeColor = _kOcean}) {
+    return GestureDetector(
+      onTap: () => _pickToggleImage(t),
+      child: Container(
+        margin: const EdgeInsets.only(right: 6),
+        width: 22,
+        height: 22,
+        decoration: BoxDecoration(
+          color: t.image != null
+              ? Colors.green.withValues(alpha: 0.15)
+              : activeColor.withValues(alpha: 0.12),
+          shape: BoxShape.circle,
+          border: Border.all(
+            color: t.image != null ? Colors.green : activeColor.withValues(alpha: 0.4),
+            width: 1,
+          ),
+        ),
+        child: Icon(
+          t.image != null ? Icons.check_rounded : Icons.add_rounded,
+          size: 13,
+          color: t.image != null ? Colors.green.shade700 : activeColor,
+        ),
+      ),
+    );
+  }
+
   // ══════════════════════════════════════════════════════════
   //  STEP 5 — AMENITIES (اختار واحد على الأقل)
   // ══════════════════════════════════════════════════════════
@@ -1546,7 +1577,7 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 180),
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 10),
+                        horizontal: 12, vertical: 8),
                     decoration: BoxDecoration(
                       color:
                           t.selected ? _kOcean.withValues(alpha: 0.1) : context.kCard,
@@ -1556,8 +1587,7 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
                           width: t.selected ? 2 : 1.5),
                     ),
                     child: Row(mainAxisSize: MainAxisSize.min, children: [
-                      Text(t.emoji, style: const TextStyle(fontSize: 18)),
-                      const SizedBox(width: 6),
+                      _uploadDot(t),
                       Text(t.label,
                           style: TextStyle(
                               fontSize: 13,
@@ -1625,8 +1655,7 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
                               width: t.selected ? 2 : 1.5),
                         ),
                         child: Row(mainAxisSize: MainAxisSize.min, children: [
-                          Text(t.emoji, style: const TextStyle(fontSize: 16)),
-                          const SizedBox(width: 5),
+                          _uploadDot(t, activeColor: _kOrange),
                           Text(t.label,
                               style: TextStyle(
                                   fontSize: 12,
@@ -1657,7 +1686,7 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 180),
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 10),
+                        horizontal: 12, vertical: 8),
                     decoration: BoxDecoration(
                       color:
                           t.selected ? _kOcean.withValues(alpha: 0.1) : context.kCard,
@@ -1667,8 +1696,7 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
                           width: t.selected ? 2 : 1.5),
                     ),
                     child: Row(mainAxisSize: MainAxisSize.min, children: [
-                      Text(t.emoji, style: const TextStyle(fontSize: 18)),
-                      const SizedBox(width: 6),
+                      _uploadDot(t),
                       Text(t.label,
                           style: TextStyle(
                               fontSize: 13,
@@ -1712,8 +1740,7 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
                           width: t.selected ? 2 : 1.5),
                     ),
                     child: Row(mainAxisSize: MainAxisSize.min, children: [
-                      Text(t.emoji, style: const TextStyle(fontSize: 18)),
-                      const SizedBox(width: 6),
+                      _uploadDot(t),
                       Text(t.label,
                           style: TextStyle(
                               fontSize: 13,
