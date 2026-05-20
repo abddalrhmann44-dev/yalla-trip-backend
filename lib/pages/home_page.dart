@@ -155,7 +155,10 @@ const _kDestinations = [
       'assets/images/destinations/ras_sedr.jpg'),
   _Dest('دهب', '🤿', [Color(0xFF0288D1), Color(0xFF01579B)],
       'assets/images/destinations/dahb.jpg'),
-  _Dest('العلمين الجديدة', '🏙️', [Color(0xFFFF7043), Color(0xFFD84315)],
+  _Dest(
+      'العلمين الجديدة',
+      '🏙️',
+      [Color(0xFFFF7043), Color(0xFFD84315)],
       // Re-uses the North Coast hero image — New Alamein sits on the
       // same Mediterranean strip and the product team approved sharing
       // the asset until a dedicated photo is shot.
@@ -275,7 +278,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     'فندق',
     'منتجع',
     'شواطئ',
-  
     'أكوا بارك'
   ];
 
@@ -577,17 +579,18 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               Row(children: [
                 // Greeting — start side
                 Expanded(
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text(_getGreeting(),
-                        style: TextStyle(
-                            color: context.kSub,
-                            fontSize: 11)),
-                    Text('${_getUserName()} 👋',
-                        style: TextStyle(
-                            color: context.kText,
-                            fontSize: 15,
-                            fontWeight: FontWeight.w800)),
-                  ]),
+                  child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(_getGreeting(),
+                            style:
+                                TextStyle(color: context.kSub, fontSize: 11)),
+                        Text('${_getUserName()} 👋',
+                            style: TextStyle(
+                                color: context.kText,
+                                fontSize: 15,
+                                fontWeight: FontWeight.w800)),
+                      ]),
                 ),
 
                 // Action icons — end side.  All three require an
@@ -599,8 +602,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                     return;
                   }
                   if (!mounted) return;
-                  Navigator.push(context, MaterialPageRoute(
-                      builder: (_) => const FavoritesPage()));
+                  Navigator.push(context,
+                      MaterialPageRoute(builder: (_) => const FavoritesPage()));
                 }),
                 const SizedBox(width: 8),
                 _hdrIcon(Icons.chat_bubble_outline_rounded, onTap: () async {
@@ -609,8 +612,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                     return;
                   }
                   if (!mounted) return;
-                  Navigator.push(context, MaterialPageRoute(
-                      builder: (_) => const ChatInboxPage()));
+                  Navigator.push(context,
+                      MaterialPageRoute(builder: (_) => const ChatInboxPage()));
                 }),
                 const SizedBox(width: 8),
                 _hdrIcon(Icons.notifications_outlined, notif: true,
@@ -620,8 +623,10 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                     return;
                   }
                   if (!mounted) return;
-                  Navigator.push(context, MaterialPageRoute(
-                      builder: (_) => const NotificationsPage()));
+                  Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const NotificationsPage()));
                 }),
               ]),
 
@@ -750,7 +755,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                               ? const Color(0xFFFF6B35)
                                               : context.kBorder),
                                     ),
-                                    child: Text(a == 'الكل' ? S.all : S.areaName(a),
+                                    child: Text(
+                                        a == 'الكل' ? S.all : S.areaName(a),
                                         style: TextStyle(
                                             fontSize: 13,
                                             fontWeight: FontWeight.w600,
@@ -786,7 +792,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                               ? const Color(0xFFFF6D00)
                                               : context.kBorder),
                                     ),
-                                    child: Text(t == 'الكل' ? S.all : S.catName(t),
+                                    child: Text(
+                                        t == 'الكل' ? S.all : S.catName(t),
                                         style: TextStyle(
                                             fontSize: 13,
                                             fontWeight: FontWeight.w600,
@@ -1082,30 +1089,31 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     return GestureDetector(
       onTap: onTap,
       child: Stack(children: [
-      Container(
-        width: 40,
-        height: 40,
-        decoration: BoxDecoration(
-          color: Colors.black.withValues(alpha: 0.04),
-          borderRadius: BorderRadius.circular(13),
-          border: Border.all(color: Colors.black.withValues(alpha: 0.08)),
+        Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            color: Colors.black.withValues(alpha: 0.04),
+            borderRadius: BorderRadius.circular(13),
+            border: Border.all(color: Colors.black.withValues(alpha: 0.08)),
+          ),
+          child: Icon(icon, color: context.kText, size: 19),
         ),
-        child: Icon(icon, color: context.kText, size: 19),
-      ),
-      if (notif)
-        PositionedDirectional(
-            top: 7,
-            end: 7,
-            child: Container(
-              width: 9,
-              height: 9,
-              decoration: BoxDecoration(
-                color: const Color(0xFFFF6D00),
-                shape: BoxShape.circle,
-                border: Border.all(color: const Color(0xFFFF6B35), width: 1.5),
-              ),
-            )),
-    ]),
+        if (notif)
+          PositionedDirectional(
+              top: 7,
+              end: 7,
+              child: Container(
+                width: 9,
+                height: 9,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFF6D00),
+                  shape: BoxShape.circle,
+                  border:
+                      Border.all(color: const Color(0xFFFF6B35), width: 1.5),
+                ),
+              )),
+      ]),
     );
   }
 
@@ -1369,9 +1377,11 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       Padding(
         padding: const EdgeInsets.fromLTRB(20, 26, 20, 14),
         child: _secTitle(S.destinations, action: S.seeAll, onAction: () {
-          Navigator.push(context, MaterialPageRoute(
-            builder: (_) => const ExplorePage(),
-          ));
+          Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const ExplorePage(),
+              ));
         }),
       ),
       SizedBox(
@@ -1498,13 +1508,13 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       // Wave 28: the Offers row now lists ONLY listings with a live
       // limited-time offer (configured by the host through the owner
       // form Step 8 toggle).  We sort by earliest expiry so the
-      // �about to end� cards bubble to the front � that's also what
+      // about to end cards bubble to the front  that's also what
       // drives the urgency in the countdown timer.
       final active = props.where((p) => p.isOfferActive).toList()
-        ..sort((a, b) =>
-            (a.offerEnd ?? DateTime(2100)).compareTo(b.offerEnd ?? DateTime(2100)));
+        ..sort((a, b) => (a.offerEnd ?? DateTime(2100))
+            .compareTo(b.offerEnd ?? DateTime(2100)));
       _allProperties = props;
-      // Wave 30 � pre-compute the random chalets-and-hotels row.
+      // Wave 30  pre-compute the random chalets-and-hotels row.
       // We shuffle a *copy* (Random with no seed → fresh order on
       // each cold start) and cap at 8 cards.  Doing this once here,
       // instead of inside the build method, keeps the order stable
@@ -1627,8 +1637,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             children: [
               // Photo (or area-tinted fallback) � fixed height so all
               // cards align horizontally regardless of aspect ratio.
-              SizedBox(
-                height: 100,
+              Expanded(
                 child: Stack(fit: StackFit.expand, children: [
                   Container(
                     decoration: BoxDecoration(
@@ -1850,8 +1859,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
                   color: Colors.white.withValues(alpha: 0.22),
                   borderRadius: BorderRadius.circular(20),
@@ -1917,9 +1925,13 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             const _ShimmerBox(width: 200, height: 22, radius: 8),
             const SizedBox(height: 14),
             Row(children: [
-              Expanded(child: const _ShimmerBox(width: double.infinity, height: 225, radius: 22)),
+              Expanded(
+                  child: const _ShimmerBox(
+                      width: double.infinity, height: 225, radius: 22)),
               const SizedBox(width: 12),
-              Expanded(child: const _ShimmerBox(width: double.infinity, height: 225, radius: 22)),
+              Expanded(
+                  child: const _ShimmerBox(
+                      width: double.infinity, height: 225, radius: 22)),
             ]),
           ],
         ),
@@ -1963,13 +1975,17 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           borderRadius: BorderRadius.circular(24),
           border: Border.all(
               color: context.kText.withValues(alpha: 0.12), width: 1.5),
-          boxShadow: [BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 16, offset: const Offset(0, 4))],
+          boxShadow: [
+            BoxShadow(
+                color: Colors.black.withValues(alpha: 0.05),
+                blurRadius: 16,
+                offset: const Offset(0, 4))
+          ],
         ),
         child: Column(children: [
           Container(
-            width: 64, height: 64,
+            width: 64,
+            height: 64,
             decoration: BoxDecoration(
               color: const Color(0xFFFF6B35).withValues(alpha: 0.08),
               shape: BoxShape.circle,
@@ -1979,7 +1995,9 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           ),
           const SizedBox(height: 16),
           Text(S.noOffersNow,
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800,
+              style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
                   color: context.kText)),
           const SizedBox(height: 6),
           Text(S.offersWillAppear,
@@ -2171,42 +2189,23 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     final items = _isHost
         ? <_NavItem>[
             _NavItem(
-                Icons.dashboard_rounded,
-                Icons.dashboard_outlined,
-                S.navToday),
-            _NavItem(
-                Icons.apartment_rounded,
-                Icons.apartment_outlined,
+                Icons.dashboard_rounded, Icons.dashboard_outlined, S.navToday),
+            _NavItem(Icons.apartment_rounded, Icons.apartment_outlined,
                 S.navListings),
-            _NavItem(
-                Icons.calendar_month_rounded,
-                Icons.calendar_month_outlined,
-                S.navReservations),
-            _NavItem(
-                Icons.account_balance_wallet_rounded,
-                Icons.account_balance_wallet_outlined,
-                S.navEarnings),
-            _NavItem(
-                Icons.person_rounded,
-                Icons.person_outline_rounded,
+            _NavItem(Icons.calendar_month_rounded,
+                Icons.calendar_month_outlined, S.navReservations),
+            _NavItem(Icons.account_balance_wallet_rounded,
+                Icons.account_balance_wallet_outlined, S.navEarnings),
+            _NavItem(Icons.person_rounded, Icons.person_outline_rounded,
                 S.navProfile),
           ]
         : <_NavItem>[
-            _NavItem(
-                Icons.home_rounded,
-                Icons.home_outlined,
-                S.navHomeTab),
-            _NavItem(
-                Icons.travel_explore_rounded,
-                Icons.travel_explore_outlined,
-                S.navBestTrip),
-            _NavItem(
-                Icons.chat_rounded,
-                Icons.chat_bubble_outline_rounded,
+            _NavItem(Icons.home_rounded, Icons.home_outlined, S.navHomeTab),
+            _NavItem(Icons.travel_explore_rounded,
+                Icons.travel_explore_outlined, S.navBestTrip),
+            _NavItem(Icons.chat_rounded, Icons.chat_bubble_outline_rounded,
                 S.navMessages),
-            _NavItem(
-                Icons.person_rounded,
-                Icons.person_outline_rounded,
+            _NavItem(Icons.person_rounded, Icons.person_outline_rounded,
                 S.navProfile),
           ];
 
@@ -2215,7 +2214,9 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     return Container(
       decoration: BoxDecoration(
         color: context.kCard,
-        border: Border(top: BorderSide(color: context.kBorder.withValues(alpha: 0.3), width: 0.5)),
+        border: Border(
+            top: BorderSide(
+                color: context.kBorder.withValues(alpha: 0.3), width: 0.5)),
       ),
       child: SafeArea(
         top: false,
@@ -2243,8 +2244,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                           : i == 2
                               ? S.featureChatHosts
                               : S.featureOpenProfile;
-                      if (!await AuthGuard.require(context,
-                          feature: feature)) {
+                      if (!await AuthGuard.require(context, feature: feature)) {
                         return;
                       }
                       if (!mounted) return;
@@ -2252,13 +2252,11 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                     setState(() => _navIdx = i);
                   },
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 4, vertical: 4),
-                    child:
-                        Column(mainAxisSize: MainAxisSize.min, children: [
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                    child: Column(mainAxisSize: MainAxisSize.min, children: [
                       Icon(sel ? item.active : item.icon,
-                          size: 24,
-                          color: sel ? accent : inactiveColor),
+                          size: 24, color: sel ? accent : inactiveColor),
                       const SizedBox(height: 3),
                       Text(item.label,
                           maxLines: 1,
@@ -2266,8 +2264,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             fontSize: 10,
-                            fontWeight:
-                                sel ? FontWeight.w800 : FontWeight.w500,
+                            fontWeight: sel ? FontWeight.w800 : FontWeight.w500,
                             color: sel ? accent : inactiveColor,
                           )),
                     ]),
@@ -2285,7 +2282,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   //  REUSABLE WIDGETS
   // ════════════════════════════════════════════════
 
-  Widget _secTitle(String title, {required String action, VoidCallback? onAction}) {
+  Widget _secTitle(String title,
+      {required String action, VoidCallback? onAction}) {
     return Row(children: [
       Expanded(
           child: Text(title,
@@ -2457,8 +2455,7 @@ class _SearchSheetState extends State<_SearchSheet> {
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
             child: Row(children: [
-              Icon(Icons.history_rounded,
-                  size: 16, color: context.kSub),
+              Icon(Icons.history_rounded, size: 16, color: context.kSub),
               const SizedBox(width: 6),
               Text(S.recentSearch,
                   style: TextStyle(
@@ -2472,8 +2469,7 @@ class _SearchSheetState extends State<_SearchSheet> {
                 leading: Icon(Icons.history_rounded,
                     color: context.kBorder, size: 18),
                 title: Text(r,
-                    style: TextStyle(
-                        fontSize: 14, color: context.kText)),
+                    style: TextStyle(fontSize: 14, color: context.kText)),
                 onTap: () => widget.onSearch(r),
               )),
           const Divider(height: 24, indent: 20, endIndent: 20),
@@ -2552,8 +2548,7 @@ class _SearchSheetState extends State<_SearchSheet> {
                         color: context.kText)),
                 subtitle: Text(
                   displaySubtitle,
-                  style:
-                      TextStyle(fontSize: 12, color: context.kSub),
+                  style: TextStyle(fontSize: 12, color: context.kSub),
                 ),
                 trailing: Icon(Icons.arrow_forward_ios_rounded,
                     size: 13, color: context.kBorder),
@@ -2657,23 +2652,18 @@ class _HomeSearchPill extends StatelessWidget {
                     height: 44,
                     margin: const EdgeInsets.all(4),
                     decoration: BoxDecoration(
-                      color: filterActive
-                          ? _kBrand
-                          : const Color(0xFFF5F5F5),
+                      color: filterActive ? _kBrand : const Color(0xFFF5F5F5),
                       shape: BoxShape.circle,
                       border: Border.all(
-                        color: filterActive
-                            ? _kBrand
-                            : const Color(0xFFE8E8E8),
+                        color: filterActive ? _kBrand : const Color(0xFFE8E8E8),
                         width: 1,
                       ),
                     ),
                     child: Icon(
                       Icons.tune_rounded,
                       size: 18,
-                      color: filterActive
-                          ? Colors.white
-                          : const Color(0xFF666666),
+                      color:
+                          filterActive ? Colors.white : const Color(0xFF666666),
                     ),
                   ),
                 ),
