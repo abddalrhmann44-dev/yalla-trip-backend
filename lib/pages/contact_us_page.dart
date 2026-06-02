@@ -3,14 +3,11 @@
 //
 //  Dedicated contact page surfaced from the profile menu so the
 //  user does not have to scroll to the bottom of the Terms page
-//  to find support details.  Currently exposes:
+//  to find support details.  Exposes:
 //    • Email   — mailto: deep-link
 //    • WhatsApp — wa.me deep-link
 //    • Phone   — tel: deep-link to the same support number
-//
-//  The physical mailing address is intentionally omitted until the
-//  business team confirms it.  When ready, drop it into the
-//  `_AddressCard` placeholder below.
+//    • Address — Cairo, Egypt
 // ═══════════════════════════════════════════════════════════════
 
 import 'package:flutter/material.dart';
@@ -69,6 +66,8 @@ class ContactUsPage extends StatelessWidget {
           ctaEn: 'Call now',
           onTap: () => BrandContact.openExternal(BrandContact.telUrl),
         ),
+        const SizedBox(height: 12),
+        _AddressCard(),
         const SizedBox(height: 18),
         _HoursCard(),
         const SizedBox(height: 16),
@@ -238,6 +237,61 @@ class _ContactCard extends StatelessWidget {
               ]),
             ),
           ),
+        );
+      },
+    );
+  }
+}
+
+class _AddressCard extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: appSettings,
+      builder: (_, __) {
+        final ar = appSettings.arabic;
+        return Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: context.kCard,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: context.kBorder),
+          ),
+          child: Row(children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: kPolicyBrand.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(Icons.location_on_rounded,
+                  color: kPolicyBrand, size: 22),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    ar ? 'العنوان' : 'Address',
+                    style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w900,
+                        color: context.kText),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    ar ? 'القاهرة، مصر' : 'Cairo, Egypt',
+                    style: const TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w700,
+                        color: kPolicyBrand),
+                  ),
+                ],
+              ),
+            ),
+          ]),
         );
       },
     );

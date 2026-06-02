@@ -39,6 +39,9 @@ import 'admin_wallet_management_page.dart';
 import 'admin_financial_report_page.dart';
 import 'admin_trip_posts_moderation_page.dart';
 import 'admin_code_lookup_page.dart';
+import 'admin_revenue_detail_page.dart';
+import 'admin_commission_detail_page.dart';
+import 'admin_withdrawal_requests_page.dart';
 
 const _kOcean  = Color(0xFFFF6B35);
 const _kGreen  = Color(0xFF4CAF50);
@@ -194,36 +197,54 @@ class _AdminMainPageState extends State<AdminMainPage> {
                           ]),
                         ),
                       Row(children: [
-                        _statCard('العقارات', '$_propertiesCount',
-                            Icons.apartment_rounded, _kOcean),
+                        _statCard(
+                          'العقارات', '$_propertiesCount',
+                          Icons.apartment_rounded, _kOcean,
+                          onTap: () => Navigator.push(context,
+                              MaterialPageRoute(builder: (_) => const AdminPropertiesPage())),
+                        ),
                         const SizedBox(width: 12),
-                        _statCard('الحجوزات', '$_bookingsCount',
-                            Icons.calendar_month_rounded, _kGreen),
+                        _statCard(
+                          'الحجوزات', '$_bookingsCount',
+                          Icons.calendar_month_rounded, _kGreen,
+                          onTap: () => Navigator.push(context,
+                              MaterialPageRoute(builder: (_) => const AdminBookingsPage())),
+                        ),
                       ]),
                       const SizedBox(height: 12),
                       Row(children: [
-                        _statCard('المستخدمين', '$_usersCount',
-                            Icons.people_rounded, _kPurple),
+                        _statCard(
+                          'المستخدمين', '$_usersCount',
+                          Icons.people_rounded, _kPurple,
+                          onTap: () => Navigator.push(context,
+                              MaterialPageRoute(builder: (_) => const AdminUsersPage())),
+                        ),
                         const SizedBox(width: 12),
                         _statCard(
-                            'الإيرادات',
-                            '${_revenue.toStringAsFixed(0)} ج.م',
-                            Icons.payments_rounded,
-                            _kOrange),
+                          'الإيرادات',
+                          '${_revenue.toStringAsFixed(0)} ج.م',
+                          Icons.payments_rounded, _kOrange,
+                          onTap: () => Navigator.push(context,
+                              MaterialPageRoute(builder: (_) => AdminRevenueDetailPage(totalRevenue: _revenue))),
+                        ),
                       ]),
                       const SizedBox(height: 12),
                       Row(children: [
                         _statCard(
-                            'عمولة المنصة',
-                            '${_platformFees.toStringAsFixed(0)} ج.م',
-                            Icons.account_balance_wallet_rounded,
-                            _kGreen),
+                          'عمولة المنصة',
+                          '${_platformFees.toStringAsFixed(0)} ج.م',
+                          Icons.account_balance_wallet_rounded, _kGreen,
+                          onTap: () => Navigator.push(context,
+                              MaterialPageRoute(builder: (_) => AdminCommissionDetailPage(totalCommission: _platformFees))),
+                        ),
                         const SizedBox(width: 12),
                         _statCard(
-                            'حجوزات معلقة',
-                            '$_pendingBookings',
-                            Icons.schedule_rounded,
-                            _kRed),
+                          'حجوزات معلقة',
+                          '$_pendingBookings',
+                          Icons.schedule_rounded, _kRed,
+                          onTap: () => Navigator.push(context,
+                              MaterialPageRoute(builder: (_) => const AdminBookingsPage(initialFilter: 'في الانتظار'))),
+                        ),
                       ]),
                     ]),
                   ),
@@ -384,6 +405,18 @@ class _AdminMainPageState extends State<AdminMainPage> {
                       context,
                       MaterialPageRoute(
                           builder: (_) => const AdminPayoutsPage())),
+                ),
+                const SizedBox(height: 10),
+                _navTile(
+                  icon: Icons.move_to_inbox_rounded,
+                  title: 'طلبات السحب',
+                  subtitle: 'موافقة أو رفض طلبات سحب أرباح الملاك',
+                  color: _kGreen,
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) =>
+                              const AdminWithdrawalRequestsPage())),
                 ),
                 const SizedBox(height: 10),
                 _navTile(
@@ -673,38 +706,54 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
   // ── Stat Card ──────────────────────────────────────────────
   Widget _statCard(
-      String label, String value, IconData icon, Color color) {
+      String label, String value, IconData icon, Color color,
+      {VoidCallback? onTap}) {
     return Expanded(
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: context.kCard,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: context.kBorder),
-        ),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Container(
-            width: 38,
-            height: 38,
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(11),
-            ),
-            child: Icon(icon, color: color, size: 20),
+      child: GestureDetector(
+        onTap: onTap == null
+            ? null
+            : () {
+                HapticFeedback.lightImpact();
+                onTap();
+              },
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: context.kCard,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: context.kBorder),
           ),
-          const SizedBox(height: 12),
-          Text(value,
-              style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w900,
-                  color: context.kText)),
-          const SizedBox(height: 2),
-          Text(label,
-              style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: context.kSub)),
-        ]),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(11),
+              ),
+              child: Icon(icon, color: color, size: 20),
+            ),
+            const SizedBox(height: 12),
+            Text(value,
+                style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w900,
+                    color: context.kText)),
+            const SizedBox(height: 2),
+            Row(children: [
+              Expanded(
+                child: Text(label,
+                    style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: context.kSub)),
+              ),
+              if (onTap != null)
+                Icon(Icons.arrow_forward_ios_rounded,
+                    size: 10, color: color.withValues(alpha: 0.6)),
+            ]),
+          ]),
+        ),
       ),
     );
   }

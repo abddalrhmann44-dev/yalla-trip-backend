@@ -170,6 +170,12 @@ class _LoginPageState extends State<LoginPage> {
                 onTap: () {
                   if (Navigator.canPop(context)) {
                     Navigator.pop(context);
+                  } else {
+                    Navigator.pushAndRemoveUntil(
+                      context,
+                      MaterialPageRoute(builder: (_) => const HomePage()),
+                      (_) => false,
+                    );
                   }
                 },
               ),

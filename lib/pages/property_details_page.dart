@@ -901,36 +901,138 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
 
   Widget _reviewsSection() {
     if (p.reviewCount == 0) {
-      return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        child: Center(
-          child: Text(S.noReviewsYet,
-              style: TextStyle(color: context.kSub, fontSize: 13)),
+      return Container(
+        padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+        decoration: BoxDecoration(
+          color: context.kCard,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: context.kBorder),
         ),
+        child: Column(children: [
+          const Text('🌟', style: TextStyle(fontSize: 32)),
+          const SizedBox(height: 8),
+          Text(S.noReviewsYet,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                  color: context.kSub,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600)),
+          const SizedBox(height: 4),
+          Text('كن أول من يقيّم هذا العقار',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: context.kSub, fontSize: 11)),
+        ]),
       );
     }
+
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      // Summary row
-      Row(children: [
-        Text(p.rating.toStringAsFixed(1),
-            style: TextStyle(
-                fontSize: 48, fontWeight: FontWeight.w900, color: context.kText)),
-        const SizedBox(width: 16),
-        Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Row(children: List.generate(5, (i) => Icon(
-            i < p.rating.round()
-                ? Icons.star_rounded
-                : Icons.star_border_rounded,
-            color: const Color(0xFFF59E0B), size: 20))),
-          Text(S.reviewCountText(p.reviewCount),
-              style: TextStyle(fontSize: 13, color: context.kSub)),
+      // ── بطاقة ملخص التقييم ──────────────────────────────
+      Container(
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              const Color(0xFFF59E0B).withValues(alpha: 0.08),
+              const Color(0xFFFF6B35).withValues(alpha: 0.05),
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+              color: const Color(0xFFF59E0B).withValues(alpha: 0.25)),
+        ),
+        child: Row(children: [
+          // الرقم الكبير
+          Column(children: [
+            Text(
+              p.rating.toStringAsFixed(1),
+              style: const TextStyle(
+                  fontSize: 52,
+                  fontWeight: FontWeight.w900,
+                  color: Color(0xFFF59E0B),
+                  height: 1),
+            ),
+            const SizedBox(height: 4),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: List.generate(
+                5,
+                (i) => Icon(
+                  i < p.rating.round()
+                      ? Icons.star_rounded
+                      : Icons.star_border_rounded,
+                  color: const Color(0xFFF59E0B),
+                  size: 16,
+                ),
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              S.reviewCountText(p.reviewCount),
+              style: TextStyle(fontSize: 11, color: context.kSub),
+            ),
+          ]),
+          const SizedBox(width: 20),
+          // أشرطة التوزيع
+          Expanded(
+            child: Column(
+              children: List.generate(5, (i) {
+                final star  = 5 - i;
+                final count = _reviews
+                    .where((r) => r.rating.round() == star)
+                    .length;
+                final total  = _reviews.isNotEmpty ? _reviews.length : 1;
+                final frac   = count / total;
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 2),
+                  child: Row(children: [
+                    Text('$star',
+                        style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: context.kSub)),
+                    const SizedBox(width: 4),
+                    const Icon(Icons.star_rounded,
+                        size: 11, color: Color(0xFFF59E0B)),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(4),
+                        child: LinearProgressIndicator(
+                          value: frac,
+                          minHeight: 6,
+                          backgroundColor: context.kBorder,
+                          valueColor: const AlwaysStoppedAnimation(
+                              Color(0xFFF59E0B)),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    SizedBox(
+                      width: 18,
+                      child: Text('$count',
+                          textAlign: TextAlign.end,
+                          style: TextStyle(
+                              fontSize: 10, color: context.kSub)),
+                    ),
+                  ]),
+                );
+              }),
+            ),
+          ),
         ]),
-      ]),
+      ),
+
       const SizedBox(height: 16),
+
+      // ── قائمة التقييمات ──────────────────────────────────
       if (_reviewsLoading && _reviews.isEmpty)
         const Padding(
           padding: EdgeInsets.symmetric(vertical: 16),
-          child: Center(child: CircularProgressIndicator(color: _kOrange)),
+          child: Center(
+              child: CircularProgressIndicator(
+                  color: Color(0xFFF59E0B))),
         )
       else
         ..._reviews.map((r) => ReviewCard(review: r)),

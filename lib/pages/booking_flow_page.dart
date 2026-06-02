@@ -34,7 +34,9 @@ class _BookingFlowPageState extends State<BookingFlowPage>
   DateTime? _checkOut;
   int       _guests    = 1;
   String    _guestNote = '';
-  final _noteCtrl = TextEditingController();
+  String    _contactPhone = '';
+  final _noteCtrl  = TextEditingController();
+  final _phoneCtrl = TextEditingController();
 
   PropertyApi get p => widget.propertyApi;
 
@@ -104,6 +106,7 @@ class _BookingFlowPageState extends State<BookingFlowPage>
     appSettings.removeListener(_onLangChange);
     _progressCtrl.dispose();
     _noteCtrl.dispose();
+    _phoneCtrl.dispose();
     _pageCtrl.dispose();
     super.dispose();
   }
@@ -426,6 +429,39 @@ class _BookingFlowPageState extends State<BookingFlowPage>
             ),
           ),
         ),
+        const SizedBox(height: 20),
+
+        // ── Guest contact phone (required, shown to owner after payment) ──
+        Text('رقم تليفونك *',
+            style: TextStyle(fontSize: 16,
+                fontWeight: FontWeight.w900, color: context.kText)),
+        const SizedBox(height: 6),
+        Text('سيُرسَل لصاحب العقار بعد اكتمال الدفع فقط',
+            style: TextStyle(fontSize: 12, color: context.kSub)),
+        const SizedBox(height: 10),
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: context.kBorder),
+          ),
+          child: TextField(
+            controller: _phoneCtrl,
+            keyboardType: TextInputType.phone,
+            maxLength: 20,
+            onChanged: (v) => _contactPhone = v,
+            decoration: InputDecoration(
+              hintText: 'مثال: 01012345678',
+              hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 13),
+              prefixIcon: const Icon(Icons.phone_rounded,
+                  color: Color(0xFFFF6B35), size: 20),
+              contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16, vertical: 14),
+              border: InputBorder.none,
+              counterText: '',
+            ),
+          ),
+        ),
         const SizedBox(height: 24),
 
         // ── Cancellation & booking policy ────────────
@@ -730,6 +766,7 @@ class _BookingFlowPageState extends State<BookingFlowPage>
         nights:        _nights,
         guests:        _guests,
         guestNote:     _guestNote,
+        contactPhone:  _contactPhone,
         baseAmount:    _baseTotal,
         cleaningFee:   _cleaningFee,
         adminFee:      _adminFeeAmount,

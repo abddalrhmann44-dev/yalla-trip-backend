@@ -15,7 +15,8 @@ const _kOrange = Color(0xFFFF6D00);
 const _kRed    = Color(0xFFEF5350);
 
 class AdminBookingsPage extends StatefulWidget {
-  const AdminBookingsPage({super.key});
+  final String initialFilter;
+  const AdminBookingsPage({super.key, this.initialFilter = 'الكل'});
   @override
   State<AdminBookingsPage> createState() => _AdminBookingsPageState();
 }
@@ -24,7 +25,7 @@ class _AdminBookingsPageState extends State<AdminBookingsPage> {
   List<BookingModel> _bookings = [];
   bool _loading = true;
   String? _error;
-  String _filter = 'الكل';
+  late String _filter;
 
   static const _filters = ['الكل', 'في الانتظار', 'مؤكد', 'ملغي', 'مكتمل'];
   static const _filterMap = {
@@ -38,6 +39,7 @@ class _AdminBookingsPageState extends State<AdminBookingsPage> {
   @override
   void initState() {
     super.initState();
+    _filter = widget.initialFilter;
     _load();
   }
 

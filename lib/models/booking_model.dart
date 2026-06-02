@@ -43,11 +43,13 @@ class BookingUserBrief {
   final int id;
   final String name;
   final String? avatarUrl;
+  final String? phone;
 
   const BookingUserBrief({
     required this.id,
     required this.name,
     this.avatarUrl,
+    this.phone,
   });
 
   factory BookingUserBrief.fromJson(Map<String, dynamic> j) {
@@ -55,6 +57,7 @@ class BookingUserBrief {
       id: j['id'] ?? 0,
       name: j['name'] ?? '',
       avatarUrl: j['avatar_url'],
+      phone: j['phone'] as String?,
     );
   }
 }
@@ -95,6 +98,9 @@ class BookingModel {
   final String status;
   final String paymentStatus;
   final String? fawryRef;
+  // Revealed by the backend only after payment — null for non-paid bookings.
+  final String? guestContactPhone;
+  final String? ownerContactPhone;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -127,6 +133,8 @@ class BookingModel {
     this.status = 'pending',
     this.paymentStatus = 'pending',
     this.fawryRef,
+    this.guestContactPhone,
+    this.ownerContactPhone,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -173,6 +181,8 @@ class BookingModel {
       status: j['status'] ?? 'pending',
       paymentStatus: j['payment_status'] ?? 'pending',
       fawryRef: j['fawry_ref'],
+      guestContactPhone: j['guest_phone'] as String?,
+      ownerContactPhone: j['owner_phone'] as String?,
       createdAt: DateTime.parse(j['created_at']),
       updatedAt: DateTime.parse(j['updated_at']),
     );

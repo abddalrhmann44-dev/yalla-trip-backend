@@ -16,6 +16,7 @@ import '../services/payment_service.dart';
 import '../services/promo_code_service.dart';
 import '../services/wallet_service.dart';
 import '../utils/api_client.dart';
+import '../utils/api_config.dart';
 import '../utils/app_strings.dart';
 import '../utils/error_handler.dart';
 import '../widgets/constants.dart';
@@ -125,6 +126,7 @@ class PaymentPage extends StatefulWidget {
   final int depositAmount;
   final int remainingCash;
   final int adminFee;
+  final String contactPhone;
 
   const PaymentPage({
     super.key,
@@ -140,6 +142,7 @@ class PaymentPage extends StatefulWidget {
     this.depositAmount = 0,
     this.remainingCash = 0,
     this.adminFee = 0,
+    this.contactPhone = '',
   });
 
   /// True when the host enabled cash-on-arrival and the booking flow
@@ -162,12 +165,6 @@ class PaymentPage extends StatefulWidget {
 class _PaymentPageState extends State<PaymentPage> {
   String? _sel;
   bool _loading = false;
-
-  // Card fields
-  final _numCtrl = TextEditingController();
-  final _expCtrl = TextEditingController();
-  final _cvvCtrl = TextEditingController();
-  final _nameCtrl = TextEditingController();
 
   // Promo-code state
   final _promoCtrl = TextEditingController();
@@ -228,10 +225,6 @@ class _PaymentPageState extends State<PaymentPage> {
   @override
   void dispose() {
     appSettings.removeListener(_onLangChange);
-    _numCtrl.dispose();
-    _expCtrl.dispose();
-    _cvvCtrl.dispose();
-    _nameCtrl.dispose();
     _promoCtrl.dispose();
     super.dispose();
   }
@@ -372,17 +365,6 @@ class _PaymentPageState extends State<PaymentPage> {
               ),
               const SizedBox(height: 14),
               ..._kMethods.map(_methodTile),
-              // Manual card form is shown only when the user picks the
-              // Card row.  Wallet payments (Vodafone / Orange / e&) and
-              // Meeza go straight to Paymob's hosted iframe, no PAN
-              // entry on our side.  Paymob is PCI-DSS Level 1
-              // certified and the PAN never touches our servers, so
-              // we render the form on every device — we don't second-
-              // guess the OS integrity ourselves.
-              if (_sel == 'card') ...[
-                const SizedBox(height: 16),
-                _cardForm(),
-              ],
               const SizedBox(height: 8),
               _secBadge(),
             ],
@@ -921,63 +903,6 @@ class _PaymentPageState extends State<PaymentPage> {
     );
   }
 
-  // ── Card Form ─────────────────────────────────────────────────
-  Widget _cardForm() => Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: context.kCard,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: context.kBorder),
-        ),
-        child: Column(children: [
-          _cf(_numCtrl, S.cardNumberHint, Icons.credit_card_rounded,
-              TextInputType.number,
-              fmt: FilteringTextInputFormatter.digitsOnly, max: 16),
-          const SizedBox(height: 10),
-          _cf(_nameCtrl, S.cardNameHint, Icons.person_outline_rounded,
-              TextInputType.name),
-          const SizedBox(height: 10),
-          Row(children: [
-            Expanded(
-                child: _cf(_expCtrl, 'MM/YY', Icons.calendar_today_rounded,
-                    TextInputType.number,
-                    max: 5)),
-            const SizedBox(width: 10),
-            Expanded(
-                child: _cf(_cvvCtrl, 'CVV', Icons.lock_outline_rounded,
-                    TextInputType.number,
-                    max: 3, obscure: true)),
-          ]),
-        ]),
-      );
-
-  Widget _cf(
-          TextEditingController c, String hint, IconData icon, TextInputType kb,
-          {TextInputFormatter? fmt, int? max, bool obscure = false}) =>
-      Container(
-        decoration: BoxDecoration(
-            color: context.kSand,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: context.kBorder)),
-        child: TextField(
-          controller: c,
-          keyboardType: kb,
-          obscureText: obscure,
-          maxLength: max,
-          inputFormatters: fmt != null ? [fmt] : null,
-          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-          decoration: InputDecoration(
-            hintText: hint,
-            hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 13),
-            prefixIcon: Icon(icon, size: 18, color: _kOrange),
-            border: InputBorder.none,
-            counterText: '',
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-          ),
-        ),
-      );
-
   Widget _secBadge() => Padding(
         padding: const EdgeInsets.symmetric(vertical: 8),
         child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
@@ -1089,20 +1014,7 @@ class _PaymentPageState extends State<PaymentPage> {
     if (mapped == null) return;
 
     // The card form is only relevant for the merged Visa/Mastercard
-    // row — Meeza and the wallets all delegate the PAN entry to
-    // Paymob's hosted iframe, so we don't pre-validate anything for
-    // them here.  When the user did opt into our local card form we
-    // sanity-check the four fields are complete before calling the
-    // gateway.
-    if (_sel == 'card' && _numCtrl.text.isNotEmpty) {
-      if (_numCtrl.text.length < 16 ||
-          _expCtrl.text.length < 5 ||
-          _cvvCtrl.text.length < 3 ||
-          _nameCtrl.text.trim().isEmpty) {
-        _snack(S.completeCardData, isError: true);
-        return;
-      }
-    }
+
 
     setState(() => _loading = true);
     try {
@@ -1121,6 +1033,9 @@ class _PaymentPageState extends State<PaymentPage> {
         guestsCount: widget.guests,
         promoCode: _appliedCode,
         walletAmount: _walletDiscount,
+        contactPhone: widget.contactPhone.trim().isNotEmpty
+            ? widget.contactPhone.trim()
+            : null,
       );
 
       // ── 2. Initiate payment with the chosen gateway ──────────
@@ -1136,7 +1051,14 @@ class _PaymentPageState extends State<PaymentPage> {
       // to the status screen which shows the reference number.  For
       // every other provider we host the gateway iframe in-app so
       // the user never leaves Talaa.
-      final url = result.checkoutUrl;
+      //
+      // Mock mode returns a relative path (/payments/mock-checkout/…)
+      // when APP_BASE_URL is not set on the server.  Resolve it against
+      // the API base so the WebView gets an absolute URL it can load.
+      final rawUrl = result.checkoutUrl;
+      final url = rawUrl != null && rawUrl.startsWith('/')
+          ? '${ApiConfig.baseUrl}$rawUrl'
+          : rawUrl;
       final hasIframe = url != null && url.isNotEmpty;
 
       if (hasIframe) {

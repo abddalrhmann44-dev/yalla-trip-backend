@@ -23,13 +23,14 @@ class _HostPayoutsPageState extends State<HostPayoutsPage>
   HostPayoutSummary? _summary;
   List<BankAccount> _accounts = [];
   List<PayoutModel> _history = [];
+  List<WithdrawalRequest> _withdrawals = [];
   bool _loading = true;
   String? _error;
 
   @override
   void initState() {
     super.initState();
-    _tabs = TabController(length: 3, vsync: this);
+    _tabs = TabController(length: 4, vsync: this);
     _load();
   }
 
@@ -49,10 +50,12 @@ class _HostPayoutsPageState extends State<HostPayoutsPage>
         PayoutService.mySummary(),
         PayoutService.listBankAccounts(),
         PayoutService.myPayouts(),
+        PayoutService.myWithdrawals(),
       ]);
       _summary = results[0] as HostPayoutSummary;
       _accounts = results[1] as List<BankAccount>;
       _history = results[2] as List<PayoutModel>;
+      _withdrawals = results[3] as List<WithdrawalRequest>;
     } catch (e) {
       _error = e.toString();
     }
@@ -96,6 +99,7 @@ class _HostPayoutsPageState extends State<HostPayoutsPage>
           tabs: const [
             Tab(text: 'الأرصدة'),
             Tab(text: 'الحسابات'),
+            Tab(text: 'السحوبات'),
             Tab(text: 'السجل'),
           ],
         ),
@@ -110,6 +114,7 @@ class _HostPayoutsPageState extends State<HostPayoutsPage>
                   children: [
                     _balancesTab(),
                     _accountsTab(),
+                    _withdrawalsTab(),
                     _historyTab(),
                   ],
                 ),
@@ -159,45 +164,56 @@ class _HostPayoutsPageState extends State<HostPayoutsPage>
   }
 
   // ── Tab 1: Balances ───────────────────────────────────
-  // Hero card on top (the number the host actually cares about),
-  // followed by two compact stat tiles and an inline call-to-action
-  // when no payout method is on file.  Generous spacing + soft
-  // shadows keep the page calm to read.
   Widget _balancesTab() {
     final s = _summary!;
     final df = intl.DateFormat('dd/MM/yyyy');
+    final hasAvailable = s.availableBalance > 0;
+    final hasAccount = _accounts.isNotEmpty;
+    final canWithdraw = hasAvailable && hasAccount;
+
     return RefreshIndicator(
       color: AppColors.primary,
       onRefresh: _load,
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 18, 16, 24),
+        padding: const EdgeInsets.fromLTRB(16, 18, 16, 32),
         children: [
+          // ── Available balance hero ──────────────────────
           _heroBalanceCard(
-            value: s.pendingBalance,
+            value: s.availableBalance,
             eligibleBookings: s.eligibleBookingCount,
           ),
           const SizedBox(height: 14),
+
+          // ── Stat tiles ──────────────────────────────────
           Row(children: [
             Expanded(
               child: _statTile(
-                icon: Icons.sync_rounded,
+                icon: Icons.hourglass_top_rounded,
                 color: Colors.orange.shade700,
-                title: 'قيد التحويل',
-                value: s.queuedBalance.toStringAsFixed(0),
+                title: 'قيد الإفراج',
+                value: s.pendingBalance.toStringAsFixed(0),
                 suffix: 'جنيه',
               ),
             ),
             const SizedBox(width: 10),
             Expanded(
               child: _statTile(
-                icon: Icons.verified_rounded,
-                color: AppColors.primary,
-                title: 'إجمالي المسحوب',
-                value: s.paidTotal.toStringAsFixed(0),
+                icon: Icons.sync_rounded,
+                color: const Color(0xFF7E57C2),
+                title: 'قيد التحويل',
+                value: s.queuedBalance.toStringAsFixed(0),
                 suffix: 'جنيه',
               ),
             ),
           ]),
+          const SizedBox(height: 10),
+          _statTile(
+            icon: Icons.verified_rounded,
+            color: AppColors.primary,
+            title: 'إجمالي المسحوب',
+            value: s.paidTotal.toStringAsFixed(0),
+            suffix: 'جنيه',
+          ),
           const SizedBox(height: 8),
           if (s.lastPaidAt != null)
             Padding(
@@ -207,13 +223,40 @@ class _HostPayoutsPageState extends State<HostPayoutsPage>
                 style: TextStyle(color: context.kSub, fontSize: 11.5),
               ),
             ),
-          if (_accounts.isEmpty) ...[
+
+          // ── 24h release note ───────────────────────────
+          Container(
+            margin: const EdgeInsets.only(top: 16),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.orange.shade50,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.orange.shade200),
+            ),
+            child: Row(children: [
+              Icon(Icons.info_outline_rounded,
+                  size: 16, color: Colors.orange.shade700),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'الأرباح تصبح متاحة للسحب بعد 24 ساعة من تاريخ انتهاء كل حجز.',
+                  style: TextStyle(
+                      fontSize: 11.5,
+                      color: Colors.orange.shade800,
+                      height: 1.4),
+                ),
+              ),
+            ]),
+          ),
+
+          // ── No bank account CTA ────────────────────────
+          if (!hasAccount) ...[
             const SizedBox(height: 18),
             _ctaCard(
               icon: Icons.account_balance_rounded,
               title: 'أضف حسابك البنكي',
               body:
-                  'علشان نقدر نحوّللك الأرباح فور استحقاقها، سجّل IBAN جديد.',
+                  'لازم تضيف حساب بنكي أو محفظة عشان تقدر تطلب سحب أرباحك.',
               cta: 'إضافة حساب الآن',
               onTap: () {
                 _tabs.animateTo(1);
@@ -221,6 +264,42 @@ class _HostPayoutsPageState extends State<HostPayoutsPage>
               },
             ),
           ],
+
+          // ── Request Withdrawal button ──────────────────
+          const SizedBox(height: 20),
+          SizedBox(
+            width: double.infinity,
+            height: 54,
+            child: FilledButton.icon(
+              style: FilledButton.styleFrom(
+                backgroundColor:
+                    canWithdraw ? AppColors.primary : Colors.grey.shade300,
+                foregroundColor:
+                    canWithdraw ? Colors.white : Colors.grey.shade600,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16)),
+                elevation: canWithdraw ? 2 : 0,
+              ),
+              onPressed: canWithdraw ? _openWithdrawalSheet : null,
+              icon: const Icon(Icons.account_balance_outlined, size: 20),
+              label: Text(
+                hasAvailable
+                    ? 'طلب سحب (${s.availableBalance.toStringAsFixed(0)} جنيه)'
+                    : 'لا يوجد رصيد متاح للسحب',
+                style: const TextStyle(
+                    fontSize: 15, fontWeight: FontWeight.w900),
+              ),
+            ),
+          ),
+          if (!hasAccount && hasAvailable)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(
+                '* أضف حساب بنكي أولاً لتفعيل زر السحب',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 12, color: Colors.red.shade400),
+              ),
+            ),
         ],
       ),
     );
@@ -730,7 +809,196 @@ class _HostPayoutsPageState extends State<HostPayoutsPage>
     if (added != null) await _load();
   }
 
-  // ── Tab 3: History ──────────────────────────────────────
+  // ── Request Withdrawal bottom sheet ────────────────────
+  Future<void> _openWithdrawalSheet() async {
+    final done = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _WithdrawalRequestSheet(
+        availableBalance: _summary!.availableBalance,
+        accounts: _accounts,
+      ),
+    );
+    if (done == true) {
+      await _load();
+      _tabs.animateTo(2); // jump to السحوبات tab
+    }
+  }
+
+  // ── Tab 3: Withdrawals ──────────────────────────────────
+  Widget _withdrawalsTab() {
+    if (_withdrawals.isEmpty) {
+      return RefreshIndicator(
+        onRefresh: _load,
+        child: ListView(
+          padding: const EdgeInsets.all(32),
+          children: [
+            const SizedBox(height: 40),
+            Center(
+              child: Column(children: [
+                Container(
+                  width: 72,
+                  height: 72,
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.account_balance_outlined,
+                      size: 34, color: AppColors.primary),
+                ),
+                const SizedBox(height: 14),
+                Text('لا توجد طلبات سحب بعد',
+                    style: TextStyle(
+                        color: context.kText,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800)),
+                const SizedBox(height: 6),
+                Text('اضغط على "طلب سحب" من تبويب الأرصدة.',
+                    style: TextStyle(color: context.kSub, fontSize: 12.5)),
+              ]),
+            ),
+          ],
+        ),
+      );
+    }
+    return RefreshIndicator(
+      color: AppColors.primary,
+      onRefresh: _load,
+      child: ListView.separated(
+        padding: const EdgeInsets.fromLTRB(16, 18, 16, 24),
+        itemCount: _withdrawals.length,
+        separatorBuilder: (_, __) => const SizedBox(height: 12),
+        itemBuilder: (_, i) => _withdrawalTile(_withdrawals[i]),
+      ),
+    );
+  }
+
+  Widget _withdrawalTile(WithdrawalRequest w) {
+    final df = intl.DateFormat('dd/MM/yyyy HH:mm');
+    Color statusColor;
+    IconData statusIcon;
+    switch (w.status) {
+      case WithdrawalStatus.pendingAdminApproval:
+        statusColor = Colors.orange.shade700;
+        statusIcon = Icons.hourglass_top_rounded;
+        break;
+      case WithdrawalStatus.approved:
+      case WithdrawalStatus.disbursing:
+        statusColor = const Color(0xFF7E57C2);
+        statusIcon = Icons.sync_rounded;
+        break;
+      case WithdrawalStatus.completed:
+        statusColor = AppColors.primary;
+        statusIcon = Icons.check_circle_rounded;
+        break;
+      case WithdrawalStatus.rejected:
+      case WithdrawalStatus.failed:
+        statusColor = Colors.red.shade600;
+        statusIcon = Icons.cancel_rounded;
+        break;
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: context.kCard,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: context.kBorder),
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withValues(alpha: 0.03),
+              blurRadius: 10,
+              offset: const Offset(0, 4)),
+        ],
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Container(
+            width: 44, height: 44,
+            decoration: BoxDecoration(
+              color: statusColor.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(13),
+            ),
+            child: Icon(statusIcon, color: statusColor, size: 22),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('${w.amount.toStringAsFixed(0)} جنيه',
+                  style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w900,
+                      color: context.kText)),
+              Text(df.format(w.createdAt),
+                  style: TextStyle(fontSize: 11, color: context.kSub)),
+            ]),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(
+              color: statusColor.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Text(w.status.labelAr,
+                style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    color: statusColor)),
+          ),
+        ]),
+        if (w.bankSnapshot != null) ...[
+          const SizedBox(height: 12),
+          const Divider(height: 1),
+          const SizedBox(height: 10),
+          Row(children: [
+            Icon(Icons.account_balance_rounded,
+                size: 14, color: context.kSub),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                '${w.bankSnapshot!.accountName} · ${w.bankSnapshot!.displayDetail}',
+                style: TextStyle(fontSize: 12, color: context.kSub),
+              ),
+            ),
+          ]),
+        ],
+        if (w.adminNotes != null && w.adminNotes!.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: (w.status == WithdrawalStatus.rejected
+                      ? Colors.red
+                      : Colors.green)
+                  .withValues(alpha: 0.06),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Row(children: [
+              Icon(Icons.notes_rounded, size: 14, color: context.kSub),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text('ملاحظة الأدمن: ${w.adminNotes}',
+                    style: TextStyle(
+                        fontSize: 11.5, color: context.kSub, height: 1.4)),
+              ),
+            ]),
+          ),
+        ],
+        if (w.disburseRef != null) ...[
+          const SizedBox(height: 8),
+          Row(children: [
+            Icon(Icons.receipt_rounded, size: 14, color: context.kSub),
+            const SizedBox(width: 6),
+            Text('مرجع التحويل: ${w.disburseRef}',
+                style: TextStyle(fontSize: 11, color: context.kSub)),
+          ]),
+        ],
+      ]),
+    );
+  }
+
+  // ── Tab 4: History ──────────────────────────────────────
   Widget _historyTab() {
     if (_history.isEmpty) {
       return RefreshIndicator(
@@ -1002,6 +1270,274 @@ class _HostPayoutsPageState extends State<HostPayoutsPage>
   }
 }
 
+
+// ══════════════════════════════════════════════════════════════
+//  Bottom-sheet: request withdrawal
+// ══════════════════════════════════════════════════════════════
+class _WithdrawalRequestSheet extends StatefulWidget {
+  final double availableBalance;
+  final List<BankAccount> accounts;
+  const _WithdrawalRequestSheet({
+    required this.availableBalance,
+    required this.accounts,
+  });
+  @override
+  State<_WithdrawalRequestSheet> createState() =>
+      _WithdrawalRequestSheetState();
+}
+
+class _WithdrawalRequestSheetState
+    extends State<_WithdrawalRequestSheet> {
+  int? _selectedAccountId;
+  final _amountCtrl = TextEditingController();
+  bool _submitting = false;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    // Pre-fill with full available balance.
+    _amountCtrl.text = widget.availableBalance.toStringAsFixed(0);
+    // Default to the default account.
+    final def = widget.accounts
+        .where((a) => a.isDefault)
+        .map((a) => a.id)
+        .firstOrNull;
+    _selectedAccountId = def ?? widget.accounts.first.id;
+  }
+
+  @override
+  void dispose() {
+    _amountCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    final amount = double.tryParse(_amountCtrl.text.trim());
+    if (amount == null || amount <= 0) {
+      setState(() => _error = 'أدخل مبلغاً صحيحاً');
+      return;
+    }
+    if (amount > widget.availableBalance) {
+      setState(
+          () => _error = 'المبلغ أكبر من الرصيد المتاح');
+      return;
+    }
+    if (_selectedAccountId == null) {
+      setState(() => _error = 'اختر حساباً بنكياً');
+      return;
+    }
+    // Confirm dialog.
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('تأكيد طلب السحب',
+            style: TextStyle(fontWeight: FontWeight.w900)),
+        content: Text(
+            'سيتم طلب سحب ${amount.toStringAsFixed(0)} جنيه وإرساله للمراجعة. هل أنت متأكد؟'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('إلغاء')),
+          FilledButton(
+            style: FilledButton.styleFrom(
+                backgroundColor: AppColors.primary),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('تأكيد'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+
+    setState(() {
+      _submitting = true;
+      _error = null;
+    });
+    try {
+      await PayoutService.requestWithdrawal(
+        bankAccountId: _selectedAccountId!,
+        amount: amount,
+      );
+      if (mounted) {
+        Navigator.pop(context, true);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('تم إرسال طلب السحب بنجاح ✅'),
+            backgroundColor: AppColors.primary,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      setState(() {
+        _submitting = false;
+        _error = e.toString().replaceAll('Exception: ', '');
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: Container(
+        decoration: BoxDecoration(
+          color: context.kSheetBg,
+          borderRadius:
+              const BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const Text('طلب سحب أرباح',
+                style: TextStyle(
+                    fontSize: 18, fontWeight: FontWeight.w900)),
+            const SizedBox(height: 4),
+            Text(
+              'الرصيد المتاح: ${widget.availableBalance.toStringAsFixed(0)} جنيه',
+              style:
+                  TextStyle(color: context.kSub, fontSize: 12.5),
+            ),
+            const SizedBox(height: 20),
+
+            // Amount field
+            const Text('المبلغ (جنيه)',
+                style: TextStyle(
+                    fontSize: 13, fontWeight: FontWeight.w700)),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _amountCtrl,
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
+              decoration: InputDecoration(
+                hintText: '0',
+                prefixIcon: const Icon(Icons.payments_rounded,
+                    color: AppColors.primary),
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12)),
+                contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 14, vertical: 14),
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Account selector
+            const Text('حساب الاستلام',
+                style: TextStyle(
+                    fontSize: 13, fontWeight: FontWeight.w700)),
+            const SizedBox(height: 8),
+            ...widget.accounts.map((a) {
+              final sel = _selectedAccountId == a.id;
+              return GestureDetector(
+                onTap: () =>
+                    setState(() => _selectedAccountId = a.id),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 180),
+                  margin: const EdgeInsets.only(bottom: 8),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: sel
+                        ? AppColors.primary.withValues(alpha: 0.07)
+                        : context.kCard,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: sel
+                          ? AppColors.primary
+                          : context.kBorder,
+                      width: sel ? 1.8 : 1,
+                    ),
+                  ),
+                  child: Row(children: [
+                    Icon(
+                      a.type == BankAccountType.iban
+                          ? Icons.account_balance_rounded
+                          : a.type == BankAccountType.wallet
+                              ? Icons.phone_android_rounded
+                              : Icons.flash_on_rounded,
+                      color: sel
+                          ? AppColors.primary
+                          : context.kSub,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                          crossAxisAlignment:
+                              CrossAxisAlignment.start,
+                          children: [
+                            Text(a.accountName,
+                                style: TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 13,
+                                    color: context.kText)),
+                            Text(a.displayDetail,
+                                style: TextStyle(
+                                    fontSize: 11,
+                                    color: context.kSub)),
+                          ]),
+                    ),
+                    if (sel)
+                      const Icon(Icons.check_circle_rounded,
+                          color: AppColors.primary, size: 20),
+                  ]),
+                ),
+              );
+            }),
+
+            if (_error != null) ...[
+              const SizedBox(height: 8),
+              Text(_error!,
+                  style: const TextStyle(
+                      color: Colors.red,
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w600)),
+            ],
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: FilledButton(
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14)),
+                ),
+                onPressed: _submitting ? null : _submit,
+                child: _submitting
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white),
+                      )
+                    : const Text('إرسال الطلب',
+                        style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w900)),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
 // ══════════════════════════════════════════════════════════════
 //  Bottom-sheet: add bank account

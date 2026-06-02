@@ -20,6 +20,7 @@ class BookingService {
     required int guestsCount,
     String? promoCode,
     double walletAmount = 0,
+    String? contactPhone,
   }) async {
     final data = await _api.post('/bookings', {
       'property_id': propertyId,
@@ -29,7 +30,16 @@ class BookingService {
       if (promoCode != null && promoCode.trim().isNotEmpty)
         'promo_code': promoCode.trim(),
       if (walletAmount > 0) 'wallet_amount': walletAmount,
+      if (contactPhone != null && contactPhone.trim().isNotEmpty)
+        'contact_phone': contactPhone.trim(),
     });
+    return BookingModel.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// Fetch a single booking by ID.  The backend reveals [ownerContactPhone]
+  /// and [guestContactPhone] only when [paymentStatus] == 'paid'.
+  static Future<BookingModel> getBookingDetail(int id) async {
+    final data = await _api.get('/bookings/$id');
     return BookingModel.fromJson(data as Map<String, dynamic>);
   }
 

@@ -15,6 +15,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../services/chat_service.dart';
+import '../services/user_service.dart';
 import '../utils/api_client.dart';
 import '../utils/error_handler.dart';
 import '../widgets/constants.dart';
@@ -91,6 +92,33 @@ class _PhoneVerificationPageState extends State<PhoneVerificationPage> {
       setState(() => _error = ErrorHandler.getMessage(e));
     } catch (_) {
       setState(() => _error = 'تعذّر إرسال الكود. حاول مرة أخرى.');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _savePhoneOnly() async {
+    final raw = _phoneCtrl.text.trim();
+    if (raw.length < 6) {
+      setState(() => _error = 'ادخل رقم موبايل صحيح');
+      return;
+    }
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      await UserService.updateProfile({'phone': raw});
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        backgroundColor: AppColors.success,
+        content: Text('تم حفظ رقم الموبايل ✅'),
+      ));
+      Navigator.of(context).pop(true);
+    } on ApiException catch (e) {
+      setState(() => _error = ErrorHandler.getMessage(e));
+    } catch (_) {
+      setState(() => _error = 'تعذّر حفظ الرقم. حاول مرة أخرى.');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -225,7 +253,7 @@ class _PhoneVerificationPageState extends State<PhoneVerificationPage> {
               ),
               const SizedBox(height: 14),
 
-              if (!_codeSent)
+              if (!_codeSent) ...[
                 FilledButton(
                   onPressed: _loading ? null : _sendCode,
                   style: FilledButton.styleFrom(
@@ -245,6 +273,21 @@ class _PhoneVerificationPageState extends State<PhoneVerificationPage> {
                           style: TextStyle(
                               fontSize: 14, fontWeight: FontWeight.w800)),
                 ),
+                const SizedBox(height: 10),
+                OutlinedButton(
+                  onPressed: _loading ? null : _savePhoneOnly,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.textSecondary,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    side: const BorderSide(color: AppColors.border),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(AppRadius.md)),
+                  ),
+                  child: const Text('احفظ الرقم بدون توثيق',
+                      style: TextStyle(
+                          fontSize: 13, fontWeight: FontWeight.w700)),
+                ),
+              ],
 
               // ── Code field ─────────────────────────────────
               if (_codeSent) ...[

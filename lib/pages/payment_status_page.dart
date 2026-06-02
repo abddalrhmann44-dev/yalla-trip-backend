@@ -9,7 +9,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../models/booking_model.dart';
 import '../models/payment_model.dart';
+import '../services/booking_service.dart';
 import '../services/payment_service.dart';
 import '../utils/api_client.dart';
 import '../utils/error_handler.dart';
@@ -46,6 +48,7 @@ class PaymentStatusPage extends StatefulWidget {
 
 class _PaymentStatusPageState extends State<PaymentStatusPage> {
   PaymentStatus? _status;
+  BookingModel? _booking;
   String? _error;
   Timer? _poller;
   bool _firstLoad = true;
@@ -77,7 +80,11 @@ class _PaymentStatusPageState extends State<PaymentStatusPage> {
       });
       if (s.isTerminal) {
         _poller?.cancel();
-        if (s.state == PayState.paid) HapticFeedback.heavyImpact();
+        if (s.state == PayState.paid) {
+          HapticFeedback.heavyImpact();
+          // Fetch booking detail to reveal owner contact phone.
+          _fetchBookingContact(s.bookingId);
+        }
       }
     } on ApiException catch (e) {
       if (!mounted) return;
@@ -91,6 +98,16 @@ class _PaymentStatusPageState extends State<PaymentStatusPage> {
         _error = 'تعذر تحديث حالة الدفع';
         _firstLoad = false;
       });
+    }
+  }
+
+  Future<void> _fetchBookingContact(int bookingId) async {
+    try {
+      final b = await BookingService.getBookingDetail(bookingId);
+      if (!mounted) return;
+      setState(() => _booking = b);
+    } catch (_) {
+      // Non-critical — success screen still shows without phone.
     }
   }
 
@@ -185,10 +202,13 @@ class _PaymentStatusPageState extends State<PaymentStatusPage> {
   }
 
   // ── success ────────────────────────────────────────────────
-  Widget _buildSuccess(PaymentStatus s) => Column(
+  Widget _buildSuccess(PaymentStatus s) {
+    final ownerPhone = _booking?.ownerContactPhone;
+    return SingleChildScrollView(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Spacer(),
+          const SizedBox(height: 24),
           _circleIcon(Icons.check_rounded, _kGreen),
           const SizedBox(height: 20),
           Center(
@@ -211,9 +231,131 @@ class _PaymentStatusPageState extends State<PaymentStatusPage> {
           ),
           const SizedBox(height: 24),
           _amountCard(s, _kGreen),
-          const Spacer(),
+          const SizedBox(height: 16),
+          // Owner phone — shown only after payment is confirmed.
+          if (ownerPhone != null && ownerPhone.isNotEmpty)
+            _ownerPhoneCard(ownerPhone)
+          else if (_booking != null)
+            // Booking loaded but no phone on file.
+            _noPhoneNote(),
+          const SizedBox(height: 32),
           _primaryButton('الرجوع للرئيسية', _goHome),
+          const SizedBox(height: 24),
         ],
+      ),
+    );
+  }
+
+  Widget _ownerPhoneCard(String phone) => Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: const Color(0xFFE8F5E9),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: _kGreen.withValues(alpha: 0.4)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: _kGreen.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.phone_rounded,
+                    color: _kGreen, size: 20),
+              ),
+              const SizedBox(width: 10),
+              const Expanded(
+                child: Text(
+                  'رقم تليفون صاحب العقار',
+                  style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w900,
+                      color: Color(0xFF1B5E20)),
+                ),
+              ),
+            ]),
+            const SizedBox(height: 12),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                    color: _kGreen.withValues(alpha: 0.3)),
+              ),
+              child: Row(children: [
+                Expanded(
+                  child: Text(
+                    phone,
+                    style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 1.5,
+                        color: Color(0xFF1B5E20)),
+                  ),
+                ),
+                GestureDetector(
+                  onTap: () async {
+                    await Clipboard.setData(ClipboardData(text: phone));
+                    if (!mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: const Text('تم نسخ الرقم'),
+                        backgroundColor: _kGreen,
+                        behavior: SnackBarBehavior.floating,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                        margin: const EdgeInsets.all(16),
+                      ),
+                    );
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: _kGreen.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(Icons.copy_rounded,
+                        color: _kGreen, size: 18),
+                  ),
+                ),
+              ]),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              '🔒 ظهر هذا الرقم لأن دفعك اكتمل — لا تشاركه مع أحد',
+              style: TextStyle(
+                  fontSize: 11,
+                  color: Color(0xFF388E3C)),
+            ),
+          ],
+        ),
+      );
+
+  Widget _noPhoneNote() => Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: context.kCard,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: context.kBorder),
+        ),
+        child: Row(children: [
+          const Icon(Icons.info_outline_rounded,
+              color: Color(0xFFFF6B35), size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'صاحب العقار لم يضف رقم تليفون بعد — تواصل معه عبر الشات',
+              style: TextStyle(fontSize: 12, color: context.kSub),
+            ),
+          ),
+        ]),
       );
 
   // ── pending / processing ──────────────────────────────────

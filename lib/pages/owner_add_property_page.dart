@@ -32,12 +32,10 @@ const _kSteps = [
   _Step('02', 'الصور', '6 صور على الأقل — كل ما زادت زاد الحجز', '📸'),
   _Step('03', 'المعلومات الأساسية', 'الاسم والموقع والوصف', '📝'),
   _Step('04', 'تفاصيل العقار', 'الغرف والطاقة الاستيعابية', '🛏️'),
-  _Step('05', 'المرافق', 'اللي موجود جوا الوحدة', '✨'),
-  _Step('06', 'المنشآت', 'المزايا العامة للمجمع', '🏊'),
-  _Step('07', 'المناطق القريبة', 'إيه الموجود حواليك؟', '📍'),
-  _Step('08', 'التسعير', 'حدد أسعارك بنفسك', '💰'),
-  _Step('09', 'إعدادات الحجز', 'إزاي الضيوف يحجزوا', '⚙️'),
-  _Step('10', 'إثبات الهوية', 'تصوير البطاقة بالكاميرا فقط', '📇'),
+  _Step('05', 'المزايا والمرافق', 'المرافق الداخلية والمنشآت والأماكن القريبة', '✨'),
+  _Step('06', 'التسعير', 'حدد أسعارك بنفسك', '💰'),
+  _Step('07', 'إعدادات الحجز', 'إزاي الضيوف يحجزوا', '⚙️'),
+  _Step('08', 'توثيق الحساب', 'اختياري — تقدر تتخطى وتوثق بعدين', '📇'),
 ];
 
 class _PropType {
@@ -415,7 +413,7 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
         }
         return null;
 
-      case 1: // الصور — Wave 26: الحد الأدنى 6 صور والحد الأقصى 40
+      case 1: // الصور — الحد الأدنى 6 صور والحد الأقصى 40
         if (_pickedFiles.length < 6) {
           return 'أضف 6 صور على الأقل (المتبقي: ${6 - _pickedFiles.length})';
         }
@@ -433,13 +431,9 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
         if (_selLocation == null) {
           return 'اختار المنطقة';
         }
-        // Village name only matters for chalet/villa/hotel/resort.
-        // Day-use (beach + aqua park) and boats skip it because the
-        // listing IS the location itself.
         if (!_isDayLikePass && !_isBoat && _villageCtrl.text.trim().isEmpty) {
           return 'اكتب اسم القرية أو المجمع';
         }
-        // Wave 28: maps link is required (replaces detailed address).
         final link = _mapsLinkCtrl.text.trim();
         if (link.isEmpty) {
           return 'حط لينك الموقع من جوجل ماب';
@@ -457,31 +451,19 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
       case 3: // تفاصيل العقار — الـ counters دايماً ≥ 1 فمفيش validation
         return null;
 
-      case 4: // المرافق — اختار واحد على الأقل
+      case 4: // المزايا والمرافق — اختار مرفق داخلي واحد على الأقل
         if (_amenities.where((a) => a.selected).isEmpty) {
-          return 'اختار مرفق واحد على الأقل';
+          return 'اختار مرفق واحد على الأقل من المرافق الداخلية';
         }
         return null;
 
-      case 5: // المنشآت — اختياري بالكامل، مش مطلوب
-        return null;
-
-      case 6: // المناطق القريبة — اختياري
-        return null;
-
-      case 7: // التسعير — delegated to a dedicated method since the
-        // shape varies a lot per-category (boat / day-use / hotel /
-        // chalet) and we now also need to validate the optional
-        // limited-time offer block (Wave 28).
+      case 5: // التسعير
         return _validatePricingStep();
 
-      case 8: // إعدادات الحجز — دايماً كاملة (bookingMode له default)
+      case 6: // إعدادات الحجز — دايماً كاملة (bookingMode له default)
         return null;
 
-      case 9: // إثبات الهوية — آخر خطوة
-        if (_idFrontImage == null || _idBackImage == null) {
-          return 'لازم تصور البطاقة (وش + ظهر) بالكاميرا';
-        }
+      case 7: // توثيق الحساب — اختياري بالكامل
         return null;
 
       default:
@@ -894,9 +876,7 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
                 _buildStep2(),
                 _buildStep3(),
                 _buildStep4(),
-                _buildStep5(),
-                _buildStep6(),
-                _buildStep7(),
+                _buildCombinedAmenitiesStep(),
                 _buildStep8(),
                 _buildStep9(),
                 _buildStep10(),
@@ -1558,83 +1538,93 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
   }
 
   // ══════════════════════════════════════════════════════════
-  //  STEP 5 — AMENITIES (اختار واحد على الأقل)
+  //  STEP 5 — المزايا والمرافق (مدمج: مرافق + منشآت + قريبة)
   // ══════════════════════════════════════════════════════════
-  Widget _buildStep5() {
-    return ListView(padding: const EdgeInsets.all(20), children: [
-      Text('المرافق الداخلية',
-          style: TextStyle(
-              fontSize: 22, fontWeight: FontWeight.w900, color: context.kText)),
-      const SizedBox(height: 6),
-      _requiredLabel('اختار واحد على الأقل'),
-      const SizedBox(height: 16),
-      Wrap(
-        spacing: 10,
-        runSpacing: 10,
-        children: _amenities
-            .map((t) => GestureDetector(
-                  onTap: () => setState(() => t.selected = !t.selected),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 180),
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 8),
-                    decoration: BoxDecoration(
-                      color:
-                          t.selected ? _kOcean.withValues(alpha: 0.1) : context.kCard,
-                      borderRadius: BorderRadius.circular(30),
-                      border: Border.all(
-                          color: t.selected ? _kOcean : context.kBorder,
-                          width: t.selected ? 2 : 1.5),
-                    ),
-                    child: Row(mainAxisSize: MainAxisSize.min, children: [
-                      _uploadDot(t),
-                      Text(t.label,
-                          style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: t.selected ? _kOcean : context.kText)),
-                    ]),
-                  ),
-                ))
-            .toList(),
-      ),
-    ]);
-  }
-
-  // ══════════════════════════════════════════════════════════
-  //  STEP 6 — FACILITIES (الاختياريات مع "موصى به")
-  // ══════════════════════════════════════════════════════════
-  Widget _buildStep6() {
+  Widget _buildCombinedAmenitiesStep() {
     final recommended = _facilities.where((f) => f.recommended).toList();
     final regular = _facilities.where((f) => !f.recommended).toList();
 
+    Widget chipRow(List<_Toggle> items, Color activeColor) => Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: items
+              .map((t) => GestureDetector(
+                    onTap: () => setState(() => t.selected = !t.selected),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 180),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: t.selected
+                            ? activeColor.withValues(alpha: 0.1)
+                            : context.kCard,
+                        borderRadius: BorderRadius.circular(30),
+                        border: Border.all(
+                            color: t.selected ? activeColor : context.kBorder,
+                            width: t.selected ? 2 : 1.5),
+                      ),
+                      child: Row(mainAxisSize: MainAxisSize.min, children: [
+                        _uploadDot(t, activeColor: activeColor),
+                        Text(t.label,
+                            style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color:
+                                    t.selected ? activeColor : context.kText)),
+                      ]),
+                    ),
+                  ))
+              .toList(),
+        );
+
     return ListView(padding: const EdgeInsets.all(20), children: [
-      Text('منشآت المجمع',
+      Text('المزايا والمرافق',
           style: TextStyle(
               fontSize: 22, fontWeight: FontWeight.w900, color: context.kText)),
       const SizedBox(height: 6),
-      _optionalLabel('اختياري — اختار اللي موجود عندك'),
+      _requiredLabel('اختار مرفق داخلي واحد على الأقل'),
       const SizedBox(height: 16),
 
-      // Recommended section
+      // ── قسم 1: المرافق الداخلية ──
+      Text('المرافق الداخلية',
+          style: TextStyle(
+              fontSize: 15, fontWeight: FontWeight.w800, color: context.kText)),
+      const SizedBox(height: 10),
+      chipRow(_amenities, _kOcean),
+
+      const SizedBox(height: 20),
+      Divider(color: context.kBorder),
+      const SizedBox(height: 16),
+
+      // ── قسم 2: منشآت المجمع ──
+      Row(children: [
+        Text('منشآت المجمع',
+            style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w800,
+                color: context.kText)),
+        const SizedBox(width: 8),
+        _optionalLabel('اختياري'),
+      ]),
+      const SizedBox(height: 10),
       Container(
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: _kOrange.withValues(alpha: 0.05),
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(14),
           border: Border.all(color: _kOrange.withValues(alpha: 0.2)),
         ),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(children: [
-            const Text('⭐', style: TextStyle(fontSize: 16)),
+            const Text('⭐', style: TextStyle(fontSize: 14)),
             const SizedBox(width: 6),
-            const Text('موصى به — بيزيد الحجوزات كتير',
+            const Text('موصى به — بيزيد الحجوزات',
                 style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w800,
                     color: _kOrange)),
           ]),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           Wrap(
             spacing: 8,
             runSpacing: 8,
@@ -1660,7 +1650,8 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
                               style: TextStyle(
                                   fontSize: 12,
                                   fontWeight: FontWeight.w700,
-                                  color: t.selected ? _kOrange : context.kText)),
+                                  color:
+                                      t.selected ? _kOrange : context.kText)),
                           if (t.selected) ...[
                             const SizedBox(width: 4),
                             const Icon(Icons.check_circle_rounded,
@@ -1673,84 +1664,26 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
           ),
         ]),
       ),
+      const SizedBox(height: 10),
+      chipRow(regular, _kOcean),
 
+      const SizedBox(height: 20),
+      Divider(color: context.kBorder),
       const SizedBox(height: 16),
 
-      // Regular
-      Wrap(
-        spacing: 10,
-        runSpacing: 10,
-        children: regular
-            .map((t) => GestureDetector(
-                  onTap: () => setState(() => t.selected = !t.selected),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 180),
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 8),
-                    decoration: BoxDecoration(
-                      color:
-                          t.selected ? _kOcean.withValues(alpha: 0.1) : context.kCard,
-                      borderRadius: BorderRadius.circular(30),
-                      border: Border.all(
-                          color: t.selected ? _kOcean : context.kBorder,
-                          width: t.selected ? 2 : 1.5),
-                    ),
-                    child: Row(mainAxisSize: MainAxisSize.min, children: [
-                      _uploadDot(t),
-                      Text(t.label,
-                          style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: t.selected ? _kOcean : context.kText)),
-                    ]),
-                  ),
-                ))
-            .toList(),
-      ),
-    ]);
-  }
-
-  // ══════════════════════════════════════════════════════════
-  //  STEP 7 — NEARBY (اختياري)
-  // ══════════════════════════════════════════════════════════
-  Widget _buildStep7() {
-    return ListView(padding: const EdgeInsets.all(20), children: [
-      Text('المناطق القريبة',
-          style: TextStyle(
-              fontSize: 22, fontWeight: FontWeight.w900, color: context.kText)),
-      const SizedBox(height: 6),
-      _optionalLabel('اختياري'),
-      const SizedBox(height: 16),
-      Wrap(
-        spacing: 10,
-        runSpacing: 10,
-        children: _nearby
-            .map((t) => GestureDetector(
-                  onTap: () => setState(() => t.selected = !t.selected),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 180),
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 10),
-                    decoration: BoxDecoration(
-                      color:
-                          t.selected ? _kOcean.withValues(alpha: 0.1) : context.kCard,
-                      borderRadius: BorderRadius.circular(30),
-                      border: Border.all(
-                          color: t.selected ? _kOcean : context.kBorder,
-                          width: t.selected ? 2 : 1.5),
-                    ),
-                    child: Row(mainAxisSize: MainAxisSize.min, children: [
-                      _uploadDot(t),
-                      Text(t.label,
-                          style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: t.selected ? _kOcean : context.kText)),
-                    ]),
-                  ),
-                ))
-            .toList(),
-      ),
+      // ── قسم 3: المناطق القريبة ──
+      Row(children: [
+        Text('المناطق القريبة',
+            style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w800,
+                color: context.kText)),
+        const SizedBox(width: 8),
+        _optionalLabel('اختياري'),
+      ]),
+      const SizedBox(height: 10),
+      chipRow(_nearby, _kOcean),
+      const SizedBox(height: 8),
     ]);
   }
 
@@ -2204,56 +2137,58 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
   }
 
   // ══════════════════════════════════════════════════════════
-  //  STEP 10 — IDENTITY  (camera-only ID capture)
+  //  STEP 8 — توثيق الحساب (اختياري)
   // ══════════════════════════════════════════════════════════
   Widget _buildStep10() {
+    final bothDone = _idFrontImage != null && _idBackImage != null;
     return ListView(padding: const EdgeInsets.all(20), children: [
-      Text('إثبات الهوية',
+      Text('توثيق الحساب',
           style: TextStyle(
               fontSize: 22, fontWeight: FontWeight.w900, color: context.kText)),
       const SizedBox(height: 6),
-      _requiredLabel('تصوير البطاقة بالكاميرا فقط'),
+      _optionalLabel('اختياري — تقدر تنشر وترجع توثق بعدين'),
       const SizedBox(height: 16),
+
+      // Banner إعلامي بدل البنر الإجباري
       Container(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFFFF6B35), Color(0xFFE85A24)],
-          ),
-          borderRadius: BorderRadius.circular(18),
+          color: _kOcean.withValues(alpha: 0.06),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: _kOcean.withValues(alpha: 0.25)),
         ),
         child: Row(children: [
           Container(
-            width: 42,
-            height: 42,
+            width: 40,
+            height: 40,
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.18),
-              borderRadius: BorderRadius.circular(12),
+              color: _kOcean.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(10),
             ),
-            child: const Icon(Icons.verified_user_rounded,
-                color: Colors.white, size: 24),
+            child: Icon(Icons.verified_user_rounded, color: _kOcean, size: 22),
           ),
           const SizedBox(width: 12),
-          const Expanded(
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('خطوة أخيرة — تأمين حسابك',
+                Text('وثّق حسابك لتبني ثقة أكتر',
                     style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w900)),
-                SizedBox(height: 4),
+                        color: context.kText,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800)),
+                const SizedBox(height: 3),
                 Text(
-                  'محتاجين صورة بطاقتك القومية (وش + ظهر) — الصور بتتخزن مشفرة ومش بتظهر للضيوف نهائياً.',
+                  'العقارات الموثقة بتاخد أولوية في الظهور وبتزيد ثقة الضيوف.',
                   style: TextStyle(
-                      color: Colors.white70, fontSize: 12, height: 1.4),
+                      color: context.kSub, fontSize: 11.5, height: 1.4),
                 ),
               ],
             ),
           ),
         ]),
       ),
+
       const SizedBox(height: 18),
       _idCaptureCard(
         title: 'وش البطاقة',
@@ -2268,13 +2203,53 @@ class _OwnerAddPropertyPageState extends State<OwnerAddPropertyPage>
         picked: _idBackImage,
         onTap: () => _pickIdentityImage(isFront: false),
       ),
-      const SizedBox(height: 18),
+      const SizedBox(height: 14),
+
+      if (bothDone)
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: _kGreen.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: _kGreen.withValues(alpha: 0.3)),
+          ),
+          child: Row(children: [
+            Icon(Icons.check_circle_rounded, color: _kGreen, size: 18),
+            const SizedBox(width: 8),
+            Text('تمام! البطاقة محفوظة — اضغط "نشر العقار"',
+                style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: _kGreen)),
+          ]),
+        )
+      else
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: context.kSand,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: context.kBorder),
+          ),
+          child: Row(children: [
+            Icon(Icons.info_outline_rounded, color: context.kSub, size: 16),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'تقدر تتخطى دلوقتي وتوثق حسابك بعدين من الإعدادات.',
+                style: TextStyle(fontSize: 12, color: context.kSub),
+              ),
+            ),
+          ]),
+        ),
+
+      const SizedBox(height: 14),
       Row(children: [
-        Icon(Icons.lock_rounded, size: 14, color: context.kSub),
+        Icon(Icons.lock_rounded, size: 13, color: context.kSub),
         const SizedBox(width: 6),
         Expanded(
           child: Text(
-            'الصور بتتبعت لسيرفرات Talaa مباشرة بتشفير SSL 256-bit.',
+            'الصور بتتبعت لسيرفرات Talaa بتشفير SSL 256-bit ومش بتظهر للضيوف.',
             style: TextStyle(fontSize: 11, color: context.kSub),
           ),
         ),

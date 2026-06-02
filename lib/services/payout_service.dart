@@ -224,6 +224,8 @@ class PayoutModel {
 
 class HostPayoutSummary {
   final double pendingBalance;
+  /// Funds released ≥24 h after checkout — ready for owner to request.
+  final double availableBalance;
   final double queuedBalance;
   final double paidTotal;
   final DateTime? lastPaidAt;
@@ -231,6 +233,7 @@ class HostPayoutSummary {
 
   HostPayoutSummary({
     required this.pendingBalance,
+    required this.availableBalance,
     required this.queuedBalance,
     required this.paidTotal,
     required this.lastPaidAt,
@@ -240,12 +243,149 @@ class HostPayoutSummary {
   factory HostPayoutSummary.fromJson(Map<String, dynamic> j) =>
       HostPayoutSummary(
         pendingBalance: (j['pending_balance'] as num).toDouble(),
+        availableBalance: (j['available_balance'] as num? ?? 0).toDouble(),
         queuedBalance: (j['queued_balance'] as num).toDouble(),
         paidTotal: (j['paid_total'] as num).toDouble(),
         lastPaidAt: j['last_paid_at'] != null
             ? DateTime.parse(j['last_paid_at'] as String)
             : null,
         eligibleBookingCount: j['eligible_booking_count'] as int,
+      );
+}
+
+// ── Withdrawal Request ────────────────────────────────────────
+enum WithdrawalStatus {
+  pendingAdminApproval,
+  approved,
+  rejected,
+  disbursing,
+  completed,
+  failed,
+}
+
+extension WithdrawalStatusX on WithdrawalStatus {
+  String get labelAr {
+    switch (this) {
+      case WithdrawalStatus.pendingAdminApproval:
+        return 'بانتظار موافقة الأدمن';
+      case WithdrawalStatus.approved:
+        return 'موافق عليه';
+      case WithdrawalStatus.rejected:
+        return 'مرفوض';
+      case WithdrawalStatus.disbursing:
+        return 'جاري التحويل';
+      case WithdrawalStatus.completed:
+        return 'مكتمل ✅';
+      case WithdrawalStatus.failed:
+        return 'فشل التحويل';
+    }
+  }
+
+  /// Wire format sent to / received from the backend.
+  String get wireValue => switch (this) {
+        WithdrawalStatus.pendingAdminApproval => 'pending_admin_approval',
+        _ => name,
+      };
+
+  static WithdrawalStatus fromWire(String? s) => switch (s) {
+        'pending_admin_approval' => WithdrawalStatus.pendingAdminApproval,
+        'approved'   => WithdrawalStatus.approved,
+        'rejected'   => WithdrawalStatus.rejected,
+        'disbursing' => WithdrawalStatus.disbursing,
+        'completed'  => WithdrawalStatus.completed,
+        'failed'     => WithdrawalStatus.failed,
+        _            => WithdrawalStatus.pendingAdminApproval,
+      };
+
+  bool get isPending => this == WithdrawalStatus.pendingAdminApproval;
+  bool get isTerminal =>
+      this == WithdrawalStatus.completed ||
+      this == WithdrawalStatus.rejected ||
+      this == WithdrawalStatus.failed;
+}
+
+/// Snapshot of the bank account saved at withdrawal-request time so
+/// deleting the bank account later can never hide where money was sent.
+class BankSnapshot {
+  final String accountName;
+  final String? bankName;
+  final String? ibanMasked;
+  final String? walletPhone;
+  final String? instapayAddress;
+  final String type;
+
+  const BankSnapshot({
+    required this.accountName,
+    required this.type,
+    this.bankName,
+    this.ibanMasked,
+    this.walletPhone,
+    this.instapayAddress,
+  });
+
+  factory BankSnapshot.fromJson(Map<String, dynamic> j) => BankSnapshot(
+        accountName: j['account_name'] as String? ?? '',
+        type: j['type'] as String? ?? 'iban',
+        bankName: j['bank_name'] as String?,
+        ibanMasked: j['iban_masked'] as String?,
+        walletPhone: j['wallet_phone'] as String?,
+        instapayAddress: j['instapay_address'] as String?,
+      );
+
+  String get displayDetail {
+    switch (type) {
+      case 'wallet':
+        return '${bankName ?? 'محفظة'} · ${walletPhone ?? ''}';
+      case 'instapay':
+        return instapayAddress ?? '';
+      default:
+        return '${bankName ?? ''} · ${ibanMasked ?? ''}';
+    }
+  }
+}
+
+class WithdrawalRequest {
+  final int id;
+  final int ownerId;
+  final String? ownerName;
+  final double amount;
+  final WithdrawalStatus status;
+  final BankSnapshot? bankSnapshot;
+  final String? adminNotes;
+  final String? disburseRef;
+  final DateTime createdAt;
+  final DateTime? processedAt;
+
+  const WithdrawalRequest({
+    required this.id,
+    required this.ownerId,
+    this.ownerName,
+    required this.amount,
+    required this.status,
+    this.bankSnapshot,
+    this.adminNotes,
+    this.disburseRef,
+    required this.createdAt,
+    this.processedAt,
+  });
+
+  factory WithdrawalRequest.fromJson(Map<String, dynamic> j) =>
+      WithdrawalRequest(
+        id: j['id'] as int,
+        ownerId: j['owner_id'] as int,
+        ownerName: j['owner_name'] as String?,
+        amount: (j['amount'] as num).toDouble(),
+        status: WithdrawalStatusX.fromWire(j['status'] as String?),
+        bankSnapshot: j['bank_snapshot'] != null
+            ? BankSnapshot.fromJson(
+                j['bank_snapshot'] as Map<String, dynamic>)
+            : null,
+        adminNotes: j['admin_notes'] as String?,
+        disburseRef: j['disburse_ref'] as String?,
+        createdAt: DateTime.parse(j['created_at'] as String),
+        processedAt: j['processed_at'] != null
+            ? DateTime.parse(j['processed_at'] as String)
+            : null,
       );
 }
 
@@ -395,4 +535,61 @@ class PayoutService {
   /// the CSV — the current [ApiClient] only speaks JSON.
   static String adminCsvUrl(int payoutId) =>
       '${ApiClient.baseUrl}/payouts/admin/$payoutId/csv';
+
+  // ── Owner: withdrawal requests ───────────────────────────
+  /// Submit a withdrawal request.  Backend:
+  ///   • Atomically deducts [amount] from available_balance.
+  ///   • Saves bank snapshot from [bankAccountId].
+  ///   • Rejects if available_balance < amount or bank account missing.
+  static Future<WithdrawalRequest> requestWithdrawal({
+    required int bankAccountId,
+    required double amount,
+  }) async {
+    final res = await _api.post('/withdrawals', {
+      'bank_account_id': bankAccountId,
+      'amount': amount,
+    });
+    return WithdrawalRequest.fromJson(res as Map<String, dynamic>);
+  }
+
+  /// Owner's own withdrawal history.
+  static Future<List<WithdrawalRequest>> myWithdrawals(
+      {int limit = 50}) async {
+    final res = await _api.get('/withdrawals/me?limit=$limit');
+    return (res as List)
+        .map((e) => WithdrawalRequest.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  // ── Admin: withdrawal requests ───────────────────────────
+  static Future<List<WithdrawalRequest>> adminListWithdrawals({
+    WithdrawalStatus? status,
+    int limit = 100,
+  }) async {
+    final qp = <String, String>{'limit': '$limit'};
+    if (status != null) qp['status'] = status.wireValue;
+    final q = qp.entries.map((e) => '${e.key}=${e.value}').join('&');
+    final res = await _api.get('/withdrawals/admin?$q');
+    return (res as List)
+        .map((e) => WithdrawalRequest.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// Approve → backend triggers Paymob disbursement automatically.
+  static Future<WithdrawalRequest> adminApproveWithdrawal(int id,
+      {String? notes}) async {
+    final res = await _api.post('/withdrawals/admin/$id/approve', {
+      if (notes != null && notes.isNotEmpty) 'admin_notes': notes,
+    });
+    return WithdrawalRequest.fromJson(res as Map<String, dynamic>);
+  }
+
+  /// Reject → backend refunds amount back to available_balance.
+  static Future<WithdrawalRequest> adminRejectWithdrawal(int id,
+      {required String notes}) async {
+    final res = await _api.post('/withdrawals/admin/$id/reject', {
+      'admin_notes': notes,
+    });
+    return WithdrawalRequest.fromJson(res as Map<String, dynamic>);
+  }
 }

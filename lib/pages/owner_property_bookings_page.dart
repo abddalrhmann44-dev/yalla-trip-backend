@@ -505,9 +505,12 @@ class _OwnerPropertyBookingsPageState
         ]),
         children: [
           // Guest contact
-          if (b.guestPhone != null)
+          if (b.guestPhone != null && b.paymentStatus == 'paid')
             _infoRow(Icons.phone_rounded, 'هاتف الضيف', b.guestPhone!,
-                copyable: true),
+                copyable: true)
+          else if (b.guestPhone == null && b.paymentStatus == 'paid')
+            _infoRow(Icons.phone_disabled_rounded, 'هاتف الضيف',
+                'لم يُدخل الضيف رقمه'),
           const SizedBox(height: 10),
           // Financial breakdown
           const Text('التفاصيل المالية',
