@@ -851,6 +851,8 @@ async def legal_contact(
             <a href="{WHATSAPP_URL}">{SUPPORT_PHONE}</a></li>
         <li>📞 <strong>{"اتصال هاتفي" if is_ar else "Phone"}:</strong>
             <a href="tel:{SUPPORT_PHONE}">{SUPPORT_PHONE}</a></li>
+        <li>📍 <strong>{"العنوان" if is_ar else "Address"}:</strong>
+            {"القاهرة، مصر" if is_ar else "Cairo, Egypt"}</li>
       </ul>
     </section>
     <section class="section">
