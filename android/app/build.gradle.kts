@@ -19,8 +19,8 @@ plugins {
 
 android {
     namespace = "com.yallatrip.app"
-    compileSdk = 35
-    ndkVersion = "27.0.12077973"
+    compileSdk = 36
+    ndkVersion = "28.2.13676358"
 
     compileOptions {
         isCoreLibraryDesugaringEnabled = true
