@@ -18,44 +18,44 @@ dependencies:
   http: ^1.2.1
   http_parser: ^4.0.0
   shared_preferences: ^2.2.3
-  flutter_secure_storage: ^9.2.2
+  flutter_secure_storage: ^10.3.1
   flutter_jailbreak_detection: ^1.10.0
   provider: ^6.1.2
   cached_network_image: ^3.3.1
-  page_transition: ^2.1.0
+  page_transition: ^2.2.2
   email_validator: ^3.0.0
   shimmer: ^3.0.0
   google_sign_in: '>=6.2.1 <7.0.0'   # مقفول على v6 - v7 مش متوافق مع Firebase idToken
 
   # Firebase
-  firebase_core: ^4.6.0
-  firebase_auth: ^6.3.0
-  cloud_firestore: ^6.2.0
-  firebase_storage: ^13.2.0
-  url_launcher: ^6.2.5
-  webview_flutter: ^4.10.0
-  image_picker: ^1.1.2
+  firebase_core: ^4.10.0
+  firebase_auth: ^6.5.2
+  cloud_firestore: ^6.5.0
+  firebase_storage: ^13.4.2
+  url_launcher: ^6.3.2
+  webview_flutter: ^4.13.1
+  image_picker: ^1.2.2
   flutter_launcher_icons: ^0.14.4
-  flutter_native_splash: ^2.4.0
+  flutter_native_splash: ^2.4.7
   aws_s3_upload_lite: ^0.1.7
   path: ^1.9.0
   dotenv: ^4.2.0
 
-  firebase_messaging: ^16.1.3
+  firebase_messaging: ^16.3.0
   flutter_local_notifications: ^18.0.0
 
   # Error tracking
-  sentry_flutter: ^9.7.0
+  sentry_flutter: ^9.21.0
 
   flutter_localizations:
     sdk: flutter
-  connectivity_plus: ^7.1.0
-  package_info_plus: ^9.0.1
+  connectivity_plus: ^7.1.1
+  package_info_plus: ^10.1.0
   flutter_riverpod: ^2.6.1
   intl: ^0.20.2
   lottie: ^3.3.1
-  share_plus: ^10.1.2
-  app_links: ^6.3.3
+  share_plus: ^13.1.0
+  app_links: ^7.0.0
 
 dev_dependencies:
   flutter_test:

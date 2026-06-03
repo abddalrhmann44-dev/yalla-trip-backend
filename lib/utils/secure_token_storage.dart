@@ -19,7 +19,7 @@ class SecureTokenStorage {
   static const _migrationDoneKey = 'secure_tokens_migrated_v1';
 
   static const _storage = FlutterSecureStorage(
-    aOptions: AndroidOptions(encryptedSharedPreferences: true),
+    aOptions: AndroidOptions(),
     iOptions: IOSOptions(
       accessibility: KeychainAccessibility.first_unlock_this_device,
     ),

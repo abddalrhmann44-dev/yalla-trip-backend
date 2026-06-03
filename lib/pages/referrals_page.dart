@@ -54,7 +54,7 @@ class _ReferralsPageState extends State<ReferralsPage> {
 كودي: ${s.referralCode}
 ${s.referralLink}
 ''';
-    await Share.share(msg);
+    await SharePlus.instance.share(ShareParams(text: msg));
   }
 
   @override

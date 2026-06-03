@@ -65,7 +65,7 @@ class SharingService {
         : 'Check out this property on Talaa 👇\n$propertyName$priceLine\n$url';
 
     try {
-      final result = await Share.share(text, subject: propertyName);
+      final result = await SharePlus.instance.share(ShareParams(text: text, subject: propertyName));
       return result.status == ShareResultStatus.success;
     } on PlatformException {
       return false;
@@ -84,7 +84,7 @@ class SharingService {
         : 'Join me on Talaa and get a discount on your first trip 🎉\n$url';
 
     try {
-      final result = await Share.share(text);
+      final result = await SharePlus.instance.share(ShareParams(text: text));
       return result.status == ShareResultStatus.success;
     } on PlatformException {
       return false;
