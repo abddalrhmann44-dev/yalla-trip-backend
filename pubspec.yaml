@@ -19,7 +19,6 @@ dependencies:
   http_parser: ^4.0.0
   shared_preferences: ^2.2.3
   flutter_secure_storage: ^10.3.1
-  flutter_jailbreak_detection: ^1.10.0
   provider: ^6.1.2
   cached_network_image: ^3.3.1
   page_transition: ^2.2.2
@@ -39,7 +38,6 @@ dependencies:
   flutter_native_splash: ^2.4.7
   aws_s3_upload_lite: ^0.1.7
   path: ^1.9.0
-  dotenv: ^4.2.0
 
   firebase_messaging: ^16.3.0
   flutter_local_notifications: ^18.0.0

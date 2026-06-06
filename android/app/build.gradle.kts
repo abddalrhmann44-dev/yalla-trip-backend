@@ -35,7 +35,7 @@ android {
     defaultConfig {
         applicationId = "com.yallatrip.app"
         minSdk = flutter.minSdkVersion
-        targetSdk = flutter.targetSdkVersion
+        targetSdk = 36
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
@@ -49,17 +49,17 @@ android {
         }
     }
 
-    packaging {
-        jniLibs {
-            useLegacyPackaging = false
-        }
-    }
-
     buildTypes {
         release {
             signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = true
             isShrinkResources = true
+        }
+    }
+
+    packaging {
+        jniLibs {
+            useLegacyPackaging = false
         }
     }
 }
